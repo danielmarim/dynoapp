@@ -28,8 +28,16 @@ def ico(n, bg="var(--mint)"):
     return f'<div class="ico" style="background:{bg}" aria-hidden="true"><svg viewBox="0 0 24 24">{ICON[n]}</svg></div>'
 
 
-def page(path, title, desc, body, nav="", scripts="", noindex=False):
-    links = [("/", "Início"), ("/como-funciona", "Como funciona"), ("/precos", "Preços"), ("/duvidas", "Dúvidas")]
+APPNAV = f"""<nav class="nav nav-app" id="nav">
+    <a href="/funcionalidades">O que pedir</a><a href="/duvidas">Ajuda</a><a href="{WA}" rel="noopener">WhatsApp do Dyno</a>
+    <span class="user-chip" title="Conectado"><span class="av" id="u-av" aria-hidden="true">•</span><span id="u-nome">Minha área</span></span>
+    <button class="btn btn-dark btn-sm" id="sair">Sair</button>
+  </nav>"""
+LOGADOJS = """<script>(function(){try{var n=localStorage.getItem('dyno_nome');if(n===null)return;var a=document.getElementById('nav-entrar');if(!a)return;a.href='/conta';a.textContent='';var s=document.createElement('span');s.className='av';s.textContent=(n||'D').charAt(0).toUpperCase();a.appendChild(s);a.appendChild(document.createTextNode(' Minha área'));a.classList.add('logado');}catch(e){}})();</script>"""
+
+
+def page(path, title, desc, body, nav="", scripts="", noindex=False, app=False):
+    links = [("/", "Início"), ("/como-funciona", "Como funciona"), ("/funcionalidades", "Funcionalidades"), ("/precos", "Preços"), ("/duvidas", "Dúvidas")]
     navhtml = "".join(f'<a href="{h}"{" aria-current=page" if h == nav else ""}>{t}</a>' for h, t in links)
     html = f"""<!doctype html>
 <html lang="pt-BR">
@@ -43,18 +51,27 @@ def page(path, title, desc, body, nav="", scripts="", noindex=False):
 <meta property="og:description" content="{desc}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://dynoapp.com.br{path if path != '/index' else '/'}">
+<meta property="og:site_name" content="Dyno">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:image" content="https://dynoapp.com.br/og-dyno.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Logo do Dyno: círculo verde com a letra D">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://dynoapp.com.br/og-dyno.png?v=1">
 <meta name="theme-color" content="#1B1F3B">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=8">
+<link rel="stylesheet" href="/assets/site.css?v=9">
 </head>
 <body>
 <a class="sr" href="#conteudo">Pular para o conteúdo</a>
 <header class="top"><div class="wrap">
   <a class="brand" href="/" aria-label="Dyno, página inicial"><span class="mark">D</span>Dyno</a>
-  <nav class="nav" id="nav">{navhtml}<a class="btn btn-dark btn-sm" href="/entrar">Entrar</a></nav>
+  {APPNAV if app else f'<nav class="nav" id="nav">{navhtml}<a class="btn btn-dark btn-sm" href="/entrar" id="nav-entrar">Entrar</a></nav>'}
   <button class="menu-btn" aria-controls="nav" aria-expanded="false" onclick="var n=document.getElementById('nav');n.classList.toggle('open');this.setAttribute('aria-expanded',n.classList.contains('open'))">Menu</button>
 </div></header>
 <main id="conteudo">
@@ -62,11 +79,11 @@ def page(path, title, desc, body, nav="", scripts="", noindex=False):
 </main>
 <footer><div class="wrap">
   <div><a class="brand" href="/"><span class="mark">D</span>Dyno</a><p style="margin-top:12px;max-width:340px">Dyno e Dina, seus assessores pessoais no WhatsApp: o Dyno cuida do dinheiro e a Dina, da agenda e da rotina. Por texto, áudio ou foto.</p></div>
-  <div><b style="color:#fff">Produto</b><a href="/como-funciona">Como funciona</a><a href="/precos">Preços</a><a href="/duvidas">Dúvidas</a><a href="/entrar">Área do cliente</a></div>
+  <div><b style="color:#fff">Produto</b><a href="/como-funciona">Como funciona</a><a href="/funcionalidades">Funcionalidades</a><a href="/precos">Preços</a><a href="/duvidas">Dúvidas</a><a href="/entrar">Área do cliente</a></div>
   <div><b style="color:#fff">Contato</b><a href="{IG}" rel="noopener">Instagram @dynoapp.ia</a><a href="{WA}" rel="noopener">WhatsApp do Dyno</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a></div>
   <div class="copy">© 2026 Dyno · DM OBSERVAIT SOLUCOES EM TECNOLOGIA LTDA · CNPJ 65.176.391/0001-45 · Curitiba/PR · <a href="mailto:privacidade@dynoapp.com.br">privacidade@dynoapp.com.br</a>. Beta fechado; lançamento público previsto para 01/12/2026.</div>
 </div></footer>
-{scripts}
+{"" if app else LOGADOJS}{scripts}
 </body>
 </html>
 """
@@ -318,7 +335,7 @@ page("/entrar", "Entrar · Dyno", "Acesse a área do cliente do Dyno com um cód
     <p class="note" style="margin-top:22px">Ainda não é cliente? <a href="/precos">Veja como participar do Beta</a>.</p>
   </div>
 </div></section>
-""", scripts='<script src="/assets/entrar.js?v=1" defer></script>', noindex=True)
+""", scripts='<script src="/assets/entrar.js?v=2" defer></script>', noindex=True)
 
 
 # ---------- Beta ----------
@@ -356,7 +373,6 @@ page("/conta", "Minha área · Dyno", "Área do cliente do Dyno.", """
 <div class="app-head"><div class="wrap">
   <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
     <div><span class="kicker" style="color:var(--lime)">Área do cliente</span><h1 class="h" id="ola">Olá!</h1><p id="sub">Carregando seus dados…</p></div>
-    <button class="btn btn-ghost btn-sm" id="sair">Sair</button>
   </div>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" aria-controls="p-painel" id="t-painel">Painel</button>
@@ -374,7 +390,7 @@ page("/conta", "Minha área · Dyno", "Área do cliente do Dyno.", """
 <dialog id="viewer" class="viewer" aria-labelledby="v-t"><div class="v-head"><div><h3 id="v-t">Comprovante</h3><p id="v-s"></p></div><button class="btn btn-ghost btn-sm" id="v-x" aria-label="Fechar">Fechar</button></div><div id="v-c" class="v-c"></div><div class="actions"><a class="btn btn-primary btn-sm" id="v-b" download>Baixar</a></div></dialog>
 <dialog id="dlg"><h3 id="dlg-t"></h3><p id="dlg-p"></p><div class="actions"><button class="btn btn-ghost btn-sm" id="dlg-n">Voltar</button><button class="btn btn-primary btn-sm" id="dlg-s">Confirmar</button></div></dialog>
 <div class="toast" id="toast" role="status"></div>
-""", scripts='<script src="/assets/conta.js?v=3" defer></script>', noindex=True)
+""", scripts='<script src="/assets/conta.js?v=4" defer></script>', noindex=True, app=True)
 
 # ---------- 404 ----------
 page("/404", "Página não encontrada · Dyno", "Página não encontrada.", """
@@ -385,8 +401,14 @@ page("/404", "Página não encontrada · Dyno", "Página não encontrada.", """
 </div></section>
 """, noindex=True)
 
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "func_page.py"), encoding="utf-8").read())
+page("/funcionalidades", "Funcionalidades · Dyno e Dina no WhatsApp", "Tudo o que o Dyno e a Dina fazem no WhatsApp: gastos, contas, extratos, limites, lembretes que insistem, tarefas, listas e rotina.", func_body(), nav="/funcionalidades", scripts=FUNCJS)
+
 open(os.path.join(OUT, "favicon.svg"), "w").write('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#14B37D"/><text x="32" y="45" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="40" fill="#1B1F3B">D</text></svg>')
+import shutil
+for f in ("og-dyno.png", "apple-touch-icon.png"):
+    shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", f), os.path.join(OUT, f))
 open(os.path.join(OUT, "robots.txt"), "w").write("User-agent: *\nDisallow: /conta\nDisallow: /entrar\nDisallow: /api/\nSitemap: https://dynoapp.com.br/sitemap.xml\n")
-urls = ["", "beta", "como-funciona", "precos", "duvidas", "termos", "privacidade"]
+urls = ["", "beta", "como-funciona", "funcionalidades", "precos", "duvidas", "termos", "privacidade"]
 open(os.path.join(OUT, "sitemap.xml"), "w").write('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(f"<url><loc>https://dynoapp.com.br/{u}</loc></url>" for u in urls) + "</urlset>\n")
 print("ok")

@@ -52,7 +52,7 @@ No n8n (Header Auth): `Supabase_Dyno`, `evolution-dyno`, `anthropic-dyno`, `jev-
 |---|---|---|
 | YFgP2bYqeHbQc5t1 | WhatsApp (cérebro) | Atendimento: áudio, foto, PDF, IA, ações, resposta Dyno/Dina |
 | XRsXyav6ICD921Q8 | WhatsApp clientes (cadastro por convite) | Porta de entrada de toda mensagem; cadastro e repasse ao cérebro |
-| Xbdnisj9AjKJFYAF | Lembretes e mensagem das 6h | Lembretes a cada minuto (insistem 6x) + resumo 06:00 da família |
+| Xbdnisj9AjKJFYAF | Lembretes e mensagem das 6h | Lembretes a cada minuto (insistem a cada 30 min, até 6x, apagando o aviso anterior; ver `docs/LEMBRETES-INSISTENCIA.md`) + resumo 06:00 da família |
 | 9VTi7hePHvXOvYrW | Relatórios do dia e check-ins | 07:30, 10:00, 12:00, 14:12, 18:00 (Dina) e 21:00 (Dyno) |
 | Z2heNCM6hmMq0PZ0 | Resumo semanal individual | Domingo 20h, card em imagem (Dina). **Hoje só a família** |
 | qHNQDuOeWVg7EyZq | Dashboard financeiro (imagem) | Dashboard PNG sob pedido |

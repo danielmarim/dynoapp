@@ -72,7 +72,7 @@
     $('b2').disabled = true;
     api({ acao: 'entrar', whatsapp: numero, codigo: c }).then(function (r) {
       $('b2').disabled = false;
-      if (r.ok) { location.href = '/conta'; return; }
+      if (r.ok) { try { localStorage.setItem('dyno_nome', r.nome || ''); } catch (e) { } location.href = '/conta'; return; }
       msg(m2, 'err', ERROS[r.erro] || ERROS.codigo_invalido);
       $('cod').select();
     });

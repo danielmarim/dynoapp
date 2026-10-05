@@ -21,7 +21,8 @@
     return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
   }
   function toast(t) { var el = $('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(function () { el.style.display = 'none'; }, 3500); }
-  function sairPara401(r) { if (r._status === 401) { location.replace('/entrar'); return true; } return false; }
+  function esquecer() { try { localStorage.removeItem('dyno_nome'); } catch (e) { } }
+  function sairPara401(r) { if (r._status === 401) { esquecer(); location.replace('/entrar'); return true; } return false; }
   function confirmar(titulo, texto, botao) {
     return new Promise(function (ok) {
       var d = $('dlg'); $('dlg-t').textContent = titulo; $('dlg-p').textContent = texto; $('dlg-s').textContent = botao || 'Confirmar';
@@ -43,7 +44,7 @@
   }
   ABAS.forEach(function (k) { $('t-' + k).onclick = function () { aba(k); }; });
 
-  $('sair').onclick = function () { api({ acao: 'sair' }).then(function () { location.replace('/'); }); };
+  $('sair').onclick = function () { esquecer(); api({ acao: 'sair' }).then(function () { location.replace('/'); }); };
 
   // ---------- painel ----------
   function hbar(itens) {
@@ -179,6 +180,8 @@
       conta = c;
       var u = c.usuario || {};
       if (u.primeiro_nome) { $('ola').textContent = 'Olá, ' + u.primeiro_nome + '!'; document.title = 'Olá, ' + u.primeiro_nome + ' · Dyno'; }
+      try { localStorage.setItem('dyno_nome', u.primeiro_nome || ''); } catch (e) { }
+      if (u.primeiro_nome) { $('u-nome').textContent = u.primeiro_nome; $('u-av').textContent = u.primeiro_nome.charAt(0).toUpperCase(); }
       $('sub').textContent = u.plano === 'familia' ? 'Plano família' : ((STATUS[u.status] || [0, ''])[1] || '');
       renderConta(c);
     });
@@ -344,7 +347,7 @@
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'dyno' },
       body: JSON.stringify({ acao: 'arquivo', id: id })
     }).then(function (r) {
-      if (r.status === 401) { location.replace('/entrar'); throw new Error('sessao'); }
+      if (r.status === 401) { esquecer(); location.replace('/entrar'); throw new Error('sessao'); }
       if (!r.ok) throw new Error('arquivo');
       var cd = r.headers.get('content-disposition') || '';
       var m = cd.match(/filename="([^"]+)"/);
@@ -396,7 +399,7 @@
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'dyno' },
       body: JSON.stringify({ acao: 'zip', de: iv[0], ate: iv[1], ids: ids })
     }).then(function (r) {
-      if (r.status === 401) { location.replace('/entrar'); return; }
+      if (r.status === 401) { esquecer(); location.replace('/entrar'); return; }
       if (!r.ok) throw new Error('zip');
       return r.blob().then(function (b) {
         var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'comprovantes_' + iv[0] + '_a_' + iv[1] + '.zip';

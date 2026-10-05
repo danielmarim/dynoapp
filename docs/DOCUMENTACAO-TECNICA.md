@@ -9,7 +9,7 @@ O Dyno é um assessor pessoal que funciona só pelo WhatsApp. Ele já está em p
 O que ele faz hoje:
 
 - **Finanças:** registra gastos e receitas por texto, áudio, foto ou PDF. Também cuida de orçamentos por categoria com alertas de 80% e 100%, contas a pagar, assinaturas, parcelados, recebíveis, importação de extrato e fatura, e dashboard em imagem.
-- **Organização:** lembretes que insistem (a cada 10 min, até 6 vezes), tarefas, notas e listas, manutenção da casa e do carro, e busca de lugares perto.
+- **Organização:** lembretes que insistem (a cada 30 min, até 6 vezes, apagando o aviso anterior sem resposta), tarefas, notas e listas, manutenção da casa e do carro, e busca de lugares perto.
 - **Rotina automática:** resumo da manhã e relatórios das 12h, 18h e 21h, check-ins perguntando "esqueceu de registrar algo?", resumo semanal em imagem (domingo 20h) e mensagem das 6h para a família. A rotina fala com a voz da Dina, e o resumo das 21h, de gastos, com o Dyno.
 - **Conta do cliente:** cadastro por convite, 60 dias grátis, cobrança no Asaas, área do cliente no site e pedidos de LGPD pelo próprio WhatsApp.
 
@@ -691,7 +691,8 @@ Em 3 dias o Dyno saiu de um assistente da família para um produto multi-cliente
 | 03/10 | Extras | Notas, listas, parcelados, recebíveis, desfazer, Excel, tarefas por projeto |
 | 03/10 | Dashboard financeiro em imagem | PNG por período |
 | 02/10 | Agentes de contas, assinaturas, casa e carro | Lembretes automáticos e baixa com despesa |
-| 02/10 | Lembretes que insistem, orçamentos, resumo semanal, 6h | Insistência de 10 em 10 min, alertas de 80% e 100% |
+| 05/10 | Lembretes menos insistentes | Insistência a cada 30 min; o aviso anterior sem resposta é apagado para todos (ids em `dyno_lembretes.msg_id` e `msg_jid`) |
+| 02/10 | Lembretes que insistem, orçamentos, resumo semanal, 6h | Insistência inicial de 10 em 10 min, alertas de 80% e 100% |
 | 02/10 | MVP no ar | Cérebro com OpenAI, gastos por texto, áudio e foto, tarefas, memória |
 
 ## Roadmap: o que falta
