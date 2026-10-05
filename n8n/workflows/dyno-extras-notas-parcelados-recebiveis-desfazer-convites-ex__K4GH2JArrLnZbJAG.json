@@ -1,0 +1,1309 @@
+{
+  "name": "Dyno | Extras (notas, parcelados, recebíveis, desfazer, convites, Excel)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "9b291504-bc3c-450a-bd84-d0cdac7a394b",
+      "name": "Receber ação",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst GRUPO = '120363412854461070@g.us';\nconst NL = String.fromCharCode(10);\nconst agora = DateTime.now().setZone(TZ);\nconst hoje = agora.startOf('day');\nconst rows = n => { try { return $(n).all().map(i => i.json).filter(r => r && r.id != null); } catch (e) { return []; } };\nconst extras = rows('Carregar extras');\nconst txs = rows('Carregar transações');\nconst tarefas = rows('Carregar tarefas abertas');\nconst out = [];\nconst MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];\nconst norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9 ]/g, '').trim();\nconst cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;\nconst milhar = s => { let o = ''; for (let i = 0; i < s.length; i++) { if (i > 0 && (s.length - i) % 3 === 0) o += '.'; o += s[i]; } return o; };\nconst brl = v => { const n = Math.abs(Number(v || 0)).toFixed(2).split('.'); return (Number(v) < 0 ? '-' : '') + 'R$ ' + milhar(n[0]) + ',' + n[1]; };\nconst num = (v, d) => { if (v === null || v === undefined || v === '') return d; const n = Number(String(v).replace(',', '.')); return isNaN(n) ? d : n; };\nconst dados = r => { try { return JSON.parse(r.dados || '{}') || {}; } catch (e) { return {}; } };\nconst diaIso = v => { if (!v) return null; const d = DateTime.fromISO(String(v).slice(0, 10), { zone: TZ }); return d.isValid ? d.startOf('day') : null; };\nconst aut = r => r.autor || 'Daniel';\nconst msg = (numero, texto) => out.push({ json: { op: 'msg', numero, texto } });\nconst ins = (autor, tipo, titulo, texto, d, valor, data, status) => out.push({ json: { op: 'ins_extras', autor, tipo, titulo, texto: texto || '', dados: JSON.stringify(d || {}), valor: valor === undefined ? null : valor, data: data || null, status: status || 'ativa' } });\nconst upd = (r, ch) => { const base = { op: 'upd_extras', id: r.id, titulo: r.titulo, texto: r.texto || '', dados: r.dados || '{}', valor: r.valor === undefined ? null : r.valor, data: r.data || null, status: r.status || 'ativa' }; out.push({ json: Object.assign(base, ch) }); };\nconst dtx = v => DateTime.fromISO(String(v)).setZone(TZ);\n\nconst periodo = p0 => {\n  const p = String(p0 || 'mes').toLowerCase();\n  let ini, fim, rotulo;\n  if (p === 'mes_passado') { ini = agora.minus({ months: 1 }).startOf('month'); fim = agora.startOf('month').minus({ milliseconds: 1 }); rotulo = 'em ' + MESES[ini.month - 1] + ' de ' + ini.year; }\n  else if (p === 'semana') { ini = agora.startOf('week'); fim = agora.endOf('day'); rotulo = 'esta semana'; }\n  else if (p === 'ultimos_30' || p === '30d') { ini = agora.minus({ days: 29 }).startOf('day'); fim = agora.endOf('day'); rotulo = 'nos últimos 30 dias'; }\n  else if (p === 'ano') { ini = agora.startOf('year'); fim = agora.endOf('day'); rotulo = 'em ' + agora.year; }\n  else { ini = agora.startOf('month'); fim = agora.endOf('day'); rotulo = 'em ' + MESES[agora.month - 1] + ' de ' + agora.year; }\n  return { ini, fim, rotulo, chave: p };\n};\n\n// Lançamentos automáticos de parcelados e recorrentes\nconst rodar = r => {\n  const d = dados(r);\n  const lanc = [];\n  let prox = diaIso(r.data);\n  let guarda = 0;\n  while (prox && prox <= hoje && guarda < 24 && (d.total === null || d.total === undefined || (d.feitas || 0) < d.total)) {\n    d.feitas = (d.feitas || 0) + 1;\n    const rot = d.total ? ' (' + d.feitas + '/' + d.total + ')' : '';\n    out.push({ json: { op: 'ins_tx', movimento: d.movimento || 'despesa', valor: Number(r.valor), categoria: d.categoria || 'outros', descricao: r.titulo + rot, data: prox.set({ hour: 12 }).toUTC().toISO(), forma_pagamento: d.forma || '', autor: aut(r), comprovante_url: '' } });\n    lanc.push(r.titulo + rot + ' ' + brl(r.valor));\n    const nx = prox.plus({ months: 1 });\n    prox = nx.set({ day: Math.min(d.dia || prox.day, nx.daysInMonth) });\n    guarda++;\n  }\n  const fim = d.total !== null && d.total !== undefined && d.feitas >= d.total;\n  return { d, prox, lanc, fim };\n};\n\n// Tarefas em atraso\nconst diasAtraso = t => Math.round(hoje.diff(dtx(t.prazo).startOf('day'), 'days').days);\nconst atrasadasDe = (autor, projeto) => tarefas.filter(t => aut(t) === autor && t.prazo && diasAtraso(t) > 0 && (!projeto || norm(t.projeto) === norm(projeto)));\nconst textoAtrasadas = (lista, intro) => {\n  const ord = lista.slice().sort((a, b) => diasAtraso(b) - diasAtraso(a));\n  const n = ord.length;\n  let t = (intro || '') + n + (n === 1 ? ' tarefa em atraso' : ' tarefas em atraso') + ', a mais antiga há ' + diasAtraso(ord[0]) + (diasAtraso(ord[0]) === 1 ? ' dia.' : ' dias.');\n  for (const x of ord.slice(0, 6)) t += NL + '• ' + x.titulo + (x.projeto ? ' [' + x.projeto + ']' : '') + ' — há ' + diasAtraso(x) + 'd (' + dtx(x.prazo).toFormat('dd/LL') + ')';\n  if (n > 6) t += NL + '… e mais ' + (n - 6) + '.';\n  return t;\n};\n\nconst itens = [];\nfor (const it of $('Receber ação').all()) { if (it && it.json) itens.push(it.json); }\n\nfor (const it of itens) {\n  const numero = it.numero;\n  const autor = it.autor || 'Daniel';\n\n  // Rotina diária (09:30): parcelas/recorrentes vencidos e aviso de tarefas atrasadas\n  if (it.rotina) {\n    const porAutor = {};\n    for (const r of extras.filter(x => x.tipo === 'recorrente' && x.status === 'ativa')) {\n      const rr = rodar(r);\n      if (!rr.lanc.length) continue;\n      upd(r, { dados: JSON.stringify(rr.d), data: rr.prox ? rr.prox.toUTC().toISO() : r.data, status: rr.fim ? 'encerrada' : 'ativa' });\n      (porAutor[aut(r)] = porAutor[aut(r)] || []).push(...rr.lanc);\n    }\n    for (const [au, ls] of Object.entries(porAutor)) msg(GRUPO, au + ', lancei automaticamente hoje: ' + ls.join('; ') + '.');\n    const autores = Array.from(new Set(tarefas.map(aut)));\n    for (const au of autores) {\n      const l = atrasadasDe(au, null);\n      if (l.length) msg(GRUPO, textoAtrasadas(l, au + ', você tem '));\n    }\n    continue;\n  }\n\n  const a = it.a || {};\n  const t = String(a.tipo || '');\n\n  // ---------- Notas, listas e ideias ----------\n  if (t === 'nota') {\n    const op = String(a.op || 'ver');\n    const mine = extras.filter(r => aut(r) === autor && (r.tipo === 'nota' || r.tipo === 'ideia') && r.status !== 'apagada');\n    const nt = norm(a.titulo);\n    const achar = () => nt ? (mine.find(r => norm(r.titulo) === nt) || mine.find(r => norm(r.titulo).includes(nt) || nt.includes(norm(r.titulo)))) : null;\n    const lista = Array.isArray(a.itens) ? a.itens.map(x => String(x).trim()).filter(Boolean) : [];\n    const itensDe = r => Array.isArray(dados(r).itens) ? dados(r).itens : [];\n    const mostrar = r => {\n      const its = itensDe(r);\n      if (its.length) return '*' + r.titulo + '*' + NL + its.map(x => '• ' + x).join(NL);\n      return '*' + r.titulo + '*' + NL + (r.texto || '(vazia)');\n    };\n    if (op === 'criar' || op === 'adicionar') {\n      const r = achar();\n      if (r) {\n        const its = itensDe(r);\n        if (lista.length) {\n          const novos = lista.filter(x => !its.some(y => norm(y) === norm(x)));\n          const todos = its.concat(novos);\n          upd(r, { dados: JSON.stringify({ itens: todos }), status: 'ativa' });\n          msg(numero, 'Pronto. A lista *' + r.titulo + '* está com ' + todos.join(', ') + '.');\n        } else if (a.texto) {\n          upd(r, { texto: (r.texto ? r.texto + NL : '') + String(a.texto).slice(0, 2000), status: 'ativa' });\n          msg(numero, 'Anotei em *' + r.titulo + '*.');\n        } else msg(numero, 'O que você quer que eu adicione em *' + r.titulo + '*?');\n      } else if (lista.length) {\n        const titulo = String(a.titulo || 'Lista').slice(0, 80);\n        ins(autor, 'nota', titulo, '', { itens: lista }, null, null, 'ativa');\n        msg(numero, 'Anotei a lista *' + titulo + '*, com ' + lista.length + (lista.length === 1 ? ' item.' : ' itens.'));\n      } else if (a.texto) {\n        const titulo = String(a.titulo || String(a.texto).slice(0, 40)).slice(0, 80);\n        ins(autor, a.formato === 'nota' ? 'nota' : 'ideia', titulo, String(a.texto).slice(0, 2000), {}, null, null, 'ativa');\n        msg(numero, (a.formato === 'nota' ? 'Nota guardada: *' : 'Ideia guardada: *') + titulo + '*. Depois é só me perguntar sobre esse assunto.');\n      }\n    } else if (op === 'remover_item') {\n      const r = achar();\n      if (!r || !lista.length) { msg(numero, 'Não achei essa lista. Quer ver as suas?'); continue; }\n      const its = itensDe(r);\n      const resta = its.filter(x => !lista.some(y => norm(x).includes(norm(y)) && norm(y).length > 1));\n      upd(r, { dados: JSON.stringify({ itens: resta }) });\n      msg(numero, resta.length ? 'Tirei. A lista *' + r.titulo + '* ficou com ' + resta.join(', ') + '.' : 'Tirei. A lista *' + r.titulo + '* ficou vazia.');\n    } else if (op === 'apagar') {\n      const r = achar();\n      if (!r) { msg(numero, 'Não achei essa nota para apagar.'); continue; }\n      upd(r, { status: 'apagada' });\n      msg(numero, 'Apaguei *' + r.titulo + '*.');\n    } else if (op === 'buscar') {\n      const toks = norm(a.busca || a.titulo).split(' ').filter(x => x.length > 2);\n      const pont = mine.map(r => { const alvo = norm(r.titulo + ' ' + (r.texto || '') + ' ' + itensDe(r).join(' ')); let s = 0; for (const k of toks) if (alvo.includes(k) || alvo.includes(k.slice(0, Math.max(4, k.length - 2)))) s++; return { r, s }; }).filter(x => x.s > 0).sort((x, y) => y.s - x.s).slice(0, 5);\n      if (!pont.length) msg(numero, 'Não achei nada sobre isso nas suas notas e ideias.');\n      else msg(numero, 'Achei isso:' + NL + pont.map(x => '• *' + x.r.titulo + '* — ' + (itensDe(x.r).length ? itensDe(x.r).join(', ') : String(x.r.texto || '').slice(0, 140))).join(NL));\n    } else {\n      const r = achar();\n      if (r) msg(numero, mostrar(r));\n      else if (!nt && mine.length === 1) msg(numero, mostrar(mine[0]));\n      else if (!mine.length) msg(numero, 'Você ainda não tem listas nem ideias guardadas.');\n      else msg(numero, 'Suas notas:' + NL + mine.map(x => '• ' + x.titulo + (x.tipo === 'ideia' ? ' (ideia)' : '')).join(NL));\n    }\n    continue;\n  }\n\n  // ---------- Parcelados e recorrentes ----------\n  if (t === 'criar_recorrente') {\n    const valor = Math.abs(num(a.valor, 0));\n    const desc = String(a.descricao || '').trim().slice(0, 120);\n    if (!valor || !desc) { msg(numero, 'Para criar o lançamento automático preciso da descrição e do valor.'); continue; }\n    let total = (a.parcelas === null || a.parcelas === undefined || a.parcelas === '') ? null : Math.round(num(a.parcelas, 0));\n    if (total !== null) total = Math.max(1, Math.min(60, total));\n    const ja = Math.max(0, Math.round(num(a.ja_pagas, 0)));\n    const prim = diaIso(a.primeira_data) || hoje;\n    const row = { titulo: desc, valor, data: prim.toUTC().toISO(), autor, dados: JSON.stringify({ total, feitas: ja, movimento: a.movimento === 'receita' ? 'receita' : 'despesa', categoria: String(a.categoria || 'outros').toLowerCase(), forma: String(a.forma_pagamento || ''), dia: prim.day }) };\n    const rr = rodar(row);\n    ins(autor, 'recorrente', desc, '', rr.d, valor, rr.prox ? rr.prox.toUTC().toISO() : null, rr.fim ? 'encerrada' : 'ativa');\n    msg(numero, 'Combinado! *' + desc + '*: ' + brl(valor) + (total ? ' em ' + total + ' parcelas' : ' todo mês') + '.' + (rr.lanc.length ? ' Já lancei: ' + rr.lanc.join(', ') + '.' : '') + (rr.fim ? ' Todas as parcelas já estavam lançadas.' : ' Próximo lançamento automático em ' + rr.prox.toFormat('dd/LL/yyyy') + '.'));\n    continue;\n  }\n  if (t === 'cancelar_recorrente') {\n    const nt = norm(a.titulo);\n    const r = extras.find(x => x.tipo === 'recorrente' && aut(x) === autor && x.status === 'ativa' && nt && (norm(x.titulo).includes(nt) || nt.includes(norm(x.titulo))));\n    if (!r) { msg(numero, 'Não achei esse lançamento automático ativo.'); continue; }\n    upd(r, { status: 'cancelada' });\n    msg(numero, 'Cancelei o lançamento automático de *' + r.titulo + '*. O que já foi lançado continua no histórico.');\n    continue;\n  }\n  if (t === 'listar_recorrentes') {\n    const l = extras.filter(x => x.tipo === 'recorrente' && aut(x) === autor && x.status === 'ativa');\n    if (!l.length) { msg(numero, 'Você não tem parcelados nem recorrentes ativos.'); continue; }\n    msg(numero, 'Seus lançamentos automáticos:' + NL + l.map(r => { const d = dados(r); const falta = d.total ? (d.total - (d.feitas || 0)) + ' parcelas restantes' : 'sem fim'; return '• *' + r.titulo + '* — ' + brl(r.valor) + ', ' + falta + ', próximo ' + dtx(r.data).toFormat('dd/LL'); }).join(NL));\n    continue;\n  }\n\n  // ---------- Clientes e contas a receber ----------\n  if (t === 'cadastrar_cliente') {\n    const nome = String(a.nome || '').trim().slice(0, 120);\n    if (!nome) continue;\n    const ex = extras.find(x => x.tipo === 'cliente' && aut(x) === autor && norm(x.titulo) === norm(nome));\n    const d = { documento: String(a.documento || ''), papel: a.papel === 'fornecedor' ? 'fornecedor' : 'cliente', telefone: String(a.telefone || ''), obs: String(a.obs || '') };\n    if (ex) { upd(ex, { dados: JSON.stringify(Object.assign(dados(ex), d)) }); msg(numero, 'Atualizei o cadastro de *' + nome + '*.'); }\n    else { ins(autor, 'cliente', nome, '', d, null, null, 'ativa'); msg(numero, (d.papel === 'fornecedor' ? 'Fornecedor' : 'Cliente') + ' cadastrado: *' + nome + '*.'); }\n    continue;\n  }\n  if (t === 'criar_recebivel') {\n    const valor = Math.abs(num(a.valor, 0));\n    const dev = String(a.devedor || '').trim().slice(0, 120);\n    if (!valor || !dev) { msg(numero, 'Para anotar o que te devem preciso do nome e do valor.'); continue; }\n    const venc = diaIso(a.vencimento);\n    ins(autor, 'recebivel', dev, String(a.motivo || '').slice(0, 200), { origem: 'manual' }, valor, venc ? venc.toUTC().toISO() : null, 'aberto');\n    msg(numero, 'Anotado: *' + dev + '* te deve ' + brl(valor) + (a.motivo ? ' (' + a.motivo + ')' : '') + (venc ? ', vence em ' + venc.toFormat('dd/LL/yyyy') : '') + '.');\n    continue;\n  }\n  if (t === 'quem_deve') {\n    const ab = extras.filter(x => x.tipo === 'recebivel' && aut(x) === autor && x.status === 'aberto');\n    if (!ab.length) { msg(numero, 'Ninguém está te devendo nada por aqui.'); continue; }\n    const g = {};\n    for (const r of ab) { const k = r.titulo; g[k] = g[k] || { total: 0, atraso: 0 }; g[k].total += Number(r.valor) || 0; if (r.data) { const dd = Math.round(hoje.diff(dtx(r.data).startOf('day'), 'days').days); if (dd > g[k].atraso) g[k].atraso = dd; } }\n    const ls = Object.entries(g).sort((x, y) => y[1].total - x[1].total);\n    const tot = ls.reduce((s, x) => s + x[1].total, 0);\n    msg(numero, 'Te devem ' + brl(tot) + ':' + NL + ls.map(x => '• *' + x[0] + '* — ' + brl(x[1].total) + (x[1].atraso > 0 ? ' (atrasado há ' + x[1].atraso + ' dias)' : '')).join(NL));\n    continue;\n  }\n  if (t === 'receber_recebivel') {\n    const nd = norm(a.devedor);\n    const ab = extras.filter(x => x.tipo === 'recebivel' && aut(x) === autor && x.status === 'aberto' && nd && (norm(x.titulo).includes(nd) || nd.includes(norm(x.titulo)))).sort((x, y) => x.id - y.id);\n    if (!ab.length) { msg(numero, 'Não achei nada em aberto com esse nome.'); continue; }\n    let resta = Math.abs(num(a.valor, 0)) || ab.reduce((s, x) => s + Number(x.valor), 0);\n    const recebido = resta;\n    for (const r of ab) {\n      if (resta <= 0) break;\n      const v = Number(r.valor) || 0;\n      if (resta >= v - 0.005) { upd(r, { status: 'pago', data: r.data }); resta -= v; }\n      else { upd(r, { valor: Math.round((v - resta) * 100) / 100 }); resta = 0; }\n    }\n    out.push({ json: { op: 'ins_tx', movimento: 'receita', valor: recebido, categoria: 'recebimentos', descricao: 'Recebido de ' + ab[0].titulo, data: agora.toUTC().toISO(), forma_pagamento: String(a.forma_pagamento || ''), autor, comprovante_url: '' } });\n    msg(numero, 'Baixei ' + brl(recebido) + ' de *' + ab[0].titulo + '* e lancei como receita.');\n    continue;\n  }\n  if (t === 'consultar_cliente') {\n    const nm = norm(a.nome);\n    if (!nm) continue;\n    const p = periodo(a.periodo);\n    const rel = txs.filter(x => aut(x) === autor && norm(x.descricao).includes(nm) && dtx(x.data) >= p.ini && dtx(x.data) <= p.fim);\n    const rec = rel.filter(x => x.tipo === 'receita');\n    const des = rel.filter(x => x.tipo !== 'receita');\n    const soma = l => l.reduce((s, x) => s + Number(x.valor || 0), 0);\n    const ab = extras.filter(x => x.tipo === 'recebivel' && aut(x) === autor && x.status === 'aberto' && norm(x.titulo).includes(nm));\n    const cad = extras.find(x => x.tipo === 'cliente' && aut(x) === autor && (norm(x.titulo).includes(nm) || nm.includes(norm(x.titulo))));\n    const nomeShow = cad ? cad.titulo : cap(String(a.nome));\n    const partes = [];\n    if (rec.length) partes.push('Você recebeu ' + brl(soma(rec)) + ' de *' + nomeShow + '* ' + p.rotulo + ', em ' + rec.length + (rec.length === 1 ? ' pagamento.' : ' pagamentos.'));\n    if (des.length) partes.push('E pagou ' + brl(soma(des)) + ' a *' + nomeShow + '* no período, em ' + des.length + (des.length === 1 ? ' lançamento.' : ' lançamentos.'));\n    if (!partes.length) partes.push('Não encontrei lançamentos de *' + nomeShow + '* ' + p.rotulo + '. (Eu procuro o nome na descrição do lançamento.)');\n    if (ab.length) partes.push('Ainda tem ' + brl(soma(ab)) + ' em aberto dele(a).');\n    msg(numero, partes.join(' '));\n    continue;\n  }\n\n  // ---------- Desfazer / editar último lançamento (24h) ----------\n  if (t === 'desfazer_ultimo' || t === 'editar_ultimo') {\n    const mine = txs.filter(x => aut(x) === autor && x.createdAt && agora.diff(dtx(x.createdAt), 'hours').hours <= 24).sort((x, y) => Number(y.id) - Number(x.id));\n    if (!mine.length) { msg(numero, 'Não achei nenhum lançamento seu nas últimas 24 horas para ' + (t === 'desfazer_ultimo' ? 'desfazer.' : 'ajustar.')); continue; }\n    const l = mine[0];\n    const resumo = (l.tipo === 'receita' ? 'receita' : 'despesa') + ' de ' + brl(l.valor) + ' em ' + (l.categoria || 'outros') + (l.descricao ? ' (' + l.descricao + ')' : '');\n    if (t === 'desfazer_ultimo') {\n      out.push({ json: { op: 'del_tx', id: l.id, autor } });\n      msg(numero, 'Desfeito: ' + resumo + '.');\n    } else {\n      const novo = { id: l.id, autor, tipo: a.movimento === 'receita' || a.movimento === 'despesa' ? a.movimento : l.tipo, valor: Math.abs(num(a.valor, Number(l.valor))), categoria: a.categoria ? String(a.categoria).toLowerCase() : l.categoria, descricao: a.descricao ? String(a.descricao) : (l.descricao || ''), data: a.data && DateTime.fromISO(String(a.data)).isValid ? DateTime.fromISO(String(a.data), { zone: TZ }).toUTC().toISO() : l.data, forma_pagamento: a.forma_pagamento ? String(a.forma_pagamento) : (l.forma_pagamento || '') };\n      out.push({ json: Object.assign({ op: 'upd_tx' }, novo) });\n      msg(numero, 'Ajustei: agora é ' + (novo.tipo === 'receita' ? 'receita' : 'despesa') + ' de ' + brl(novo.valor) + ' em ' + (novo.categoria || 'outros') + (novo.descricao ? ' (' + novo.descricao + ')' : '') + '.');\n    }\n    continue;\n  }\n\n  // ---------- Convites ----------\n  if (t === 'gerar_convite') {\n    const alfa = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';\n    let cod = 'DYNO-';\n    for (let i = 0; i < 6; i++) cod += alfa.charAt(Math.floor(Math.random() * alfa.length));\n    const exp = hoje.plus({ days: 7 });\n    ins(autor, 'convite', cod, '', { para: String(a.nome || '') }, null, exp.toUTC().toISO(), 'aberto');\n    msg(numero, 'Convite criado: *' + cod + '*' + (a.nome ? ' (para ' + a.nome + ')' : '') + '. Vale até ' + exp.toFormat('dd/LL/yyyy') + '. Quem receber usa esse código para entrar na sua conta, sem pagar a mais.');\n    continue;\n  }\n  if (t === 'listar_convites') {\n    const l = extras.filter(x => x.tipo === 'convite' && aut(x) === autor && x.status === 'aberto' && (!x.data || dtx(x.data) >= hoje));\n    msg(numero, l.length ? 'Convites abertos:' + NL + l.map(x => '• *' + x.titulo + '*' + (dados(x).para ? ' (' + dados(x).para + ')' : '') + ' — até ' + dtx(x.data).toFormat('dd/LL')).join(NL) : 'Você não tem convites abertos.');\n    continue;\n  }\n  if (t === 'revogar_convite') {\n    const cod = String(a.codigo || '').toUpperCase().trim();\n    const r = extras.find(x => x.tipo === 'convite' && aut(x) === autor && x.titulo === cod && x.status === 'aberto');\n    if (!r) { msg(numero, 'Não achei esse convite aberto.'); continue; }\n    upd(r, { status: 'revogado' });\n    msg(numero, 'Convite *' + cod + '* cancelado.');\n    continue;\n  }\n  if (t === 'resgatar_convite') {\n    const cod = String(a.codigo || '').toUpperCase().trim();\n    const r = extras.find(x => x.tipo === 'convite' && x.titulo === cod && x.status === 'aberto' && (!x.data || dtx(x.data) >= hoje));\n    if (!r) { msg(numero, 'Esse código de convite não existe, já foi usado ou expirou.'); continue; }\n    upd(r, { status: 'usado', dados: JSON.stringify(Object.assign(dados(r), { usado_por: String(a.nome || ''), numero, em: agora.toISO() })) });\n    ins(r.autor || 'Daniel', 'participante', String(a.nome || numero), numero, { convite: cod }, null, agora.toUTC().toISO(), 'ativo');\n    msg(numero, 'Prontinho' + (a.nome ? ', ' + a.nome : '') + '! Sua conta foi conectada à de ' + (r.autor || 'Daniel') + '.');\n    continue;\n  }\n\n  // ---------- Relatório em Excel (+ dashboard em imagem) ----------\n  if (t === 'relatorio_excel') {\n    const p = periodo(a.periodo);\n    const mine = txs.filter(x => aut(x) === autor && dtx(x.data) >= p.ini && dtx(x.data) <= p.fim).sort((x, y) => dtx(x.data).toMillis() - dtx(y.data).toMillis());\n    if (!mine.length) { msg(numero, 'Não encontrei lançamentos seus ' + p.rotulo + ' para montar o relatório.'); continue; }\n    const linhas = mine.map(x => ({ 'Data': dtx(x.data).toFormat('dd/LL/yyyy'), 'Descrição': x.descricao || '', 'Categoria': cap(String(x.categoria || 'outros')), 'Tipo': x.tipo === 'receita' ? 'Receita' : 'Despesa', 'Forma de pagamento': x.forma_pagamento || '', 'Valor': Number(Number(x.valor || 0).toFixed(2)) }));\n    const totD = mine.filter(x => x.tipo !== 'receita').reduce((s, x) => s + Number(x.valor || 0), 0);\n    const totR = mine.filter(x => x.tipo === 'receita').reduce((s, x) => s + Number(x.valor || 0), 0);\n    linhas.push({ 'Data': '', 'Descrição': '', 'Categoria': '', 'Tipo': '', 'Forma de pagamento': '', 'Valor': '' });\n    linhas.push({ 'Data': '', 'Descrição': 'TOTAL DE DESPESAS', 'Categoria': '', 'Tipo': '', 'Forma de pagamento': '', 'Valor': Number(totD.toFixed(2)) });\n    linhas.push({ 'Data': '', 'Descrição': 'TOTAL DE RECEITAS', 'Categoria': '', 'Tipo': '', 'Forma de pagamento': '', 'Valor': Number(totR.toFixed(2)) });\n    linhas.push({ 'Data': '', 'Descrição': 'SALDO', 'Categoria': '', 'Tipo': '', 'Forma de pagamento': '', 'Valor': Number((totR - totD).toFixed(2)) });\n    out.push({ json: { op: 'excel', numero, autor, linhas, caption: '📎 Relatório (Excel) ' + p.rotulo + NL + mine.length + ' lançamentos · Despesas ' + brl(totD) + ' · Receitas ' + brl(totR) } });\n    out.push({ json: { op: 'dash', numero, autor, periodo: p.chave } });\n    continue;\n  }\n\n  // ---------- Tarefas: projeto e atrasadas ----------\n  if (t === 'definir_projeto') {\n    const id = Number(a.id);\n    const r = tarefas.find(x => Number(x.id) === id && aut(x) === autor);\n    if (!r) { msg(numero, 'Não achei essa tarefa.'); continue; }\n    const proj = String(a.projeto || '').trim().slice(0, 80);\n    out.push({ json: { op: 'upd_tarefa', id, autor, projeto: proj } });\n    msg(numero, proj ? 'Coloquei *' + r.titulo + '* no projeto *' + proj + '*.' : 'Tirei *' + r.titulo + '* do projeto.');\n    continue;\n  }\n  if (t === 'ver_tarefas') {\n    const proj = a.projeto ? String(a.projeto) : null;\n    if (proj) {\n      const l = tarefas.filter(x => aut(x) === autor && norm(x.projeto) === norm(proj));\n      if (!l.length) { msg(numero, 'Não achei tarefas abertas no projeto *' + proj + '*.'); continue; }\n      const atr = l.filter(x => x.prazo && diasAtraso(x) > 0).length;\n      msg(numero, 'Projeto *' + proj + '*: ' + l.length + ' abertas' + (atr ? ', ' + atr + ' em atraso' : '') + '.' + NL + l.slice(0, 10).map(x => '• ' + x.titulo + (x.prazo ? ' — ' + (diasAtraso(x) > 0 ? 'atrasada há ' + diasAtraso(x) + 'd' : 'prazo ' + dtx(x.prazo).toFormat('dd/LL')) : '')).join(NL));\n    } else {\n      const l = atrasadasDe(autor, null);\n      msg(numero, l.length ? textoAtrasadas(l, 'Você tem ') : 'Nenhuma tarefa em atraso. 👏');\n    }\n    continue;\n  }\n}\nreturn out;\n"
+      },
+      "id": "bcb50efb-0f56-4429-914b-1371afd94557",
+      "name": "Processar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_extras",
+          "mode": "id",
+          "value": "mJnt4Rop3vW3pcGI"
+        },
+        "matchType": "allConditions",
+        "returnAll": true
+      },
+      "id": "91675f55-f7ac-4fb4-aa1f-065268ff1463",
+      "name": "Carregar extras",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        304
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_transacoes",
+          "mode": "id",
+          "value": "czjKVg7HFjMKNpAq"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "data",
+              "condition": "gte",
+              "keyValue": "={{ $now.minus({ days: 400 }).toISO() }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "e11ce7b8-c752-486c-82d4-4cf5c93b5cd3",
+      "name": "Carregar transações",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        304
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_tarefas",
+          "mode": "id",
+          "value": "LnRebLLXT3hHXXVT"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "keyValue": "aberta"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "812d1f97-e4f4-4547-8330-b0700cfa410f",
+      "name": "Carregar tarefas abertas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        304
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "msg"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "msg"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "ins_extras"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "ins_extras"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "upd_extras"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "upd_extras"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "ins_tx"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "ins_tx"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "upd_tx"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "upd_tx"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "del_tx"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "del_tx"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "upd_tarefa"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "upd_tarefa"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "excel"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "excel"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "dash"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "dash"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2b187fb3-91b1-4b2f-95fd-7d88387b4357",
+      "name": "Rotear",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1104,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_URL }}/message/sendText/pesquisa-aereo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: \"​*Dyno:* \" + $json.texto, delay: 600 }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "5d64c141-b948-40e1-a60e-19761a609a98",
+      "name": "Enviar texto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1344,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "z2JC1dDh1D3EEQ2b",
+          "name": "Evolution pesquisa-aereo"
+        }
+      },
+      "disabled": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_extras",
+          "mode": "id",
+          "value": "mJnt4Rop3vW3pcGI"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "autor",
+              "id": "autor",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "tipo",
+              "id": "tipo",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "titulo",
+              "id": "titulo",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "texto",
+              "id": "texto",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "dados",
+              "id": "dados",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "valor",
+              "id": "valor",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "data",
+              "id": "data",
+              "required": false,
+              "type": "dateTime"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "status",
+              "id": "status",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "autor": "={{ $json.autor }}",
+            "dados": "={{ $json.dados }}",
+            "data": "={{ $json.data || null }}",
+            "status": "={{ $json.status }}",
+            "texto": "={{ $json.texto }}",
+            "tipo": "={{ $json.tipo }}",
+            "titulo": "={{ $json.titulo }}",
+            "valor": "={{ $json.valor }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "d899578f-75b8-4091-a420-104e84af0092",
+      "name": "Inserir extras",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_extras",
+          "mode": "id",
+          "value": "mJnt4Rop3vW3pcGI"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "titulo",
+              "id": "titulo",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "texto",
+              "id": "texto",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "dados",
+              "id": "dados",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "valor",
+              "id": "valor",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "data",
+              "id": "data",
+              "required": false,
+              "type": "dateTime"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "status",
+              "id": "status",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "dados": "={{ $json.dados }}",
+            "data": "={{ $json.data || null }}",
+            "status": "={{ $json.status }}",
+            "texto": "={{ $json.texto }}",
+            "titulo": "={{ $json.titulo }}",
+            "valor": "={{ $json.valor }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "fe8e1d3f-8f42-4135-b7fa-a4aa419248c1",
+      "name": "Atualizar extras",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_transacoes",
+          "mode": "id",
+          "value": "czjKVg7HFjMKNpAq"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "tipo",
+              "id": "tipo",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "valor",
+              "id": "valor",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "categoria",
+              "id": "categoria",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "descricao",
+              "id": "descricao",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "data",
+              "id": "data",
+              "required": false,
+              "type": "dateTime"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "forma_pagamento",
+              "id": "forma_pagamento",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "autor",
+              "id": "autor",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "comprovante_url",
+              "id": "comprovante_url",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "autor": "={{ $json.autor }}",
+            "categoria": "={{ $json.categoria }}",
+            "comprovante_url": "={{ $json.comprovante_url }}",
+            "data": "={{ $json.data }}",
+            "descricao": "={{ $json.descricao }}",
+            "forma_pagamento": "={{ $json.forma_pagamento }}",
+            "tipo": "={{ $json.movimento }}",
+            "valor": "={{ $json.valor }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "53d3ef03-86ac-42a6-9c36-d937539ad144",
+      "name": "Inserir transação",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_transacoes",
+          "mode": "id",
+          "value": "czjKVg7HFjMKNpAq"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $json.autor }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "tipo",
+              "id": "tipo",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "valor",
+              "id": "valor",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "categoria",
+              "id": "categoria",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "descricao",
+              "id": "descricao",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "data",
+              "id": "data",
+              "required": false,
+              "type": "dateTime"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "forma_pagamento",
+              "id": "forma_pagamento",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "categoria": "={{ $json.categoria }}",
+            "data": "={{ $json.data }}",
+            "descricao": "={{ $json.descricao }}",
+            "forma_pagamento": "={{ $json.forma_pagamento }}",
+            "tipo": "={{ $json.tipo }}",
+            "valor": "={{ $json.valor }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "aee0ad40-f3e5-4855-9814-f4f94969ae46",
+      "name": "Atualizar transação",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_transacoes",
+          "mode": "id",
+          "value": "czjKVg7HFjMKNpAq"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $json.autor }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9b6e3089-cfe6-4b55-8764-625497893d7c",
+      "name": "Apagar transação",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_tarefas",
+          "mode": "id",
+          "value": "LnRebLLXT3hHXXVT"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $json.autor }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "projeto",
+              "id": "projeto",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "projeto": "={{ $json.projeto }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "4e12239a-2024-4719-b19a-60cc64350588",
+      "name": "Atualizar tarefa (projeto)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const it = $input.first().json;\nreturn (it.linhas || []).map(l => ({ json: l }));"
+      },
+      "id": "5db81d7f-907f-484d-bda7-345cf396b97a",
+      "name": "Linhas da planilha",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "relatorio-dyno.xlsx",
+          "sheetName": "Lançamentos"
+        }
+      },
+      "id": "8c2c8f5e-6bc2-4c97-b44e-a672e170d270",
+      "name": "Gerar Excel",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1568,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst m = $('Processar').all().map(i => i.json).find(j => j.op === 'excel') || {};\nreturn [{ json: { numero: m.numero, caption: m.caption, b64: buf.toString('base64') } }];"
+      },
+      "id": "f0660a25-f142-49ad-97d8-bed3a55b4d82",
+      "name": "Anexo Excel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_URL }}/message/sendMedia/pesquisa-aereo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, mediatype: \"document\", mimetype: \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\", caption: $json.caption, media: $json.b64, fileName: \"relatorio-dyno.xlsx\", delay: 800 }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "3faec842-c992-48bf-8dcd-5fe317a62aed",
+      "name": "Enviar Excel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2000,
+        1056
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "z2JC1dDh1D3EEQ2b",
+          "name": "Evolution pesquisa-aereo"
+        }
+      },
+      "disabled": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "qHNQDuOeWVg7EyZq"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "8fad6d43-b4f3-4d20-b913-593072b1062b",
+      "name": "Gerar dashboard",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1344,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Receber ação').first().json.instancia }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "dyno"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "2f86f9e2-4303-4796-aa69-0a66b45fcf06",
+      "name": "Via Dyno? Enviar texto",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1152,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: String.fromCharCode(8203) + \"*Dyno:* \" + $json.texto, delay: 600 }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "e63b5029-b807-4bcc-b897-ea33dfa58ab8",
+      "name": "Enviar texto (Dyno)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1344,
+        144
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Receber ação').first().json.instancia }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "dyno"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "53982fa6-16cb-4f8e-93e1-aaf38aab8077",
+      "name": "Via Dyno? Enviar Excel",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1808,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendMedia/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, mediatype: \"document\", mimetype: \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\", caption: $json.caption, media: $json.b64, fileName: \"relatorio-dyno.xlsx\", delay: 800 }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "153ca594-5b5c-49f9-852a-a2ebcf1d19fe",
+      "name": "Enviar Excel (Dyno)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2000,
+        1200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Na rotina diária (09:30), as mensagens saem como \"Nome, ...\" para o grupo da família.\n// Família continua no grupo; clientes do piloto recebem no privado (destinos vem do Supabase); quem não está no cadastro não recebe.\nconst FAMS = ['Daniel', 'Quézia', 'Eliezer'];\nconst GRUPO = '120363412854461070@g.us';\nlet pedido = {};\ntry { pedido = $('Receber ação').first().json || {}; } catch (e) { pedido = {}; }\nif (!pedido.rotina) return $input.all();\nconst dest = (pedido.destinos && typeof pedido.destinos === 'object') ? pedido.destinos : {};\nconst nomes = Array.from(new Set([...FAMS, ...Object.keys(dest)])).sort((a, b) => b.length - a.length);\nconst out = [];\nfor (const it of $input.all()) {\n  const j = it.json || {};\n  if (j.op !== 'msg' || j.numero !== GRUPO) { out.push(it); continue; }\n  const t = String(j.texto || '');\n  const au = nomes.find(n => t.startsWith(n + ', '));\n  if (au && FAMS.includes(au)) { out.push(it); continue; }\n  const n = au ? String(dest[au] || '') : '';\n  if (/^\\d{12,13}$/.test(n)) out.push({ json: { ...j, numero: n } });\n}\nreturn out;"
+      },
+      "id": "90e6f39d-f918-47c7-947a-8f65ebaee1ad",
+      "name": "Destino da rotina",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        128
+      ]
+    }
+  ],
+  "connections": {
+    "Receber ação": {
+      "main": [
+        [
+          {
+            "node": "Carregar extras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carregar extras": {
+      "main": [
+        [
+          {
+            "node": "Carregar transações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carregar transações": {
+      "main": [
+        [
+          {
+            "node": "Carregar tarefas abertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carregar tarefas abertas": {
+      "main": [
+        [
+          {
+            "node": "Processar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rotear": {
+      "main": [
+        [
+          {
+            "node": "Via Dyno? Enviar texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Inserir extras",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar extras",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Inserir transação",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar transação",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apagar transação",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar tarefa (projeto)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Linhas da planilha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gerar dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linhas da planilha": {
+      "main": [
+        [
+          {
+            "node": "Gerar Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Excel": {
+      "main": [
+        [
+          {
+            "node": "Anexo Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Via Dyno? Enviar texto": {
+      "main": [
+        [
+          {
+            "node": "Enviar texto (Dyno)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anexo Excel": {
+      "main": [
+        [
+          {
+            "node": "Via Dyno? Enviar Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Via Dyno? Enviar Excel": {
+      "main": [
+        [
+          {
+            "node": "Enviar Excel (Dyno)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar": {
+      "main": [
+        [
+          {
+            "node": "Destino da rotina",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destino da rotina": {
+      "main": [
+        [
+          {
+            "node": "Rotear",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo"
+  },
+  "versionId": "c49ebcc0-9b5e-4c91-855b-3a64f4475d99",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
+  },
+  "nodeGroups": [],
+  "id": "K4GH2JArrLnZbJAG",
+  "tags": []
+}

@@ -21,7 +21,7 @@ WhatsApp → Evolution API (wa.dynoapp.com.br) → **n8n** (identifica o cliente
 
 ## Repositório
 
-Código e documentação no GitHub (privado): https://github.com/danielmarim/dynoapp — branch `main`, primeiro push em 05/10/2026. Cópia local do Daniel: `H:\Claude\MVP - DynoApp\dynoapp-repo`. Os workflows do n8n ainda precisam ser exportados para a pasta `n8n/` (trocar o valor de `SEGREDO` por `__SEGREDO__`).
+Código e documentação no GitHub (privado): https://github.com/danielmarim/dynoapp — branch `main`, primeiro push em 05/10/2026. Cópia local do Daniel: `H:\Claude\MVP - DynoApp\dynoapp-repo`. Os workflows do n8n ainda precisam ser exportados: baixar pela interface do n8n para `n8n/_download/` e rodar `python n8n/limpar_export.py` (ver `n8n/README.md`).
 
 ## 3. Onde está cada coisa
 
@@ -40,7 +40,7 @@ Código e documentação no GitHub (privado): https://github.com/danielmarim/dyn
 
 **Número antigo desligado (05/10/2026):** o Assessor não atende nem envia mais pelo número pessoal do Daniel (5511930851325, instância `pesquisa-aereo` da Evolution da Dynamo Wear). O cérebro descarta o que chega dessa instância (nó "Identificar remetente"), os alertas ao Daniel saem pelo número do Dyno e os nós antigos de envio por `pesquisa-aereo` estão desativados. O número 5511930851325 segue cadastrado como o Daniel (usuário e administrador). O webhook da instância `pesquisa-aereo` na Evolution da Dynamo Wear ainda aponta para `/webhook/assessor-whatsapp`; pode ser apagado no painel dessa Evolution.
 
-O mesmo VPS também roda a Dynamo Wear (Evolution `evolution`, Chatwoot) e um servidor de Project Zomboid. **Não mexer neles.**
+O mesmo VPS também roda a Dynamo Wear (Evolution `evolution`, Chatwoot) e um servidor de Project Zomboid (parado em 05/10; exclusão definitiva pendente, o Daniel faz no hPanel). **Não mexer neles.**
 
 ## 4. Credenciais (só os nomes — os valores estão no n8n/Hostinger)
 
@@ -74,9 +74,11 @@ No n8n (Header Auth): `Supabase_Dyno`, `evolution-dyno`, `anthropic-dyno`, `jev-
 | j3WSfca0UXb06SeW | Painel e infraestrutura | Observabilidade |
 | BFmfbtTei9fQCgCB | Página de cadastro (temporária) | **Pode ser desligada** |
 | 0NTpUwVxsZFMm8Li | TESTE IA em camadas | Manual, desligado |
-| asdiDsXdGoWC7Bip | Alerta de câmbio | A cada 15 min (seg–sex 9h–18h): dólar/euro (PTAX do BC; AwesomeAPI se tiver chave) e dispara alertas. Ver `claude/alerta-de-cambio.md` |
+| asdiDsXdGoWC7Bip | Alerta de câmbio | A cada 15 min (seg–sex 9h–18h): dólar/euro (PTAX do BC; AwesomeAPI se tiver chave) e dispara alertas. Ver `ALERTA-DE-CAMBIO.md` |
 
-**Faça agora:** no n8n, exporte todos os workflows (selecionar todos → Download) e guarde junto deste pacote. É o backup da lógica.
+Além desses, há 3 desligados de setup/teste: Setup Evolution (LsVMn71OPQmyc4Mz), TEMP limpeza de testes (uOt8WPfaI5lk6PT2) e TESTE Google Places (uodpCgu2VBUwqbO4). Total: 28 do Dyno, 24 ativos.
+
+**Faça agora:** exporte os workflows pela interface do n8n para `n8n/_download/` e rode `python n8n/limpar_export.py`. O script só aceita os "Dyno |" (o n8n também tem os da Dynamo Wear e outros), troca o `SEGREDO`, tira `pinData` e barra arquivos com cara de chave. É o backup da lógica.
 
 ## 6. Configuração de IA (tabela `dyno_config`)
 

@@ -1,0 +1,493 @@
+{
+  "name": "Dyno | IA em camadas (OpenAI, Claude, Jev)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "f0748aa9-2dc2-4bd4-8d5f-ccb1cf2241eb",
+      "name": "Receber pedido",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_ia_config",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "e5056003-8507-44a8-8ae8-c311df3eefec",
+      "name": "Config IA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        288
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Config IA').first().json || {};\nconst ent = $('Receber pedido').first().json || {};\nconst tarefa = ['conversa','documento','simples','decisao'].includes(ent.tarefa) ? ent.tarefa : 'conversa';\nconst mapa = { conversa: cfg.ia_conversa, documento: cfg.ia_documento, simples: cfg.ia_simples, decisao: 'jev' };\nlet provedor = String(ent.provedor || mapa[tarefa] || 'openai').toLowerCase();\nif (tarefa === 'decisao' && cfg.ia_decisao_modo === 'desligado' && !ent.provedor) provedor = 'desligado';\nif (!['openai','claude','jev','desligado'].includes(provedor)) provedor = 'openai';\nconst sistema = String(ent.sistema || '');\nconst mensagens = Array.isArray(ent.mensagens) ? ent.mensagens : [{ role: 'user', content: String(ent.texto || '') }];\nconst esquema = ent.esquema && ent.esquema.schema ? ent.esquema : null;\nconst maxTokens = Number(ent.max_tokens) || 4000;\n\n// OpenAI (formato atual do Dyno)\nconst msgsOpenai = (sistema ? [{ role: 'system', content: sistema }] : []).concat(mensagens);\nconst openai = { model: ent.modelo_openai || cfg.ia_modelo_openai || 'gpt-5.6-luna', messages: msgsOpenai };\nif (esquema) openai.response_format = { type: 'json_schema', json_schema: { name: esquema.name || 'resposta', strict: true, schema: esquema.schema } };\n\n// Claude: converte partes do formato OpenAI\nconst dataUrl = s => { const m = /^data:([^;]+);base64,(.*)$/s.exec(String(s || '')); return m ? { media_type: m[1], data: m[2] } : null; };\nconst parte = p => {\n  if (typeof p === 'string') return { type: 'text', text: p };\n  if (p.type === 'text') return { type: 'text', text: p.text };\n  if (p.type === 'image_url') { const d = dataUrl(p.image_url && p.image_url.url); return d ? { type: 'image', source: { type: 'base64', media_type: d.media_type, data: d.data } } : { type: 'image', source: { type: 'url', url: p.image_url.url } }; }\n  if (p.type === 'file') { const d = dataUrl(p.file && p.file.file_data); return d ? { type: 'document', source: { type: 'base64', media_type: d.media_type, data: d.data } } : { type: 'text', text: '[arquivo]' }; }\n  return { type: 'text', text: JSON.stringify(p) };\n};\nconst msgsClaude = mensagens.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: Array.isArray(m.content) ? m.content.map(parte) : String(m.content || '') }));\nconst modeloClaude = tarefa === 'simples' ? (cfg.ia_modelo_claude_simples || 'claude-haiku-4-5') : (cfg.ia_modelo_claude || 'claude-sonnet-5-5');\nconst claude = { model: ent.modelo_claude || modeloClaude, max_tokens: maxTokens, messages: msgsClaude };\nlet sisClaude = sistema;\nif (esquema) {\n  const nome = esquema.name || 'resposta';\n  claude.tools = [{ name: nome, description: 'Devolva a resposta completa neste formato.', input_schema: esquema.schema }];\n  // Os modelos novos do Claude nao aceitam tool_choice forcado ('tool'/'any'): usamos 'auto' e pedimos a ferramenta no sistema.\n  claude.tool_choice = { type: 'auto' };\n  sisClaude = (sistema ? sistema + '\\n\\n' : '') + 'Responda SEMPRE chamando a ferramenta \"' + nome + '\" com o resultado completo. Nao escreva texto fora dela.';\n}\nif (sisClaude) claude.system = [{ type: 'text', text: sisClaude, cache_control: { type: 'ephemeral' } }];\n\n// Jev: decisao tipada\nconst jev = { model: cfg.ia_modelo_jev || 'jev-latest', state: (ent.decisao && ent.decisao.state) || '', questions: (ent.decisao && ent.decisao.questions) || {} };\n\nreturn [{ json: { tarefa, provedor, esquema: !!esquema, openai, claude, jev, inicio: Date.now() } }];\n"
+      },
+      "id": "6583294a-7618-4a6d-9b92-5ce4bf2d6884",
+      "name": "Montar pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.provedor }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "openai",
+                    "id": "67895057-e7e3-4b1c-949e-9ac2edd8d6f0"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.provedor }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "claude",
+                    "id": "e36dc808-56fe-4292-b8d4-b8285624154c"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.provedor }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "jev",
+                    "id": "20668044-603e-4f9d-89f5-1b2478338433"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Desligado"
+        }
+      },
+      "id": "2ccd962b-db12-49dd-b63d-73d7e874fc5c",
+      "name": "Provedor",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        672,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openai) }}",
+        "options": {
+          "timeout": 240000
+        }
+      },
+      "id": "70637f32-cbe5-4d9a-a224-b402a3c6f594",
+      "name": "OpenAI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "6jzmZOmpNvQFufRa",
+          "name": "openai-dyno"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ped = $('Montar pedido').first().json;\nconst r = $input.first().json || {};\nconst ms = Date.now() - ped.inicio;\nconst tenta = s => { try { return JSON.parse(s); } catch (e) { return null; } };\nif (ped.provedor === 'desligado') return [{ json: { ok: false, provedor: 'desligado', motivo: 'camada de decisao desligada', ms } }];\n// OpenAI\nif (Array.isArray(r.choices)) {\n  const texto = String((r.choices[0] && r.choices[0].message && r.choices[0].message.content) || '');\n  const reserva = ped.provedor !== 'openai';\n  return [{ json: { ok: true, provedor: 'openai', reserva, modelo: r.model, texto, json: ped.esquema ? tenta(texto) : null, uso: r.usage || null, ms } }];\n}\n// Claude\nif (r.type === 'message' && Array.isArray(r.content)) {\n  const tool = r.content.find(c => c.type === 'tool_use');\n  const texto = r.content.filter(c => c.type === 'text').map(c => c.text).join('\\n');\n  return [{ json: { ok: true, provedor: 'claude', reserva: false, modelo: r.model, texto: tool ? JSON.stringify(tool.input) : texto, json: tool ? tool.input : (ped.esquema ? tenta(texto) : null), uso: r.usage || null, ms } }];\n}\n// Jev ou erro\nif (ped.provedor === 'jev' && !r.error && r.answers) {\n  const resp = {};\n  for (const [k, a] of Object.entries(r.answers)) resp[k] = a.type === 'choice' ? { valor: a.choice, confianca: a.confidence } : a.type === 'score' ? { valor: a.score, confianca: a.confidence } : { valor: a.noul >= 0.5, probabilidade: a.noul };\n  return [{ json: { ok: true, provedor: 'jev', modelo: r.model || ped.jev.model, json: resp, decisao: r, uso: r.usage || null, ms } }];\n}\nconst erro = r.error ? (typeof r.error === 'string' ? r.error : (r.error.message || JSON.stringify(r.error))) : 'resposta inesperada';\nreturn [{ json: { ok: false, provedor: ped.provedor, erro: String(erro).slice(0, 300), ms } }];\n"
+      },
+      "id": "b82aac85-8056-4259-9607-d7202d93140a",
+      "name": "Normalizar resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.claude) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "17bc2ae6-7640-498a-bbb9-b30eed52cd6f",
+      "name": "Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        192
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "J3HH91m1w8lE8P20",
+          "name": "anthropic-dyno"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.typesafe.ai/v1/systemone",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.jev) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "c5441a93-23f4-4ea9-b17c-4fc756746394",
+      "name": "Jev",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "iVvXmDvq6hDDkKXN",
+          "name": "jev-typesafe"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Montar pedido').first().json.openai) }}",
+        "options": {
+          "timeout": 240000
+        }
+      },
+      "id": "477ac273-0d47-454f-b2d6-6bcda925db44",
+      "name": "Reserva (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        608
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "6jzmZOmpNvQFufRa",
+          "name": "openai-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_ia_registrar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: { autor: $('Receber pedido').first().json.autor || null, origem: $('Receber pedido').first().json.origem || 'camada', tarefa: $('Montar pedido').first().json.tarefa, provedor: $json.provedor, modelo: $json.modelo, uso: $json.uso || {}, ms: $json.ms } }) }}",
+        "options": {
+          "timeout": 8000
+        }
+      },
+      "id": "be83eab2-0ff4-409c-972f-28561ab04370",
+      "name": "Registrar uso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1344,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Normalizar resposta').all();"
+      },
+      "id": "79195b8b-7067-4b91-8faf-f4fc47b0434b",
+      "name": "Devolver resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        384
+      ]
+    }
+  ],
+  "connections": {
+    "Receber pedido": {
+      "main": [
+        [
+          {
+            "node": "Config IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config IA": {
+      "main": [
+        [
+          {
+            "node": "Montar pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar pedido": {
+      "main": [
+        [
+          {
+            "node": "Provedor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Provedor": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Claude",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Jev",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Normalizar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Normalizar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Normalizar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude": {
+      "main": [
+        [
+          {
+            "node": "Normalizar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reserva (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jev": {
+      "main": [
+        [
+          {
+            "node": "Normalizar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserva (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Normalizar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar resposta": {
+      "main": [
+        [
+          {
+            "node": "Registrar uso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar uso": {
+      "main": [
+        [
+          {
+            "node": "Devolver resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "05da99df-66a6-41a3-ba8e-e3b67e277a53",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
+  },
+  "nodeGroups": [],
+  "id": "mOXAwF2cZ8zbYs2j",
+  "tags": []
+}

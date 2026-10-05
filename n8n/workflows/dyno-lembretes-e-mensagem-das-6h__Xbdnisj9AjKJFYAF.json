@@ -1,0 +1,628 @@
+{
+  "name": "Dyno | Lembretes e mensagem das 6h",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "fea89645-e12a-44a6-9597-a84edf2df93c",
+      "name": "A cada minuto",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "bYVBca9uT849KhYP",
+          "cachedResultName": "assessor_lembretes"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "keyValue": "pendente"
+            },
+            {
+              "keyName": "status",
+              "keyValue": "aguardando"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "8f9c372a-b98a-454f-b9ce-5772fde8ccdd",
+      "name": "Lembretes vencidos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst NUMERO_PADRAO = '120363412854461070@g.us'; // grupo DM Assessor Pessoal\nconst INTERVALO_MIN = 10;   // insiste a cada 10 minutos até a pessoa responder ok\nconst MAX_ENVIOS = 6;       // 1º aviso + 5 insistências (~50 min); depois desiste\nconst passos = { diaria: { days: 1 }, semanal: { weeks: 1 }, mensal: { months: 1 } };\nconst agora = DateTime.now();\nconst saida = [];\nfor (const r of $input.all().map(i => i.json)) {\n  if (!r || r.id === undefined || r.id === null) continue;\n  const q = DateTime.fromISO(String(r.quando));\n  if (!q.isValid || q > agora) continue; // ainda não venceu\n  const nome = r.autor || 'Daniel';\n  const passo = passos[r.recorrencia];\n  let proxima = r.proxima ? DateTime.fromISO(String(r.proxima)) : null;\n  if (passo && (!proxima || !proxima.isValid || proxima <= agora)) {\n    proxima = q;\n    while (proxima <= agora) proxima = proxima.plus(passo);\n  }\n  const ins = Number(r.insistencias) || 0;\n  let texto, status, quando, insistencias;\n  if (r.status === 'aguardando') {\n    if (ins >= MAX_ENVIOS) {\n      texto = '😴 ' + nome + ', vou parar de insistir no lembrete \"' + r.texto + '\".' + (passo ? ' Te lembro de novo em ' + proxima.setZone(TZ).toFormat('dd/LL HH:mm') + '.' : '');\n      status = passo ? 'pendente' : 'expirado';\n      quando = passo ? proxima : q;\n      insistencias = 0;\n    } else {\n      texto = r.conta_id\n        ? '🔔 ' + nome + ', e aquela conta? ' + String(r.texto).split('\\n')[0].replace('💸 Vence HOJE: ', '') + '\\nJá pagou? Responda *paguei* (ou mande o comprovante), ou *adiar 60* que eu te lembro depois.'\n        : '🔔 ' + nome + ', ainda não vi seu ok: *' + r.texto + '*\\nJá fez? Responda *ok*, ou *adiar 15* (minutos) que eu te lembro depois.';\n      status = 'aguardando';\n      quando = agora.plus({ minutes: INTERVALO_MIN });\n      insistencias = ins + 1;\n    }\n  } else if (r.insistir === false) {\n    // aviso simples (ex.: conta vencendo em 3 dias): manda uma vez, sem cobrar resposta\n    texto = '🔔 *' + nome + ':* ' + r.texto;\n    status = passo ? 'pendente' : 'enviado';\n    quando = passo ? proxima : q;\n    insistencias = 0;\n  } else {\n    const atraso = agora.diff(q, 'minutes').minutes;\n    texto = '⏰ *Lembrete, ' + nome + ':* ' + r.texto\n      + (atraso > 30 ? '\\n_(era para ' + q.setZone(TZ).toFormat('dd/LL HH:mm') + ')_' : '')\n      + (r.conta_id ? '' : '\\nResponda *ok* quando fizer, ou *adiar 30* (minutos) que eu te lembro depois.');\n    status = 'aguardando';\n    quando = agora.plus({ minutes: INTERVALO_MIN });\n    insistencias = 1;\n  }\n  // Contas a pagar falam com a voz do Dyno (dinheiro); os demais lembretes, com a Dina (agenda e rotina).\n  const voz = r.conta_id ? 'dyno' : 'dina';\n  saida.push({ json: { id: r.id, voz, numero: r.telefone || NUMERO_PADRAO, texto, status, quando: quando.toUTC().toISO(), insistencias, proxima: proxima ? proxima.toUTC().toISO() : null } });\n}\nreturn saida;\n"
+      },
+      "id": "6ddc6220-98c3-4aea-a1f0-dfa6de9d0056",
+      "name": "Preparar envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: \"​\" + ($json.voz === 'dyno' ? \"*💰 Dyno*\" : \"*⏰ Dina*\") + \"\\n\" + $json.texto }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "1161ee4a-4972-48b7-8296-b76ff7d16380",
+      "name": "Enviar lembrete (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        720,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "bYVBca9uT849KhYP",
+          "cachedResultName": "assessor_lembretes"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "={{ $(\"Preparar envio\").item.json.id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "={{ $(\"Preparar envio\").item.json.status }}",
+            "quando": "={{ $(\"Preparar envio\").item.json.quando }}",
+            "insistencias": "={{ $(\"Preparar envio\").item.json.insistencias }}",
+            "proxima": "={{ $(\"Preparar envio\").item.json.proxima || null }}"
+          },
+          "schema": [
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "quando",
+              "displayName": "quando",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "insistencias",
+              "displayName": "insistencias",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "proxima",
+              "displayName": "proxima",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "41dafbc8-1390-4c85-9938-c096f6f04d87",
+      "name": "Marcar como enviado",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "a66616c3-ee6b-4119-a785-e85704a3bf6e",
+      "name": "Todo dia 06:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "LnRebLLXT3hHXXVT",
+          "cachedResultName": "assessor_tarefas"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "keyValue": "aberta"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "6ff141e4-35d7-4193-8501-45663da99a78",
+      "name": "Tarefas abertas (resumo)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        640
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "bYVBca9uT849KhYP",
+          "cachedResultName": "assessor_lembretes"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "keyValue": "pendente"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "3d030735-e305-4c01-b58a-687eff71c069",
+      "name": "Lembretes pendentes (resumo)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        640
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "czjKVg7HFjMKNpAq",
+          "cachedResultName": "assessor_transacoes"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "data",
+              "condition": "gte",
+              "keyValue": "={{ $now.startOf('month').toISO() }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "d597e66c-c79a-48d9-898f-58167244f828",
+      "name": "Transações do mês (resumo)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        640
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst NUMERO = '120363412854461070@g.us'; // grupo DM Assessor Pessoal\nconst linhas = n => $(n).all().map(i => i.json).filter(r => r && r.id !== undefined && r.id !== null);\nconst agora = DateTime.now().setZone(TZ).setLocale('pt-BR');\nconst fimHoje = agora.endOf('day');\nconst diaSemana = agora.weekday; // 1 = segunda ... 7 = domingo\nconst valeHoje = dias => {\n  const d = String(dias || 'todos').toLowerCase();\n  if (d === 'seg-sex') return diaSemana <= 5;\n  if (d === 'fim-de-semana' || d === 'sab-dom') return diaSemana >= 6;\n  if (d === 'todos') return true;\n  const mapa = { seg: 1, ter: 2, qua: 3, qui: 4, sex: 5, sab: 6, dom: 7 };\n  return d.split(/[,\\s]+/).some(x => mapa[x.slice(0, 3)] === diaSemana);\n};\nconst de = r => r.autor || 'Daniel';\n// Só a família aparece no resumo do grupo; clientes do piloto nunca entram aqui.\nconst ORDEM_PESSOAS = ['Daniel', 'Quézia', 'Eliezer'];\nconst rotina = linhas('Rotina matinal').filter(r => valeHoje(r.dias));\nconst tarefas = linhas('Tarefas abertas (resumo)');\nconst lembretesHoje = linhas('Lembretes pendentes (resumo)')\n  .map(r => ({ ...r, dt: DateTime.fromISO(String(r.quando)).setZone(TZ) }))\n  .filter(r => r.dt <= fimHoje).sort((a, b) => a.dt - b.dt);\nconst pessoas = ORDEM_PESSOAS;\n\nconst partes = ['☀️ *Bom dia, grupo!* Não esqueçam de fazer seus lançamentos hoje, estou aqui para ajudá-los. — Dyno 🤖'];\nfor (const p of pessoas) {\n  const itens = [];\n  for (const r of rotina.filter(r => r.pessoa === p)) itens.push(r.mensagem);\n  for (const l of lembretesHoje.filter(r => de(r) === p)) itens.push('⏰ ' + l.dt.toFormat('HH:mm') + ' ' + l.texto);\n  const nTarefas = tarefas.filter(t => de(t) === p).length;\n  if (nTarefas) itens.push('📋 ' + nTarefas + (nTarefas === 1 ? ' tarefa aberta' : ' tarefas abertas'));\n  if (!itens.length) continue;\n  partes.push('\\n*' + p + ':* ' + itens.join('\\n   '));\n}\n\nlet dev = null;\ntry { dev = $('Devocional do dia').first().json; } catch (e) { dev = null; }\nif (dev && dev.titulo) {\n  let reflexao = '';\n  try { const c = $('Reflexão do dia (IA)').first().json; reflexao = String((c.choices && c.choices[0] && c.choices[0].message && c.choices[0].message.content) || '').trim(); } catch (e) { reflexao = ''; }\n  partes.push('\\n📖 *Devocional do dia — Dia ' + dev.dia + '*\\n_' + dev.titulo + '_\\nLeitura base: ' + dev.referencia + (reflexao ? '\\n\\n' + reflexao : '') + '\\n\\nLeitura completa no devocional, página ' + dev.pagina + '. Bom tempo com Deus! 🙏');\n}\nreturn [{ json: { numero: NUMERO, texto: partes.join('\\n') } }];\n"
+      },
+      "id": "22f6421d-a47d-4a91-aec9-d502330bc1e3",
+      "name": "Montar resumo do dia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: String.fromCharCode(8203) + '*⏰ Dina*' + String.fromCharCode(10) + String($json.texto).replace(' — Dyno 🤖', '') }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "1e826b62-412f-42dd-af26-8f6831d74cc7",
+      "name": "Enviar resumo (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1200,
+        640
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Lembretes e resumo diário\n\n**A cada minuto:** envia lembretes vencidos (`assessor_lembretes`) e marca como enviados. Recorrentes (diária/semanal/mensal) são reagendados.\n\n**07:30:** resumo do dia (lembretes de hoje, tarefas abertas e gastos do mês).",
+        "height": 220,
+        "width": 520,
+        "color": 5
+      },
+      "id": "52602234-0317-4807-a8b3-c9b9cdc3d95f",
+      "name": "Sticky Note 9e3cb356",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "NDqcLJBOkeDUUMXq",
+          "cachedResultName": "assessor_rotina"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "ativo",
+              "condition": "isTrue"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "6cbf1186-a898-49b8-abae-6682b9ed15e8",
+      "name": "Rotina matinal",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        848,
+        832
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "5lnSICD0hacuXDjt",
+          "cachedResultName": "assessor_devocional"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "dia",
+              "keyValue": "={{ Math.min($now.setZone('America/Sao_Paulo').ordinal, 365) }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "id": "313a1ada-015c-41bd-888e-c936d114411b",
+      "name": "Devocional do dia",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1008,
+        832
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5.6-luna', messages: [ { role: 'system', content: 'Você escreve reflexões cristãs curtas e ORIGINAIS em português do Brasil para um grupo de família no WhatsApp. Nunca copie nem imite trechos de livros devocionais publicados; escreva com suas próprias palavras. Pode citar ou parafrasear o versículo bíblico indicado. Tom acolhedor, simples e prático para o dia a dia. Formato: 4 a 6 linhas (até ~90 palavras), sem títulos, sem emojis em excesso, terminando com uma frase curta de oração ou encorajamento.' }, { role: 'user', content: 'Escreva a reflexão de hoje sobre ' + $json.referencia + ', com o tema: \"' + $json.titulo + '\".' } ] }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "44546eca-31c6-4d53-9b06-5b40a49081e8",
+      "name": "Reflexão do dia (IA)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1168,
+        832
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "6jzmZOmpNvQFufRa",
+          "name": "openai-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_ia_registrar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: { autor: 'Família', origem: 'reflexao_6h', tarefa: 'simples', provedor: 'openai', modelo: $json.model || 'gpt-5.6-luna', uso: $json.usage || {} } }) }}",
+        "options": {
+          "timeout": 8000
+        }
+      },
+      "id": "c94ee9f5-90fe-490b-9401-8217d7cfa6c3",
+      "name": "Uso IA: reflexão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1408,
+        912
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "A cada minuto": {
+      "main": [
+        [
+          {
+            "node": "Lembretes vencidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lembretes vencidos": {
+      "main": [
+        [
+          {
+            "node": "Preparar envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar envio": {
+      "main": [
+        [
+          {
+            "node": "Enviar lembrete (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar lembrete (WhatsApp)": {
+      "main": [
+        [
+          {
+            "node": "Marcar como enviado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tarefas abertas (resumo)": {
+      "main": [
+        [
+          {
+            "node": "Lembretes pendentes (resumo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lembretes pendentes (resumo)": {
+      "main": [
+        [
+          {
+            "node": "Transações do mês (resumo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar resumo do dia": {
+      "main": [
+        [
+          {
+            "node": "Enviar resumo (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Todo dia 06:00": {
+      "main": [
+        [
+          {
+            "node": "Tarefas abertas (resumo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transações do mês (resumo)": {
+      "main": [
+        [
+          {
+            "node": "Rotina matinal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rotina matinal": {
+      "main": [
+        [
+          {
+            "node": "Devocional do dia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Devocional do dia": {
+      "main": [
+        [
+          {
+            "node": "Reflexão do dia (IA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reflexão do dia (IA)": {
+      "main": [
+        [
+          {
+            "node": "Montar resumo do dia",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Uso IA: reflexão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timezone": "America/Sao_Paulo",
+    "errorWorkflow": "5UUmuzItIYDsd3AG"
+  },
+  "versionId": "af2a0662-9d1a-4cfa-9689-d05994f8bc0b",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
+  },
+  "nodeGroups": [],
+  "id": "Xbdnisj9AjKJFYAF",
+  "tags": []
+}

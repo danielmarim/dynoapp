@@ -1,0 +1,357 @@
+{
+  "name": "Dyno | Alerta de câmbio",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/15 9-18 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "641d4d38-1092-4023-9644-1d1c89d2709b",
+      "name": "A cada 15 min (dias úteis)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "794a299d-9ed2-4485-a0d0-17e3976f7993",
+      "name": "Cotação (AwesomeAPI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        96
+      ],
+      "retryOnFail": false,
+      "maxTries": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "WxEhcwxgNUrF6TFK",
+          "name": "Awesomeapi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1ª opção: AwesomeAPI (tempo real; precisa de chave grátis para não bater no limite). 2ª: PTAX do Banco Central (oficial, grátis, ~4 boletins por dia útil).\nconst get = n => { try { return $(n).first().json || {}; } catch (e) { return {}; } };\nconst aw = get('Cotação (AwesomeAPI)');\nconst conv = (k, m) => { const x = aw[k]; if (!x || !x.bid) return null; const ts = Number(x.timestamp); return { moeda: m, valor: Number(x.bid), variacao_pct: Number(x.pctChange), maxima: Number(x.high), minima: Number(x.low), fonte: 'awesomeapi', cotado_em: ts ? new Date(ts * 1000).toISOString() : new Date().toISOString() }; };\nconst ptax = (n, m) => { const v = (get(n).value || []).filter(x => x && x.cotacaoVenda).sort((a, b) => String(b.dataHoraCotacao).localeCompare(String(a.dataHoraCotacao)))[0]; if (!v) return null; const dt = DateTime.fromSQL(String(v.dataHoraCotacao).slice(0, 19), { zone: 'America/Sao_Paulo' }); return { moeda: m, valor: Number(v.cotacaoVenda), variacao_pct: null, maxima: null, minima: null, fonte: 'ptax-bcb ' + (v.tipoBoletim || ''), cotado_em: dt.isValid ? dt.toUTC().toISO() : new Date().toISOString() }; };\nconst cotacoes = [conv('USDBRL', 'USD') || ptax('PTAX dólar (Banco Central)', 'USD'), conv('EURBRL', 'EUR') || ptax('PTAX euro (Banco Central)', 'EUR')].filter(Boolean);\nif (!cotacoes.length) return [];\nreturn [{ json: { p: { cotacoes } } }];"
+      },
+      "id": "5775d9f5-bba8-4eb8-a86c-16883ae72b4c",
+      "name": "Montar cotações",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_cambio_registrar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: $json.p }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "e8e6a80d-89c4-4475-90b6-56e3e2581855",
+      "name": "Supabase: registrar e checar alertas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        96
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const NL = String.fromCharCode(10);\nconst brl = v => 'R$ ' + Number(v).toFixed(2).replace('.', ',');\nconst pct = v => (v > 0 ? '+' : '') + Number(v).toFixed(2).replace('.', ',') + '%';\nconst d = ($input.first().json || {}).disparos || [];\nreturn d.map(a => {\n  const nome = a.moeda === 'USD' ? 'dólar' : 'euro';\n  const emoji = a.moeda === 'USD' ? '💵' : '💶';\n  const linhas = ['*💰 Dyno*', emoji + ' O ' + nome + ' chegou a *' + brl(a.atual) + '*. Você pediu aviso quando ficasse ' + a.condicao + ' de ' + brl(a.alvo) + '.'];\n  const extra = [];\n  // A variação da AwesomeAPI às vezes compara com um fechamento antigo; acima de 3% não mostramos como \"hoje\".\n  if (a.variacao_pct != null && Math.abs(Number(a.variacao_pct)) <= 3) extra.push('hoje: ' + pct(a.variacao_pct));\n  if (a.min30 != null && a.max30 != null && Number(a.max30) > Number(a.min30)) extra.push('30 dias: mín. ' + brl(a.min30) + ' · máx. ' + brl(a.max30));\n  if (extra.length) linhas.push(extra.join(' · '));\n  linhas.push('', 'É só um aviso de cotação, não é recomendação de compra. Quer outro alerta? É só me pedir.');\n  return { json: { numero: a.numero, autor: a.autor, texto: linhas.join(NL) } };\n});"
+      },
+      "id": "c25e870b-0e0d-4ffe-bb3c-087cca8f6df5",
+      "name": "Montar avisos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: String.fromCharCode(8203) + $json.texto, delay: 1200 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "5bde967b-6d46-4795-8bf3-4c628b8ba5a9",
+      "name": "Enviar aviso (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1120,
+        96
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Montar avisos').all().map(i => ({ json: { telefone: i.json.numero, papel: 'assistente', texto: i.json.texto, autor: 'Assessor:' + i.json.autor } }));"
+      },
+      "id": "a714fc50-c8cc-4958-b7de-41bc1d0d8fed",
+      "name": "Para o histórico",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "6AuPgkHFMhGhazoN"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "c75b4854-2137-46a6-b2f9-4c5e910fed89",
+      "name": "Registrar na conversa",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1568,
+        96
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "23f53bf7-dc80-4830-8c70-976369a425cb",
+      "name": "Testar (manual)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ \"https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoMoedaDia(moeda=@moeda,dataCotacao=@dataCotacao)?@moeda='USD'&@dataCotacao='\" + $now.setZone('America/Sao_Paulo').toFormat('MM-dd-yyyy') + \"'&$format=json\" }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "3fa46824-e48b-43f9-959b-4e3947b361ac",
+      "name": "PTAX dólar (Banco Central)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        272
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ \"https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoMoedaDia(moeda=@moeda,dataCotacao=@dataCotacao)?@moeda='EUR'&@dataCotacao='\" + $now.setZone('America/Sao_Paulo').toFormat('MM-dd-yyyy') + \"'&$format=json\" }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "67560efb-2e53-487e-8708-0c6c071912c6",
+      "name": "PTAX euro (Banco Central)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        272
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "A cada 15 min (dias úteis)": {
+      "main": [
+        [
+          {
+            "node": "Cotação (AwesomeAPI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar cotações": {
+      "main": [
+        [
+          {
+            "node": "Supabase: registrar e checar alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: registrar e checar alertas": {
+      "main": [
+        [
+          {
+            "node": "Montar avisos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar avisos": {
+      "main": [
+        [
+          {
+            "node": "Enviar aviso (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar aviso (WhatsApp)": {
+      "main": [
+        [
+          {
+            "node": "Para o histórico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Para o histórico": {
+      "main": [
+        [
+          {
+            "node": "Registrar na conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Testar (manual)": {
+      "main": [
+        [
+          {
+            "node": "Cotação (AwesomeAPI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cotação (AwesomeAPI)": {
+      "main": [
+        [
+          {
+            "node": "PTAX dólar (Banco Central)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PTAX dólar (Banco Central)": {
+      "main": [
+        [
+          {
+            "node": "PTAX euro (Banco Central)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PTAX euro (Banco Central)": {
+      "main": [
+        [
+          {
+            "node": "Montar cotações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "versionId": "16938c7d-90fc-423e-89c5-27c369084b7d",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
+  },
+  "nodeGroups": [],
+  "id": "asdiDsXdGoWC7Bip",
+  "tags": []
+}

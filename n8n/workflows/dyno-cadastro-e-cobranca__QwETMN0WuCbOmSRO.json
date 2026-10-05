@@ -1,0 +1,580 @@
+{
+  "name": "Dyno | Cadastro e cobrança",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-cadastro",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "fc2be01b-4214-4763-9e68-e2184d47b39e",
+      "name": "Recebe cadastro",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        288
+      ],
+      "webhookId": "60cfff94-0cf8-466a-9c55-8788722fe5f4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst b = raw.body ?? raw;\nconst h = raw.headers ?? {};\nconst ip = String(h['x-forwarded-for'] || h['x-real-ip'] || '').split(',')[0].trim();\nconst nome = String(b.nome || '').trim().replace(/\\s+/g, ' ');\nconst wa = String(b.whatsapp || '').replace(/\\D/g, '');\nconst email = String(b.email || '').trim().toLowerCase();\nconst cpf = String(b.cpf || '').replace(/\\D/g, '');\nconst barrar = (http, resposta) => [{ json: { seguir: false, http, resposta } }];\n\nfunction cpfValido(c) {\n  if (c.length !== 11 || /^(\\d)\\1{10}$/.test(c)) return false;\n  const dv = (n) => { let s = 0; for (let i = 0; i < n; i++) s += Number(c[i]) * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };\n  return dv(9) === Number(c[9]) && dv(10) === Number(c[10]);\n}\n\nif (String(b.site || '').length > 0 || Number(b.tempo_ms || 0) < 2500) {\n  return barrar(200, { ok: true, status: 'pendente' });\n}\nconst okNome = nome.length >= 2 && nome.length <= 80;\nconst okWa = /^55[1-9][0-9]9[0-9]{8}$/.test(wa);\nconst okEmail = email.length <= 120 && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test(email);\nif (!okNome || !okWa || !okEmail || !cpfValido(cpf) || b.aceite !== true) {\n  return barrar(400, { ok: false, erro: 'dados_invalidos' });\n}\nreturn [{ json: {\n  seguir: true,\n  dados: {\n    nome, whatsapp: wa, email, ip, cpf,\n    origem: String(b.origem || 'direto').slice(0, 60),\n    termos: String(b.termos_versao || '').slice(0, 20)\n  }\n} }];"
+      },
+      "id": "6204955f-5fc8-4c6e-bd35-e8d9c7178c3e",
+      "name": "Validar dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.seguir }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "991e0732-a988-40b9-ad2c-f5089b4907be",
+      "name": "Dados validos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_cadastrar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_nome: $json.dados.nome, p_whatsapp: $json.dados.whatsapp, p_email: $json.dados.email, p_ip: $json.dados.ip, p_origem: $json.dados.origem, p_termos: $json.dados.termos }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "7a90d90d-0621-4106-86b5-ce33a505d493",
+      "name": "Supabase: cadastrar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        192
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ok }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2bffa028-9a28-4a9c-8072-c975d8e4a5e7",
+      "name": "Cadastro gravado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "pendente"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e7020076-2dbc-473c-8781-70188a8e0c03",
+      "name": "Entrou numa vaga?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.asaas.com/v3/customers",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Dyno-Cadastro"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $(\"Validar dados\").item.json.dados.nome, email: $(\"Validar dados\").item.json.dados.email, cpfCnpj: $(\"Validar dados\").item.json.dados.cpf, mobilePhone: $(\"Validar dados\").item.json.dados.whatsapp.slice(2), externalReference: $json.id }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "917005aa-6dda-4c1d-bfd8-85d6518ae6f9",
+      "name": "Asaas: criar cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1344,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l3GO5H4hRL8ca2k3",
+          "name": "asaas-prod"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.asaas.com/v3/subscriptions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Dyno-Cadastro"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const anual = String(($('Recebe cadastro').item.json.body || {}).plano || '').toLowerCase() === 'anual'; return JSON.stringify({ customer: $json.id, billingType: 'UNDEFINED', value: anual ? 199.9 : 19.9, nextDueDate: $('Supabase: cadastrar').item.json.vencimento, cycle: anual ? 'YEARLY' : 'MONTHLY', description: anual ? 'Dyno - plano anual' : 'Dyno - plano mensal', externalReference: $('Supabase: cadastrar').item.json.id }); })() }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "09a23a92-f6e1-4c98-9ac6-c15b747ec34d",
+      "name": "Asaas: criar assinatura",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1568,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l3GO5H4hRL8ca2k3",
+          "name": "asaas-prod"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_usuarios?id=eq.{{ $(\"Supabase: cadastrar\").item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const anual = String(($('Recebe cadastro').item.json.body || {}).plano || '').toLowerCase() === 'anual'; return JSON.stringify({ asaas_customer_id: $('Asaas: criar cliente').item.json.id, asaas_subscription_id: $json.id, ciclo: anual ? 'YEARLY' : 'MONTHLY', valor_mensal: anual ? 16.66 : 19.9 }); })() }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "bc0ffae3-25eb-414b-8e1b-0ba50c7a8005",
+      "name": "Supabase: guardar ids Asaas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1792,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, status: $(\"Supabase: cadastrar\").item.json.status } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "889c62d8-0a4a-4d99-8b1b-945868fdab45",
+      "name": "Responder sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2016,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, status: \"espera\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "31d7c2ff-3785-4e3b-a5f9-f72cb4294cb0",
+      "name": "Responder lista de espera",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, erro: ([\"whatsapp_ja_cadastrado\",\"email_ja_cadastrado\",\"muitas_tentativas\"].includes($json.erro)) ? $json.erro : \"erro_interno\" } }}",
+        "options": {
+          "responseCode": "={{ ($json.erro === \"muitas_tentativas\") ? 429 : (($json.erro === \"whatsapp_ja_cadastrado\" || $json.erro === \"email_ja_cadastrado\") ? 409 : 500) }}"
+        }
+      },
+      "id": "98c2f74e-a8bc-49ff-9e6d-923273cb453e",
+      "name": "Responder erro",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1120,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.resposta }}",
+        "options": {
+          "responseCode": "={{ $json.http }}"
+        }
+      },
+      "id": "498a3a74-88b5-435b-ad91-9cba4e32ca0d",
+      "name": "Responder (barrado)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "path": "dyno-vagas",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "06698e61-df72-43c7-ae78-d6179c77dc81",
+      "name": "Recebe consulta de vagas",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        608
+      ],
+      "webhookId": "c1848b42-73c4-4c25-90ac-e671f8aca608"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_vagas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "01319dca-f4eb-4cd3-9976-1fd7878654d2",
+      "name": "Supabase: contar vagas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        608
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { total: $json.total, restantes: $json.restantes } }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Cache-Control",
+                "value": "public, max-age=30"
+              }
+            ]
+          }
+        }
+      },
+      "id": "c598c315-2d51-464e-a9c2-70801e13ea08",
+      "name": "Responder vagas",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        608
+      ]
+    }
+  ],
+  "connections": {
+    "Recebe cadastro": {
+      "main": [
+        [
+          {
+            "node": "Validar dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar dados": {
+      "main": [
+        [
+          {
+            "node": "Dados validos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados validos?": {
+      "main": [
+        [
+          {
+            "node": "Supabase: cadastrar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder (barrado)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: cadastrar": {
+      "main": [
+        [
+          {
+            "node": "Cadastro gravado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cadastro gravado?": {
+      "main": [
+        [
+          {
+            "node": "Entrou numa vaga?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entrou numa vaga?": {
+      "main": [
+        [
+          {
+            "node": "Asaas: criar cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder lista de espera",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asaas: criar cliente": {
+      "main": [
+        [
+          {
+            "node": "Asaas: criar assinatura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asaas: criar assinatura": {
+      "main": [
+        [
+          {
+            "node": "Supabase: guardar ids Asaas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: guardar ids Asaas": {
+      "main": [
+        [
+          {
+            "node": "Responder sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recebe consulta de vagas": {
+      "main": [
+        [
+          {
+            "node": "Supabase: contar vagas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: contar vagas": {
+      "main": [
+        [
+          {
+            "node": "Responder vagas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "versionId": "a0209116-e8ed-4e70-938a-3a4e5375d7c2",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
+  },
+  "nodeGroups": [],
+  "id": "QwETMN0WuCbOmSRO",
+  "tags": []
+}

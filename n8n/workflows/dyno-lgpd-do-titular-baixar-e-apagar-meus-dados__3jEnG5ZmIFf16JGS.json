@@ -1,0 +1,1582 @@
+{
+  "name": "Dyno | LGPD do titular (baixar e apagar meus dados)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "83f6c6ec-7b04-47aa-97f6-df7aaf0a7c63",
+      "name": "Receber pedido",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pedido vindo do cérebro: { op: 'exportar' | 'apagar', autor, numero, nome }\nconst p = $input.first().json || {};\nconst FAM = ['Daniel', 'Quézia', 'Eliezer'];\nlet op = p.op === 'apagar' ? 'apagar' : 'exportar';\nif (op === 'apagar' && FAM.includes(p.autor)) op = 'negado';\nif (!p.autor || !p.numero) return [];\nreturn [{ json: { op, autor: String(p.autor), numero: String(p.numero), nome: String(p.nome || '') } }];"
+      },
+      "id": "00a441bf-b944-478e-b28a-9d2f56f271ea",
+      "name": "Preparar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_lgpd_exportar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_numero: $json.numero }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "e419c3c3-8018-4fd6-9692-6a92507d750d",
+      "name": "Supabase: dados do cadastro",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        432,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_transacoes",
+          "mode": "id",
+          "value": "czjKVg7HFjMKNpAq"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "4cf21a5f-fe6d-4a18-8bd9-aab20e0361d8",
+      "name": "Ler transações",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_tarefas",
+          "mode": "id",
+          "value": "LnRebLLXT3hHXXVT"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "54a4d7db-9811-4ca7-b853-bb92527cb3c9",
+      "name": "Ler tarefas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        832,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_lembretes",
+          "mode": "id",
+          "value": "bYVBca9uT849KhYP"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "7a18f455-da79-4876-8be1-6b65338b1fcc",
+      "name": "Ler lembretes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1008,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_contas",
+          "mode": "id",
+          "value": "EMXP62JHcMJtClgT"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "e3675af0-ee27-4e1b-ade1-2150efcf806b",
+      "name": "Ler contas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1184,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_assinaturas",
+          "mode": "id",
+          "value": "BhTS13DGVIPZ39LS"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "95723832-3ece-4d34-b741-f84b122f07fc",
+      "name": "Ler assinaturas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1360,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_manutencoes",
+          "mode": "id",
+          "value": "eB1McqY3kZqdeLTU"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "05f2816c-226c-4786-a15b-f176e0a4bb2c",
+      "name": "Ler manutenções",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1552,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_veiculos",
+          "mode": "id",
+          "value": "L6ojMtqlOZEhq5vc"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "dc68d2f1-0010-4004-a9e0-5f4835383718",
+      "name": "Ler veículos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1728,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_extras",
+          "mode": "id",
+          "value": "mJnt4Rop3vW3pcGI"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "88827292-8b57-40ac-ae7c-fdc3296b1b5e",
+      "name": "Ler extras",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1904,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_memorias",
+          "mode": "id",
+          "value": "KEazfdomT8PuvEdR"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "pessoa",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "6bd6ea15-7cf0-406b-a938-68e632a99a28",
+      "name": "Ler memórias",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2080,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_orcamentos",
+          "mode": "id",
+          "value": "4jXoLKiJqLZnCJxI"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "pessoa",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "ba315582-ad32-4fe4-991b-347253b3710e",
+      "name": "Ler orçamentos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2272,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_mensagens",
+          "mode": "id",
+          "value": "6AuPgkHFMhGhazoN"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            },
+            {
+              "keyName": "autor",
+              "keyValue": "={{ 'Assessor:' + $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "26e93c7b-6407-4a3a-95e1-7bce8b432136",
+      "name": "Ler mensagens",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2448,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Preparar').first().json;\nconst limpa = (rows) => rows.map(i => i.json).filter(r => r && r.id != null);\nconst NOMES = [\"Ler transações\", \"Ler tarefas\", \"Ler lembretes\", \"Ler contas\", \"Ler assinaturas\", \"Ler manutenções\", \"Ler veículos\", \"Ler extras\", \"Ler memórias\", \"Ler orçamentos\", \"Ler mensagens\"];\nconst dados = {};\nfor (const n of NOMES) { try { dados[n.replace('Ler ', '')] = limpa($(n).all()); } catch (e) { dados[n.replace('Ler ', '')] = []; } }\nlet cad = {};\ntry { cad = $('Supabase: dados do cadastro').first().json || {}; } catch (e) { cad = {}; }\nconst total = Object.values(dados).reduce((s, l) => s + l.length, 0);\nconst arquivo = {\n  gerado_em: new Date().toISOString(),\n  controlador: 'DM OBSERVAIT SOLUCOES EM TECNOLOGIA LTDA, CNPJ 65.176.391/0001-45 (Dyno)',\n  contato_privacidade: 'privacidade@dynoapp.com.br',\n  titular: p.autor,\n  cadastro: cad.cadastro || null,\n  pagamentos: cad.pagamentos || [],\n  feedback: cad.feedback || [],\n  registros_do_assistente: dados\n};\nconst json = JSON.stringify(arquivo, null, 2);\nconst b64 = Buffer.from(json, 'utf8').toString('base64');\nconst NL = String.fromCharCode(10);\nconst primeiro = (p.nome || p.autor).split(' ')[0];\nconst legenda = String.fromCharCode(8203) + (p.op === 'apagar'\n  ? 'Antes de apagar, aqui vai uma cópia de tudo o que estava guardado (' + total + ' registros), em formato aberto (JSON).'\n  : 'Prontinho, ' + primeiro + '! Aqui está a cópia dos seus dados no Dyno: cadastro, pagamentos e ' + total + ' registros do assistente, em formato aberto (JSON).' + NL + 'Se tiver qualquer dúvida, escreva para privacidade@dynoapp.com.br.');\nreturn [{ json: { op: p.op, numero: p.numero, total, corpo: { number: p.numero, mediatype: 'document', mimetype: 'application/json', fileName: 'meus-dados-dyno.json', media: b64, caption: legenda, delay: 800 } } }];"
+      },
+      "id": "a5288fb8-dd5a-408f-a7fb-b6e64a696672",
+      "name": "Montar arquivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2624,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "exportar"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "exportar"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "apagar"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "apagar"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "negado"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "negado"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a7db6789-aad5-4cf0-b919-9d2c42ff2702",
+      "name": "Qual pedido?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2832,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendMedia/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "992448a7-466d-40a0-b640-ae2fd172955c",
+      "name": "Enviar arquivo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3040,
+        -208
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Preparar').first().json.op }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "apagar"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "3bcc01d1-1e74-42c7-98fa-ab450988e774",
+      "name": "Seguir para apagar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3264,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_transacoes",
+          "mode": "id",
+          "value": "czjKVg7HFjMKNpAq"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "86a68a65-1175-405d-800d-f6e05cec7cfc",
+      "name": "Apagar transações",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3488,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_tarefas",
+          "mode": "id",
+          "value": "LnRebLLXT3hHXXVT"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b43a6c44-f377-4f29-a3f6-ee8fa8f621fb",
+      "name": "Apagar tarefas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3664,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_lembretes",
+          "mode": "id",
+          "value": "bYVBca9uT849KhYP"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "776aa475-cdcd-4355-b953-7d60dd68f7d2",
+      "name": "Apagar lembretes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3840,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_contas",
+          "mode": "id",
+          "value": "EMXP62JHcMJtClgT"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f87d2f11-a020-4521-8096-57634f1a50ec",
+      "name": "Apagar contas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4032,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_assinaturas",
+          "mode": "id",
+          "value": "BhTS13DGVIPZ39LS"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0f096a10-67cd-42e6-8b38-afd1580fd468",
+      "name": "Apagar assinaturas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4208,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_manutencoes",
+          "mode": "id",
+          "value": "eB1McqY3kZqdeLTU"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4c8ec929-ec53-4fde-a152-0b7f7db6a27c",
+      "name": "Apagar manutenções",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4384,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_veiculos",
+          "mode": "id",
+          "value": "L6ojMtqlOZEhq5vc"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b678184a-cc6f-4628-a666-aba9733a3272",
+      "name": "Apagar veículos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4560,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_extras",
+          "mode": "id",
+          "value": "mJnt4Rop3vW3pcGI"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c4065896-2175-49b5-88ee-78d5f710b5b2",
+      "name": "Apagar extras",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4752,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_memorias",
+          "mode": "id",
+          "value": "KEazfdomT8PuvEdR"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "pessoa",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7512325a-413f-40dd-a3f8-08f5e9839815",
+      "name": "Apagar memórias",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4928,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_orcamentos",
+          "mode": "id",
+          "value": "4jXoLKiJqLZnCJxI"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "pessoa",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2c12db0e-0783-4dfb-8600-436e05224348",
+      "name": "Apagar orçamentos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5104,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_mensagens",
+          "mode": "id",
+          "value": "6AuPgkHFMhGhazoN"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            },
+            {
+              "keyName": "autor",
+              "keyValue": "={{ 'Assessor:' + $('Preparar').first().json.autor }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b22415b0-f0ab-47de-86db-ca64355e75d7",
+      "name": "Apagar mensagens",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5280,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "={{ '_' + $('Preparar').first().json.autor }}",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "1QDS1Wvtsn6ppIok5HrSUZjUd5MctjiQP"
+          },
+          "whatToSearch": "files"
+        },
+        "options": {}
+      },
+      "id": "3bc1b729-d3d6-43e9-9038-39f1adc2d368",
+      "name": "Drive: comprovantes",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        5472,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "9lKkvyZZfTlxviZX",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id || 'nenhum' }}"
+        },
+        "options": {
+          "deletePermanently": true
+        }
+      },
+      "id": "ff48c886-deb8-4f99-be41-de79fe303b67",
+      "name": "Drive: apagar comprovante",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        5664,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "9lKkvyZZfTlxviZX",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Só apaga arquivos cujo nome termina exatamente com _<autor>.jpg ou _<autor>_<arquivo>.pdf\nconst autor = $('Preparar').first().json.autor;\nconst esc = autor.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\nconst re = new RegExp('_' + esc + '(\\\\.jpg|_.*\\\\.pdf)$');\nconst out = $input.all().filter(i => i.json && i.json.id && re.test(String(i.json.name || '')));\nreturn out.length ? out : [{ json: { id: '' } }];"
+      },
+      "id": "a18c7eb3-4957-4d20-b925-d272bd3313a1",
+      "name": "Drive: só deste titular",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5568,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_lgpd_eliminar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_numero: $('Preparar').first().json.numero }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "7f23327a-a8e3-40e4-bc80-a0b27b8d8cc2",
+      "name": "Supabase: anonimizar cadastro",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        5872,
+        -208
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json || {};\nconst out = [];\nif (r.asaas_subscription_id) out.push({ json: { caminho: '/subscriptions/' + r.asaas_subscription_id } });\nif (r.asaas_customer_id) out.push({ json: { caminho: '/customers/' + r.asaas_customer_id } });\nif (!out.length) out.push({ json: { caminho: '' } });\nreturn out;"
+      },
+      "id": "0829ed64-88d2-4fba-9fcb-53584cb11827",
+      "name": "Asaas: o que remover",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6064,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ $json.caminho ? 'https://api.asaas.com/v3' + $json.caminho : 'https://api.asaas.com/v3/customers/nenhum' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Dyno-LGPD"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "15f884af-cd44-44dc-a031-9a4fb04fd066",
+      "name": "Asaas: remover",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        6272,
+        -208
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l3GO5H4hRL8ca2k3",
+          "name": "asaas-prod"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Preparar').first().json;\nconst ZW = String.fromCharCode(8203), NL = String.fromCharCode(10);\nlet r = {};\ntry { r = $('Supabase: anonimizar cadastro').first().json || {}; } catch (e) { r = {}; }\nconst primeiro = (p.nome || p.autor).split(' ')[0];\nconst ok = r.ok === true;\nconst usuario = ok\n  ? 'Pronto, ' + primeiro + '. Apaguei seus registros do Dyno (gastos, tarefas, lembretes, memórias, conversas e comprovantes), encerrei seu acesso e removi seu cadastro de pagamento, sem nenhuma cobrança.' + NL + NL + 'Pela lei fiscal, só o histórico de pagamentos já feitos fica guardado pelo prazo obrigatório. Obrigado por ter testado o Dyno 💚'\n  : 'Não consegui concluir a exclusão agora. Já avisei a equipe e ela termina manualmente em até 15 dias. Dúvidas: privacidade@dynoapp.com.br.';\nconst admin = '*Dyno (LGPD):* ' + p.autor + ' pediu a exclusão dos dados pelo WhatsApp. ' + (ok ? 'Feito: tabelas do assistente, comprovantes no Drive, cadastro anonimizado e Asaas removido.' : 'FALHOU na etapa do Supabase; conclua manualmente (prazo de 15 dias).');\nreturn [\n  { json: { corpo: { number: p.numero, text: ZW + usuario, delay: 1200 } } },\n  { json: { corpo: { number: '5511930851325', text: ZW + admin, delay: 1500 } } }\n];"
+      },
+      "id": "1ef7823e-1d50-42b5-832b-1b0b9d8f80e0",
+      "name": "Montar confirmação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6464,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "6dae44de-ab8b-4bfd-89a7-f6762493f317",
+      "name": "Enviar mensagens",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        6672,
+        -208
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Preparar').first().json;\nreturn [{ json: { corpo: { number: p.numero, delay: 800, text: String.fromCharCode(8203) + 'Sua conta é do plano família, administrado pelo Daniel. Para apagar seus dados, fale com ele ou escreva para privacidade@dynoapp.com.br.' } } }];"
+      },
+      "id": "1bc631d9-c2a0-4a44-b0df-f3d880842cca",
+      "name": "Montar recusa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3040,
+        208
+      ]
+    }
+  ],
+  "connections": {
+    "Drive: só deste titular": {
+      "main": [
+        [
+          {
+            "node": "Drive: apagar comprovante",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Receber pedido": {
+      "main": [
+        [
+          {
+            "node": "Preparar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar": {
+      "main": [
+        [
+          {
+            "node": "Supabase: dados do cadastro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: dados do cadastro": {
+      "main": [
+        [
+          {
+            "node": "Ler transações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler transações": {
+      "main": [
+        [
+          {
+            "node": "Ler tarefas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler tarefas": {
+      "main": [
+        [
+          {
+            "node": "Ler lembretes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler lembretes": {
+      "main": [
+        [
+          {
+            "node": "Ler contas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler contas": {
+      "main": [
+        [
+          {
+            "node": "Ler assinaturas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler assinaturas": {
+      "main": [
+        [
+          {
+            "node": "Ler manutenções",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler manutenções": {
+      "main": [
+        [
+          {
+            "node": "Ler veículos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler veículos": {
+      "main": [
+        [
+          {
+            "node": "Ler extras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler extras": {
+      "main": [
+        [
+          {
+            "node": "Ler memórias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler memórias": {
+      "main": [
+        [
+          {
+            "node": "Ler orçamentos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler orçamentos": {
+      "main": [
+        [
+          {
+            "node": "Ler mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler mensagens": {
+      "main": [
+        [
+          {
+            "node": "Montar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar arquivo": {
+      "main": [
+        [
+          {
+            "node": "Qual pedido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qual pedido?": {
+      "main": [
+        [
+          {
+            "node": "Enviar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Montar recusa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar arquivo": {
+      "main": [
+        [
+          {
+            "node": "Seguir para apagar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seguir para apagar?": {
+      "main": [
+        [
+          {
+            "node": "Apagar transações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar transações": {
+      "main": [
+        [
+          {
+            "node": "Apagar tarefas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar tarefas": {
+      "main": [
+        [
+          {
+            "node": "Apagar lembretes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar lembretes": {
+      "main": [
+        [
+          {
+            "node": "Apagar contas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar contas": {
+      "main": [
+        [
+          {
+            "node": "Apagar assinaturas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar assinaturas": {
+      "main": [
+        [
+          {
+            "node": "Apagar manutenções",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar manutenções": {
+      "main": [
+        [
+          {
+            "node": "Apagar veículos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar veículos": {
+      "main": [
+        [
+          {
+            "node": "Apagar extras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar extras": {
+      "main": [
+        [
+          {
+            "node": "Apagar memórias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar memórias": {
+      "main": [
+        [
+          {
+            "node": "Apagar orçamentos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar orçamentos": {
+      "main": [
+        [
+          {
+            "node": "Apagar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar mensagens": {
+      "main": [
+        [
+          {
+            "node": "Drive: comprovantes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: comprovantes": {
+      "main": [
+        [
+          {
+            "node": "Drive: só deste titular",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: apagar comprovante": {
+      "main": [
+        [
+          {
+            "node": "Supabase: anonimizar cadastro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: anonimizar cadastro": {
+      "main": [
+        [
+          {
+            "node": "Asaas: o que remover",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asaas: o que remover": {
+      "main": [
+        [
+          {
+            "node": "Asaas: remover",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asaas: remover": {
+      "main": [
+        [
+          {
+            "node": "Montar confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar confirmação": {
+      "main": [
+        [
+          {
+            "node": "Enviar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar recusa": {
+      "main": [
+        [
+          {
+            "node": "Enviar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "63717a77-6912-4d0e-b543-13b2ade13cfe",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
+  },
+  "nodeGroups": [],
+  "id": "3jEnG5ZmIFf16JGS",
+  "tags": []
+}

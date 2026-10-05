@@ -1,0 +1,541 @@
+{
+  "name": "Dyno | Resumo semanal individual",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "cce33c91-91ce-4e97-9c13-c83178024f92",
+      "name": "Domingo 20:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "czjKVg7HFjMKNpAq",
+          "cachedResultName": "assessor_transacoes"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "data",
+              "condition": "gte",
+              "keyValue": "={{ $now.minus({ days: 45 }).toISO() }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "af5086d2-6fc8-4daf-958d-491c8042ea04",
+      "name": "Transações recentes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        304
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "4jXoLKiJqLZnCJxI",
+          "cachedResultName": "assessor_orcamentos"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "ativo",
+              "condition": "isTrue"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "9afa9a74-7dad-4cc8-8eba-9c07fbb83ea1",
+      "name": "Orçamentos ativos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        304
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "LnRebLLXT3hHXXVT",
+          "cachedResultName": "assessor_tarefas"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "keyValue": "aberta"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "947e15ee-9fce-42f6-a57e-7dafa214807d",
+      "name": "Tarefas abertas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        304
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_lembretes",
+          "mode": "id",
+          "value": "bYVBca9uT849KhYP"
+        },
+        "returnAll": true
+      },
+      "id": "2d2b445c-3847-4623-a97d-3416563113ce",
+      "name": "Lembretes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        304
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const TZ = 'America/Sao_Paulo';\n// Quem recebe o resumo semanal no privado (nome → número). Hoje: só a família.\nconst PESSOAS = { 'Daniel': '5511930851325', 'Quézia': '5511930859309', 'Eliezer': '5511920853779' };\nconst NL = String.fromCharCode(10);\nlet teste = false;\ntry { teste = $('Testar (manual)').isExecuted; } catch (e) { teste = false; }\nconst linhas = n => { try { return $(n).all().map(i => i.json).filter(r => r && r.id !== undefined && r.id !== null); } catch (e) { return []; } };\nconst de = r => r.autor || 'Daniel';\nconst brl = v => { const [i, c] = Math.abs(Number(v) || 0).toFixed(2).split('.'); return 'R$ ' + i.replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.') + ',' + c; };\nconst dt = v => { if (!v) return null; let d = DateTime.fromISO(String(v)); if (!d.isValid) d = DateTime.fromSQL(String(v)); return d.isValid ? d.setZone(TZ) : null; };\nconst BONITO = { alimentacao: 'Alimentação', educacao: 'Educação', saude: 'Saúde', vestuario: 'Vestuário', servicos: 'Serviços', transporte: 'Transporte', moradia: 'Moradia', lazer: 'Lazer', contas: 'Contas', assinaturas: 'Assinaturas', mercado: 'Mercado', outros: 'Outros', presentes: 'Presentes', viagem: 'Viagem', pets: 'Pets', beleza: 'Beleza', impostos: 'Impostos', investimentos: 'Investimentos' };\nconst nomeCat = c => { const k = String(c || 'outros').toLowerCase().trim(); return BONITO[k] || (k.charAt(0).toUpperCase() + k.slice(1)); };\nconst DIAS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];\nconst agora = DateTime.now().setZone(TZ).setLocale('pt-BR');\nconst iniSem = agora.startOf('week');\nconst fimSem = iniSem.plus({ days: 7 });\nconst iniAnt = iniSem.minus({ weeks: 1 });\nconst iniMes = agora.startOf('month');\nconst proxFim = agora.endOf('day').plus({ days: 7 });\nconst trans = linhas('Transações recentes').map(t => ({ ...t, d: dt(t.data || t.createdAt), v: Number(t.valor) || 0 })).filter(t => t.d);\nconst orc = linhas('Orçamentos ativos').filter(r => r.ativo !== false);\nconst tarefas = linhas('Tarefas abertas');\nconst lembretes = linhas('Lembretes').map(r => ({ ...r, d: dt(r.quando) }));\nconst contas = linhas('Contas').map(r => ({ ...r, d: dt(r.vencimento) }));\n\nfunction cardSemana(d) {\n  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n  const brl = v => { const [i, c] = Math.abs(Number(v) || 0).toFixed(2).split('.'); return 'R$ ' + i.replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.') + ',' + c; };\n  const brl0 = v => { const n = Math.round(Math.abs(Number(v) || 0)); return 'R$ ' + String(n).replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.'); };\n  const CORES = ['#14B37D', '#FF8A3D', '#6C7BFF', '#F2B53A', '#E35D8F', '#8A8FA8'];\n  const maxDia = Math.max(1, ...d.dias.map(x => x.v));\n  d.cats = d.cats.slice(0, 5);\n  const totCat = d.cats.reduce((s, c) => s + c[1], 0) || 1;\n\n  let comp = '';\n  if (d.gAnt > 0) {\n    const p = Math.round((d.gSem - d.gAnt) / d.gAnt * 100);\n    const menos = p < 0;\n    comp = '<span class=\"chip ' + (menos ? 'ok' : p === 0 ? 'neu' : 'up') + '\">' + (p === 0 ? '= igual' : (menos ? '▼ ' : '▲ ') + Math.abs(p) + '%') + ' vs semana passada</span>';\n  } else if (d.gSem > 0) comp = '<span class=\"chip neu\">primeira semana com gastos</span>';\n\n  const barras = d.dias.map((x, i) => {\n    const h = x.v > 0 ? Math.max(10, Math.round(x.v / maxDia * 130)) : 4;\n    return '<div class=\"dia' + (x.hoje ? ' hoje' : '') + '\"><div class=\"val\">' + (x.v > 0 ? brl0(x.v) : '') + '</div><div class=\"bar\" style=\"height:' + h + 'px\"></div><div class=\"lb\">' + esc(x.lb) + '</div></div>';\n  }).join('');\n\n  const stack = d.cats.map((c, i) => '<i style=\"flex:' + c[1].toFixed(2) + ';background:' + CORES[i % 6] + '\"></i>').join('');\n  const legenda = d.cats.map((c, i) => '<div class=\"lg\"><b style=\"background:' + CORES[i % 6] + '\"></b><span class=\"ln\">' + esc(c[0]) + '</span><span class=\"lv\">' + brl(c[1]) + '</span><span class=\"lp\">' + Math.round(c[1] / totCat * 100) + '%</span></div>').join('');\n\n  const agenda = d.proximos.length\n    ? d.proximos.slice(0, 4).map(p => '<div class=\"ag\"><span class=\"ad\">' + esc(p.quando) + '</span><div class=\"ab\"><div class=\"at\">' + esc(p.texto) + '</div>' + (p.valor ? '<div class=\"amt\">' + brl(p.valor) + '</div>' : '') + '</div></div>').join('')\n    : '<div class=\"vazio\">Nada agendado ainda. Me pede um lembrete que eu cuido 😉</div>';\n\n  const orc = d.orcamentos.slice(0, 2).map(o => {\n    const p = o.lim ? Math.round(o.g / o.lim * 100) : 0;\n    const cor = p >= 100 ? '#E5484D' : p >= 80 ? '#FF8A3D' : '#14B37D';\n    return '<div class=\"oc\"><div class=\"ot\"><span>' + esc(o.cat) + '</span><span>' + p + '%</span></div><div class=\"trk\"><i style=\"width:' + Math.min(100, p) + '%;background:' + cor + '\"></i></div></div>';\n  }).join('');\n\n  const semGastos = !d.gSem;\n  return '<!doctype html><html><head><meta charset=\"utf-8\"><style>' +\n  '*{box-sizing:border-box;margin:0;padding:0}' +\n  'html,body{width:1080px;height:1350px;background:#FFF6EA}' +\n  'body{font-family:\"Lato\",\"Open Sans\",\"Roboto\",\"DejaVu Sans\",sans-serif;color:#1B1F3B;-webkit-font-smoothing:antialiased}' +\n  '.wrap{position:relative;width:1080px;height:1350px;overflow:hidden;padding:56px 60px}' +\n  '.blob{position:absolute;border-radius:50%}' +\n  '.top{position:relative;display:flex;align-items:center;justify-content:space-between}' +\n  '.who{display:flex;align-items:center;gap:18px}' +\n  '.av{width:76px;height:76px;border-radius:50%;background:#FF8A3D;color:#fff;display:grid;place-items:center;font-size:40px;box-shadow:0 0 0 6px #FFE2CC}' +\n  '.who h1{font-size:44px;font-weight:900;letter-spacing:-.02em;line-height:1}' +\n  '.who p{font-size:24px;color:#5E6280;margin-top:6px;font-weight:700}' +\n  '.per{white-space:nowrap;flex:none;background:#1B1F3B;color:#fff;border-radius:999px;padding:14px 24px;font-size:24px;font-weight:700}' +\n  '.hero{position:relative;margin-top:30px;background:#1B1F3B;color:#fff;border-radius:36px;padding:32px 44px;display:flex;justify-content:space-between;align-items:flex-end;overflow:hidden}' +\n  '.hero .k{font-size:22px;letter-spacing:.12em;font-weight:800;color:#9AF4D5}' +\n  '.hero .big{font-size:84px;font-weight:900;letter-spacing:-.03em;line-height:1;margin-top:12px}' +\n  '.hero .sub{font-size:24px;color:#C9CCDD;margin-top:14px;font-weight:700}' +\n  '.chip{display:inline-block;border-radius:999px;padding:10px 18px;font-size:22px;font-weight:800;margin-top:16px}' +\n  '.chip.ok{background:#3EE9AF;color:#0B3D2C}.chip.up{background:#FFB98B;color:#5A2600}.chip.neu{background:#3A4070;color:#fff}' +\n  '.mini{text-align:right}.mini div{font-size:22px;color:#C9CCDD;font-weight:700}.mini b{display:block;font-size:40px;color:#fff;margin-top:4px}' +\n  '.grid{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;margin-top:22px}' +\n  '.card{background:#fff;border-radius:30px;padding:30px 32px;border:3px solid #1B1F3B;box-shadow:8px 8px 0 #1B1F3B}' +\n  '.card h3{font-size:20px;letter-spacing:.12em;font-weight:900;color:#0B6E4D;margin-bottom:18px}' +\n  '.full{grid-column:1/3}' +\n  '.dias{display:flex;align-items:flex-end;justify-content:space-between;height:180px;gap:14px}' +\n  '.dia{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}' +\n  '.dia .bar{width:100%;border-radius:14px 14px 6px 6px;background:#BDEFD9}' +\n  '.dia.hoje .bar{background:#14B37D}' +\n  '.dia .val{font-size:19px;font-weight:800;color:#5E6280;margin-bottom:8px;white-space:nowrap}' +\n  '.dia .lb{font-size:22px;font-weight:800;margin-top:10px;color:#1B1F3B;text-transform:capitalize}' +\n  '.stack{display:flex;height:26px;border-radius:13px;overflow:hidden;gap:4px;margin-bottom:20px}.stack i{display:block;height:100%}' +\n  '.lg{display:flex;align-items:center;gap:12px;font-size:23px;font-weight:700;padding:4px 0}' +\n  '.lg b{width:16px;height:16px;border-radius:5px;flex:none}.lg .ln{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lg .lv{font-weight:900}.lg .lp{width:58px;text-align:right;color:#8A8FA8}' +\n  '.ag{display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:2px dashed #EFE5D2;font-size:23px;font-weight:700}.ag:last-child{border-bottom:0}' +\n  '.ad{flex:none;background:#FFE2CC;color:#8A3B00;border-radius:12px;padding:6px 12px;font-size:20px;font-weight:900}' +\n  '.ab{flex:1;min-width:0}.at{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.amt{font-weight:900;font-size:20px;color:#C25A12;margin-top:2px}' +\n  '.vazio{font-size:23px;color:#5E6280;font-weight:700;line-height:1.4}' +\n  '.nums{display:flex;gap:14px;margin-top:18px}.num{flex:1;background:#FFF6EA;border-radius:18px;padding:14px 16px}.num b{display:block;font-size:40px;font-weight:900}.num span{font-size:19px;color:#5E6280;font-weight:800}' +\n  '.oc{margin-top:10px}.ot{display:flex;justify-content:space-between;font-size:22px;font-weight:800}.trk{height:14px;background:#EFE5D2;border-radius:7px;margin-top:8px;overflow:hidden}.trk i{display:block;height:100%;border-radius:7px}' +\n  '.foot{position:absolute;left:60px;right:60px;bottom:40px;display:flex;justify-content:space-between;align-items:center;font-size:22px;font-weight:800;color:#5E6280}' +\n  '.duo{display:flex;align-items:center;gap:10px}.duo i{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:18px}' +\n  '</style></head><body><div class=\"wrap\">' +\n  '<div class=\"blob\" style=\"width:520px;height:520px;background:#FFE2CC;right:-180px;top:-220px\"></div>' +\n  '<div class=\"blob\" style=\"width:380px;height:380px;background:#D9F7EA;left:-160px;bottom:-140px\"></div>' +\n  '<div class=\"top\"><div class=\"who\"><div class=\"av\">⏰</div><div><h1>Sua semana, ' + esc(d.nome) + '</h1><p>Dina, com os números do Dyno</p></div></div><div class=\"per\">' + esc(d.periodo) + '</div></div>' +\n  '<div class=\"hero\"><div><div class=\"k\">VOCÊ GASTOU NA SEMANA</div><div class=\"big\">' + (semGastos ? 'R$ 0' : brl(d.gSem)) + '</div>' + (comp || '<div class=\"sub\">Nenhum gasto registrado. Semana zen? 🧘</div>') + '</div>' +\n  '<div class=\"mini\"><div>Lançamentos</div><b>' + d.nLanc + '</b>' + (d.rSem > 0 ? '<div style=\"margin-top:12px\">Entradas</div><b style=\"color:#3EE9AF\">' + brl(d.rSem) + '</b>' : '') + '</div></div>' +\n  '<div class=\"grid\">' +\n  '<div class=\"card full\"><h3>DIA A DIA</h3><div class=\"dias\">' + barras + '</div></div>' +\n  '<div class=\"card\"><h3>ONDE FOI O DINHEIRO</h3>' + (d.cats.length ? '<div class=\"stack\">' + stack + '</div>' + legenda : '<div class=\"vazio\">Sem gastos nesta semana.</div>') + (orc ? '<h3 style=\"margin:22px 0 0\">ORÇAMENTOS DO MÊS</h3>' + orc : '') + '</div>' +\n  '<div class=\"card\"><h3>PRÓXIMOS 7 DIAS</h3>' + agenda +\n  '<div class=\"nums\"><div class=\"num\"><b>' + d.feitos + '</b><span>lembretes feitos</span></div><div class=\"num\"><b>' + d.nTar + '</b><span>tarefas abertas</span></div></div>' +\n  '</div></div>' +\n  '<div class=\"foot\"><div class=\"duo\"><i style=\"background:#FF8A3D\">⏰</i><i style=\"background:#14B37D\">💰</i>Dina &amp; Dyno</div><div>dynoapp.com.br</div></div>' +\n  '</div></body></html>';\n}\n\nconst saida = [];\nfor (const [nome, numero] of Object.entries(PESSOAS)) {\n  const minhas = trans.filter(t => de(t) === nome);\n  const desp = l => l.filter(t => t.tipo !== 'receita');\n  const soma = l => l.reduce((s, t) => s + t.v, 0);\n  const semana = minhas.filter(t => t.d >= iniSem && t.d < fimSem);\n  const anterior = minhas.filter(t => t.d >= iniAnt && t.d < iniSem);\n  const gSem = soma(desp(semana)), gAnt = soma(desp(anterior));\n  const rSem = soma(semana.filter(t => t.tipo === 'receita'));\n  const porCat = {};\n  for (const t of desp(semana)) { const k = nomeCat(t.categoria); porCat[k] = (porCat[k] || 0) + t.v; }\n  let cats = Object.entries(porCat).sort((a, b) => b[1] - a[1]);\n  if (cats.length > 5) cats = cats.slice(0, 4).concat([['Outras', cats.slice(4).reduce((s, c) => s + c[1], 0)]]);\n  const dias = DIAS.map((lb, i) => { const a = iniSem.plus({ days: i }), b = a.plus({ days: 1 }); return { lb, v: soma(desp(semana.filter(t => t.d >= a && t.d < b))), hoje: a.hasSame(agora, 'day') }; });\n  const gastoMes = {};\n  for (const t of desp(minhas.filter(t => t.d >= iniMes))) { const k = nomeCat(t.categoria); gastoMes[k] = (gastoMes[k] || 0) + t.v; }\n  const orcamentos = orc.filter(o => (o.pessoa || o.autor || 'Daniel') === nome).map(o => ({ cat: nomeCat(o.categoria), g: gastoMes[nomeCat(o.categoria)] || 0, lim: Number(o.limite) || 0 })).sort((a, b) => (b.lim ? b.g / b.lim : 0) - (a.lim ? a.g / a.lim : 0));\n  const meusL = lembretes.filter(l => de(l) === nome);\n  const feitos = meusL.filter(l => l.status === 'concluido' && dt(l.updatedAt) && dt(l.updatedAt) >= iniSem).length;\n  const quando = d => DIAS[d.weekday - 1] + ' ' + d.toFormat('HH:mm');\n  const proximos = meusL.filter(l => l.status === 'pendente' && l.d && l.d > agora && l.d <= proxFim).map(l => ({ d: l.d, quando: quando(l.d), texto: String(l.texto || '').split(NL)[0].slice(0, 60) }))\n    .concat(contas.filter(c => de(c) === nome && c.d && c.d > agora.startOf('day') && c.d <= proxFim && !['paga', 'pago', 'cancelada', 'cancelado'].includes(String(c.status || '').toLowerCase()))\n      .map(c => ({ d: c.d, quando: DIAS[c.d.weekday - 1] + ' ' + c.d.toFormat('dd/LL'), texto: 'Vence: ' + (c.descricao || c.beneficiario || 'conta'), valor: Number(c.valor) || 0 })))\n    .sort((a, b) => a.d - b.d);\n  const nTar = tarefas.filter(t => de(t) === nome).length;\n  const d = { nome: String(nome).split(' ')[0], periodo: iniSem.toFormat('dd/LL') + ' a ' + fimSem.minus({ days: 1 }).toFormat('dd/LL'), gSem, gAnt, rSem, nLanc: semana.length, dias, cats, proximos, feitos, nTar, orcamentos };\n\n  let comp = '';\n  if (gAnt > 0) { const v = Math.round((gSem - gAnt) / gAnt * 100); comp = v === 0 ? ' (igual à semana passada)' : ' (' + (v < 0 ? '▼ ' : '▲ ') + Math.abs(v) + '% vs semana passada)'; }\n  const c = ['*⏰ Dina*', 'Oi, ' + d.nome + '! Aqui está a sua semana (' + d.periodo + ') 👆', ''];\n  c.push(semana.length ? '💸 Gastos: *' + brl(gSem) + '*' + comp : '💸 Nenhum gasto registrado nesta semana.');\n  if (rSem > 0) c.push('💵 Entradas: ' + brl(rSem));\n  const alerta = orcamentos.filter(o => o.lim && o.g / o.lim >= 0.8);\n  if (alerta.length) c.push('🎯 De olho: ' + alerta.map(o => o.cat + ' ' + Math.round(o.g / o.lim * 100) + '%').join(' · '));\n  c.push('📅 Próximos 7 dias: ' + (proximos.length ? proximos.length + (proximos.length === 1 ? ' compromisso' : ' compromissos') : 'nada agendado ainda'));\n  c.push('', 'Boa semana! Quer o detalhe do mês? É só pedir \"meu dashboard do mês\".');\n  const caption = c.join(NL);\n  const html = cardSemana(d);\n  const bin = await this.helpers.prepareBinaryData(Buffer.from(html, 'utf8'), 'index.html', 'text/html');\n  saida.push({ json: { numero, nome, caption, teste }, binary: { files: bin } });\n}\nreturn saida;\n"
+      },
+      "id": "a7795c20-3c65-4984-bebc-36a5ba9827bd",
+      "name": "Montar resumo de cada pessoa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendMedia/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, mediatype: 'image', mimetype: 'image/png', caption: String.fromCharCode(8203) + $json.caption, media: $json.b64, fileName: 'sua-semana.png', delay: 2000 }) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2500
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "b660b225-aff5-49ef-ab52-bd718d395652",
+      "name": "Enviar card (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2080,
+        208
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Resumo semanal (Dina)\n\nTodo **domingo às 20h** a **Dina** manda no privado, pelo número do Dyno, um **card em imagem** da semana: gastos x semana passada, dia a dia, categorias, orçamentos e próximos 7 dias (lembretes + contas).\n\nA imagem é desenhada pelo serviço interno **dyno-render** (Gotenberg, só na rede do n8n). Se falhar, vai só o texto.\n\nDestinatários: constante PESSOAS em *Montar resumo de cada pessoa*.",
+        "height": 260,
+        "width": 600,
+        "color": 5
+      },
+      "id": "6be45435-be32-4ffb-a757-673a4455a1d1",
+      "name": "Sticky Note a42e18f3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_contas",
+          "mode": "id",
+          "value": "EMXP62JHcMJtClgT"
+        },
+        "returnAll": true
+      },
+      "id": "241714cf-477e-4d12-b067-0c7ebe9cc119",
+      "name": "Contas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        992,
+        464
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://dyno-render:3000/forms/chromium/screenshot/html",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "files"
+            },
+            {
+              "name": "width",
+              "value": "1080"
+            },
+            {
+              "name": "height",
+              "value": "1350"
+            },
+            {
+              "name": "format",
+              "value": "png"
+            },
+            {
+              "name": "clip",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 45000
+        }
+      },
+      "id": "2aafbdb4-4ad3-48a3-8af2-c22e85a516bc",
+      "name": "Desenhar card da semana",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1424,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Montar resumo de cada pessoa').all();\nconst out = [];\nconst itens = $input.all();\nfor (let i = 0; i < base.length; i++) {\n  let b64 = null;\n  try { if (itens[i] && itens[i].binary && itens[i].binary.data) { const buf = await this.helpers.getBinaryDataBuffer(i, 'data'); if (buf && buf.length > 5000) b64 = buf.toString('base64'); } } catch (e) { b64 = null; }\n  out.push({ json: { numero: base[i].json.numero, nome: base[i].json.nome, caption: base[i].json.caption, b64, temImagem: !!b64 } });\n}\nreturn out;"
+      },
+      "id": "66042b4e-f28c-4c38-bb5d-99e78ca37aa0",
+      "name": "Imagem para envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.temImagem }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "02f7e736-1aab-49ae-b46f-3e6750056c70",
+      "name": "Tem imagem?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1872,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: String.fromCharCode(8203) + String($json.caption).replace(' 👆', ''), delay: 2000 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "1fa24134-21c4-451e-8886-43406a942c9e",
+      "name": "Enviar texto (sem imagem)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2080,
+        432
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "c94d80bd-374d-4630-940c-969d5fad53f7",
+      "name": "Testar (manual)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Em teste manual nada é enviado: só geramos as imagens para conferir.\nlet teste = false;\ntry { teste = $('Testar (manual)').isExecuted; } catch (e) { teste = false; }\nreturn teste ? [] : $input.all();"
+      },
+      "id": "2abf84bc-d9d7-470b-9a3c-b6671f9d4efe",
+      "name": "Liberar envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        480
+      ]
+    }
+  ],
+  "connections": {
+    "Domingo 20:00": {
+      "main": [
+        [
+          {
+            "node": "Transações recentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transações recentes": {
+      "main": [
+        [
+          {
+            "node": "Orçamentos ativos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orçamentos ativos": {
+      "main": [
+        [
+          {
+            "node": "Tarefas abertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tarefas abertas": {
+      "main": [
+        [
+          {
+            "node": "Lembretes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lembretes": {
+      "main": [
+        [
+          {
+            "node": "Contas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contas": {
+      "main": [
+        [
+          {
+            "node": "Montar resumo de cada pessoa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar resumo de cada pessoa": {
+      "main": [
+        [
+          {
+            "node": "Desenhar card da semana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Desenhar card da semana": {
+      "main": [
+        [
+          {
+            "node": "Imagem para envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem imagem?": {
+      "main": [
+        [
+          {
+            "node": "Enviar card (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar texto (sem imagem)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Testar (manual)": {
+      "main": [
+        [
+          {
+            "node": "Transações recentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Imagem para envio": {
+      "main": [
+        [
+          {
+            "node": "Liberar envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Liberar envio": {
+      "main": [
+        [
+          {
+            "node": "Tem imagem?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timezone": "America/Sao_Paulo",
+    "errorWorkflow": "5UUmuzItIYDsd3AG"
+  },
+  "versionId": "e0a5544d-7ad6-4e99-b563-a3b1d2fa39c8",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
+  },
+  "nodeGroups": [],
+  "id": "Z2heNCM6hmMq0PZ0",
+  "tags": []
+}

@@ -1,0 +1,142 @@
+{
+  "name": "Dyno | Extras diários (parcelas e tarefas atrasadas)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "e2befa80-7f83-4975-8359-ce9b9923bd4a",
+      "name": "Todo dia 09:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// destinos = { autor: whatsapp } dos clientes do piloto (família continua no grupo).\nlet destinos = {};\ntry { const j = $input.first().json || {}; if (!j.error) destinos = j; } catch (e) { destinos = {}; }\nreturn [{ json: { rotina: true, instancia: 'dyno', destinos } }];"
+      },
+      "id": "f2ca33dd-2bf3-4765-bd38-2142813485b9",
+      "name": "Pedido da rotina",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "K4GH2JArrLnZbJAG",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "2281951b-25c6-41b7-a167-3a67b3ec2846",
+      "name": "Rodar Extras",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        448,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_assessor_destinos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "a68bf24e-692e-4ebb-9e27-8fbf8b052cc3",
+      "name": "Supabase: destinos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        112,
+        144
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Pedido da rotina": {
+      "main": [
+        [
+          {
+            "node": "Rodar Extras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Todo dia 09:30": {
+      "main": [
+        [
+          {
+            "node": "Supabase: destinos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: destinos": {
+      "main": [
+        [
+          {
+            "node": "Pedido da rotina",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo"
+  },
+  "versionId": "98395481-74e1-40f2-9bf6-ceaf05326bf9",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
+  },
+  "nodeGroups": [],
+  "id": "4sWI6Gs5o7AAR59R",
+  "tags": []
+}

@@ -15,3 +15,5 @@ site/chunk_*
 *.bak
 __pycache__/
 .DS_Store
+# export bruto do n8n (antes de limpar)
+n8n/_download/

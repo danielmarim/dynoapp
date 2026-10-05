@@ -1,0 +1,839 @@
+{
+  "name": "Dyno | Backup diário (Drive) e monitor externo",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ea15db53-1cc9-4234-8d9c-b847b03baabb",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "40 3 * * *"
+            }
+          ]
+        }
+      },
+      "id": "ef6d1a21-6765-4cf0-8c69-b9132e173c64",
+      "name": "Todo dia 03:40",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_backup_export",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "21024b36-e0d2-425e-ba99-d2dce6160f4c",
+      "name": "Supabase: exportar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        112
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_transacoes",
+          "mode": "id",
+          "value": "czjKVg7HFjMKNpAq"
+        },
+        "returnAll": true
+      },
+      "id": "2357a791-acaa-450d-9ed9-01b3848c04f2",
+      "name": "Tabela transacoes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_tarefas",
+          "mode": "id",
+          "value": "LnRebLLXT3hHXXVT"
+        },
+        "returnAll": true
+      },
+      "id": "79d43e50-c795-4d87-8b26-61d66fa10d59",
+      "name": "Tabela tarefas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        608,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_lembretes",
+          "mode": "id",
+          "value": "bYVBca9uT849KhYP"
+        },
+        "returnAll": true
+      },
+      "id": "71f7aaf9-8d0d-4e12-9367-eb4967f54a85",
+      "name": "Tabela lembretes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_contas",
+          "mode": "id",
+          "value": "EMXP62JHcMJtClgT"
+        },
+        "returnAll": true
+      },
+      "id": "55f4234c-1f97-4e91-8d02-b0b2bee37ded",
+      "name": "Tabela contas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        928,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_assinaturas",
+          "mode": "id",
+          "value": "BhTS13DGVIPZ39LS"
+        },
+        "returnAll": true
+      },
+      "id": "f1d29322-0d44-459a-885e-f08424f934be",
+      "name": "Tabela assinaturas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_manutencoes",
+          "mode": "id",
+          "value": "eB1McqY3kZqdeLTU"
+        },
+        "returnAll": true
+      },
+      "id": "0e0dd04c-a950-43c3-8c67-61e170e7ef81",
+      "name": "Tabela manutencoes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_veiculos",
+          "mode": "id",
+          "value": "L6ojMtqlOZEhq5vc"
+        },
+        "returnAll": true
+      },
+      "id": "47ea4ccc-34cc-47ae-b8f4-2164f4ac0139",
+      "name": "Tabela veiculos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1408,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_extras",
+          "mode": "id",
+          "value": "mJnt4Rop3vW3pcGI"
+        },
+        "returnAll": true
+      },
+      "id": "0e6fd064-4056-46b1-90f6-f5297afccc79",
+      "name": "Tabela extras",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1568,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_memorias",
+          "mode": "id",
+          "value": "KEazfdomT8PuvEdR"
+        },
+        "returnAll": true
+      },
+      "id": "f7d7363a-8b8f-44e8-addf-e785c9a87f8e",
+      "name": "Tabela memorias",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1728,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_orcamentos",
+          "mode": "id",
+          "value": "4jXoLKiJqLZnCJxI"
+        },
+        "returnAll": true
+      },
+      "id": "07fbf7f3-d8ac-4250-be66-7dfb99911416",
+      "name": "Tabela orcamentos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1888,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_mensagens",
+          "mode": "id",
+          "value": "6AuPgkHFMhGhazoN"
+        },
+        "returnAll": true
+      },
+      "id": "6bdea21b-9ab5-4377-b477-824abad66be3",
+      "name": "Tabela mensagens",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2048,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_rotina",
+          "mode": "id",
+          "value": "NDqcLJBOkeDUUMXq"
+        },
+        "returnAll": true
+      },
+      "id": "38ffcaa2-5ea6-4b33-9dde-0e7eb74924d6",
+      "name": "Tabela rotina",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2208,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const NOMES = [\"Tabela transacoes\", \"Tabela tarefas\", \"Tabela lembretes\", \"Tabela contas\", \"Tabela assinaturas\", \"Tabela manutencoes\", \"Tabela veiculos\", \"Tabela extras\", \"Tabela memorias\", \"Tabela orcamentos\", \"Tabela mensagens\", \"Tabela rotina\"];\nconst n8n = {};\nlet total = 0;\nfor (const n of NOMES) {\n  let rows = [];\n  try { rows = $(n).all().map(i => i.json).filter(r => r && r.id != null); } catch (e) { rows = []; }\n  n8n[n.replace('Tabela ', 'assessor_')] = rows; total += rows.length;\n}\nlet supa = {};\ntry { supa = $('Supabase: exportar').first().json || {}; } catch (e) { supa = {}; }\nconst agora = DateTime.now().setZone('America/Sao_Paulo');\nconst nome = 'dyno-backup-' + agora.toFormat('yyyy-LL-dd_HHmm') + '.json';\nconst conteudo = JSON.stringify({ gerado_em: agora.toISO(), aviso: 'Contém dados pessoais. Guardar só nesta pasta privada.', supabase: supa, n8n_data_tables: n8n });\nreturn [{ json: { nome, total, bytes: conteudo.length }, binary: { data: { data: Buffer.from(conteudo, 'utf8').toString('base64'), mimeType: 'application/json', fileName: nome } } }];"
+      },
+      "id": "ee3ef66d-2995-43bf-a782-4136947b1e13",
+      "name": "Montar arquivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "name": "={{ $json.nome }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "cachedResultName": "Dyno - Backups (privado)",
+          "mode": "id",
+          "value": "1I4U6dXr_KLbwbGhGF09Lgtbs9Sq4SAVc"
+        },
+        "options": {}
+      },
+      "id": "7df18e4a-c8f0-4406-b4ad-9397759eca4b",
+      "name": "Drive: salvar backup",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2560,
+        112
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "9lKkvyZZfTlxviZX",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "dyno-backup-",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "1I4U6dXr_KLbwbGhGF09Lgtbs9Sq4SAVc"
+          },
+          "whatToSearch": "files"
+        },
+        "options": {}
+      },
+      "id": "0050918f-ef9a-4645-8c85-7b026174414b",
+      "name": "Drive: backups existentes",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2768,
+        112
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "9lKkvyZZfTlxviZX",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mantém os 14 backups mais recentes (pelo nome com data); os mais antigos vão para a lixeira do Drive\nconst arquivos = $input.all().map(i => i.json).filter(f => f && f.id && /^dyno-backup-\\d{4}-\\d{2}-\\d{2}_\\d{4}\\.json$/.test(String(f.name || '')));\narquivos.sort((a, b) => String(b.name).localeCompare(String(a.name)));\nconst remover = arquivos.slice(14);\nreturn remover.length ? remover.map(f => ({ json: { id: f.id, name: f.name } })) : [];"
+      },
+      "id": "861df2c2-98c7-4aa9-ae66-3a714ba461c9",
+      "name": "Backups antigos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2960,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {
+          "deletePermanently": false
+        }
+      },
+      "id": "2e137c42-882a-4d14-b4fb-7db429c88498",
+      "name": "Drive: mover antigo para lixeira",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3168,
+        112
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "9lKkvyZZfTlxviZX",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "id": "d0ac91fa-4cf2-475a-b159-dd18c3c412d6",
+      "name": "A cada 10 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_monitor_relatorio",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "b99f3ab1-c424-468d-9724-477d3aff2983",
+      "name": "Supabase: quedas registradas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        464
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ String($json.texto || '').length > 0 }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "df806c9a-d84c-400a-a971-040b60e27a11",
+      "name": "Teve queda?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: '5511930851325', text: String.fromCharCode(8203) + $json.texto, delay: 500 }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "94df5581-7acd-42b9-8559-f171cdaf5449",
+      "name": "Avisar Daniel (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        464
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Supabase: exportar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Todo dia 03:40": {
+      "main": [
+        [
+          {
+            "node": "Supabase: exportar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: exportar": {
+      "main": [
+        [
+          {
+            "node": "Tabela transacoes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela transacoes": {
+      "main": [
+        [
+          {
+            "node": "Tabela tarefas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela tarefas": {
+      "main": [
+        [
+          {
+            "node": "Tabela lembretes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela lembretes": {
+      "main": [
+        [
+          {
+            "node": "Tabela contas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela contas": {
+      "main": [
+        [
+          {
+            "node": "Tabela assinaturas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela assinaturas": {
+      "main": [
+        [
+          {
+            "node": "Tabela manutencoes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela manutencoes": {
+      "main": [
+        [
+          {
+            "node": "Tabela veiculos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela veiculos": {
+      "main": [
+        [
+          {
+            "node": "Tabela extras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela extras": {
+      "main": [
+        [
+          {
+            "node": "Tabela memorias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela memorias": {
+      "main": [
+        [
+          {
+            "node": "Tabela orcamentos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela orcamentos": {
+      "main": [
+        [
+          {
+            "node": "Tabela mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela mensagens": {
+      "main": [
+        [
+          {
+            "node": "Tabela rotina",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela rotina": {
+      "main": [
+        [
+          {
+            "node": "Montar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar arquivo": {
+      "main": [
+        [
+          {
+            "node": "Drive: salvar backup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: salvar backup": {
+      "main": [
+        [
+          {
+            "node": "Drive: backups existentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: backups existentes": {
+      "main": [
+        [
+          {
+            "node": "Backups antigos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backups antigos": {
+      "main": [
+        [
+          {
+            "node": "Drive: mover antigo para lixeira",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A cada 10 min": {
+      "main": [
+        [
+          {
+            "node": "Supabase: quedas registradas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: quedas registradas": {
+      "main": [
+        [
+          {
+            "node": "Teve queda?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Teve queda?": {
+      "main": [
+        [
+          {
+            "node": "Avisar Daniel (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "saveManualExecutions": false,
+    "saveDataSuccessExecution": "none",
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all"
+  },
+  "versionId": "e890af4a-76fc-4ec1-8032-d1e24a7c94c5",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
+  },
+  "nodeGroups": [],
+  "id": "ssmh5caNcmvqPBSD",
+  "tags": []
+}

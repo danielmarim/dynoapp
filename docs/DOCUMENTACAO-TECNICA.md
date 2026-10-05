@@ -1,6 +1,6 @@
 # Dyno — Documentação técnica e Roadmap
 
-Oct 4, 2026 · @DANIEL
+Oct 5, 2026 · @DANIEL
 
 ## Visão geral
 
@@ -123,7 +123,10 @@ O domínio está registrado na Hostinger.
 | Serviço | Endereço | Conexão |
 | --- | --- | --- |
 | Supabase | xvekgnbneeokihtjpbts.supabase.co (us-east-2) | REST/RPC com a chave de serviço (credencial Supabase\_Dyno) |
-| OpenAI | api.openai.com | Chave em variável de ambiente do n8n |
+| OpenAI | api.openai.com | Credencial openai-dyno (projeto DynoApp, limite US$ 20/mês, alertas 80% e 100%) |
+| Anthropic (Claude) | api.anthropic.com | Credencial anthropic-dyno |
+| TypeSafe (Jev) | API da TypeSafe | Credencial jev-typesafe |
+| Banco Central (PTAX) | API pública do BC | Público (cotação do alerta de câmbio) |
 | Asaas | api.asaas.com/v3 | Credencial asaas-prod |
 | Google Drive | API do Google, conta oficialdynamowear | OAuth2 (credencial Google Drive account) |
 | Nominatim | nominatim.openstreetmap.org | Público |
@@ -166,7 +169,7 @@ O Dyno é feito sem servidor de aplicação próprio: a lógica fica toda no n8n
 
 | Camada | Ferramenta | Uso no Dyno |
 | --- | --- | --- |
-| Orquestração | n8n self-hosted (Docker) | 24 workflows: cérebro, agendados, cadastro, cobrança, API do site, operação |
+| Orquestração | n8n self-hosted (Docker) | 28 workflows (24 ativos): cérebro, agendados, cadastro, cobrança, API do site, operação |
 | Canal | Evolution API v2.3.7 (WhatsApp Web, não oficial) | Recebe e envia mensagens, baixa mídia, foto e recado do perfil |
 | IA | OpenAI gpt-5.6-luna | Entende a mensagem e devolve JSON `{resposta, acoes[]}`; lê foto, PDF e extratos; pesquisa na web |
 | IA (voz) | OpenAI gpt-4o-mini-transcribe | Transcreve áudios |
@@ -181,7 +184,7 @@ O Dyno é feito sem servidor de aplicação próprio: a lógica fica toda no n8n
 | Gráficos | Nó Edit Image do n8n | Dashboard financeiro em PNG |
 | Vídeo | HyperFrames | Vídeo promo do Beta e tutorial de boas-vindas |
 
-Credenciais do n8n usadas pelo Dyno, só por nome: **Supabase\_Dyno**, **evolution-dyno**, **asaas-prod**, **asaas-access-token**, **Google Drive account**. A chave da OpenAI vem da variável de ambiente do n8n. Nenhum segredo fica em código ou neste documento.
+Credenciais do n8n usadas pelo Dyno, só por nome: **Supabase\_Dyno**, **evolution-dyno**, **openai-dyno**, **anthropic-dyno**, **jev-typesafe**, **asaas-prod**, **asaas-access-token**, **Google Places**, **Google Drive account**. Desde 05/10 a OpenAI usa a credencial openai-dyno; a variável `OPENAI_API_KEY` do n8n fica só para o DMChat da Dynamo Wear. Nenhum segredo fica em código ou neste documento.
 
 ## IA em camadas (OpenAI, Claude e Jev)
 
@@ -278,7 +281,7 @@ Função do Dyno lançada em 05/10. O cliente pede pelo WhatsApp ("me avisa quan
 
 ## n8n: workflows
 
-O Dyno tem 23 workflows ativos (inclui o Jev modo sombra) e 4 desligados (só de setup ou teste, incluindo o TESTE IA em camadas, 0NTpUwVxsZFMm8Li), todos no projeto pessoal do n8n. Editor: n8n.srv1825327.hstgr.cloud.
+O Dyno tem 24 workflows ativos (inclui o Jev modo sombra e o Alerta de câmbio) e 4 desligados (só de setup ou teste, incluindo o TESTE IA em camadas, 0NTpUwVxsZFMm8Li), todos no projeto pessoal do n8n. Editor: n8n.srv1825327.hstgr.cloud.
 
 ### Atendimento (tempo real)
 
@@ -300,7 +303,8 @@ O Dyno tem 23 workflows ativos (inclui o Jev modo sombra) e 4 desligados (só de
 | Relatórios do dia e check-ins | 9VTi7hePHvXOvYrW | 07:30, 10:00, 12:00, 14:12, 18:00, 21:00 | Relatórios por cliente e "esqueceu de registrar algo?" |
 | Agentes diários | 2mEE5d9YWcgutRbD | 09:00 | Renovação de assinaturas, manutenções, pedido de km |
 | Extras diários | 4sWI6Gs5o7AAR59R | 09:30 | Lança parcelas/recorrentes e avisa tarefas atrasadas |
-| Resumo semanal individual | Z2heNCM6hmMq0PZ0 | Domingo 20:00 | Resumo da semana da família (ainda pelo número pessoal) |
+| Resumo semanal individual | Z2heNCM6hmMq0PZ0 | Domingo 20:00 | Card em imagem da semana (Dina), pelo número do Dyno; por enquanto só a família |
+| Alerta de câmbio | asdiDsXdGoWC7Bip | A cada 15 min, seg–sex 9h–18h | Cotação do dólar e do euro e aviso de quem pediu alerta |
 | Lembrete de cadastro incompleto | BBRCGBQtIX8waiqL | A cada hora | Cadastros parados, convites não usados e avisos de fim do teste |
 
 ### Site, cobrança e operação
@@ -385,7 +389,7 @@ O limite das Data tables é 200 MiB no total, e a decisão foi mantê-lo assim p
 
 O site [dynoapp.com.br](https://dynoapp.com.br) está no ar. É estático, servido por nginx, e não fala direto com o banco: toda chamada passa por `/api`, que o nginx repassa ao n8n com um cabeçalho secreto.
 
-**Páginas:** Início, Como funciona, Preços, Dúvidas, Termos e Privacidade (preliminares, faltam razão social, CNPJ e revisão jurídica), Entrar e Minha área. "Quero participar" leva ao direct do Instagram @dynoapp.ia, e "Já tenho convite" leva ao WhatsApp do Dyno. As fontes são Inter Tight e Inter.
+**Páginas:** Início, Como funciona, Preços, Dúvidas, Termos e Privacidade (preliminares, faltam razão social, CNPJ e revisão jurídica), Entrar e Minha área. "Quero participar" leva ao pedido de vaga em /beta (antes ia ao direct do Instagram @dynoapp.ia), e "Já tenho convite" leva ao WhatsApp do Dyno. As fontes são Inter Tight e Inter.
 
 **Login:** sem senha, com um código de 6 dígitos enviado pelo WhatsApp do Dyno.
 
@@ -531,7 +535,7 @@ Todos os planos têm as mesmas funções. O cancelamento é livre, pela área do
 
 **Jornada do cliente:**
 
-1. Convite (pelo comando de admin do Daniel ou pelo direct do Instagram).
+1. Convite: pedido em dynoapp.com.br/beta aprovado pelo Daniel (APROVAR N), comando de admin ou direct do Instagram.
 2. Cadastro pelo WhatsApp: nome, e-mail, aceite dos Termos e CPF.
 3. O Asaas recebe só o cliente, sem cobrança.
 4. Boas-vindas com o vídeo tutorial (40 s).
@@ -727,7 +731,7 @@ O que falta está em 4 fases, com lançamento aberto em 01/12/2026. Cada fase s�
 - [ ] Memória semântica com pgvector
 - [ ] Instagram do Dyno conectado e teaser publicado
 - [ ] Coletar e aplicar o feedback dos dias 7 e 30
-- [ ] Preencher as 10 vagas do piloto (hoje 9 livres)
+- [ ] Preencher as 10 vagas do piloto (hoje 5 livres)
 - [ ] Decidir os 3 planos pós-Beta (Essencial, Completo, Premium) e os preços, com o custo real de IA por cliente medido no Beta
 - [ ] Cotar Open Finance por conexão (Polp, Tecnospeed, Pluggy) e escolher o provedor do Premium
 - [ ] Plano no sistema: coluna de plano com limites (lembretes, pessoas, contas conectadas) e bloqueio das funções fora do plano no cérebro
@@ -737,7 +741,7 @@ O que falta está em 4 fases, com lançamento aberto em 01/12/2026. Cada fase s�
 ### 4. Lançamento (dezembro)
 
 - [ ] Lançamento aberto em 01/12
-- [ ] Conversão do Beta: os testes de Marcos, Márcia e Tavarez vencem em 03/12
+- [ ] Conversão do Beta: os testes de Anderson, Marcelo, Paulo, Felipe e Victor Tavarez vencem em 03/12 (Márcia e Marcos já são família, sem cobrança)
 - [ ] Decidir sobre a API oficial do WhatsApp (Meta) antes de crescer
 - [ ] Mover o Dyno para um VPS próprio ou separar Dynamo Wear e o jogo
 - [ ] Supabase Pro antes de ter clientes pagantes

@@ -1,0 +1,508 @@
+{
+  "name": "Dyno | Relatórios do dia e check-ins",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 7 * * *"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * *"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 12 * * *"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "12 14 * * *"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * *"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 21 * * *"
+            }
+          ]
+        }
+      },
+      "id": "f5d20465-08bf-40c7-beaf-916e21eabd84",
+      "name": "Horários do dia",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const TZ = 'America/Sao_Paulo';\nlet teste = false;\ntry { teste = $('Testar (manual)').isExecuted; } catch (e) { teste = false; }\nconst a = DateTime.now().setZone(TZ);\nconst h = a.hour;\nconst momento = h < 9 ? 'manha' : h < 11 ? 'checkin' : h < 13 ? 'meio_dia' : h < 16 ? 'checkin' : h < 20 ? 'tarde' : 'noite';\nreturn [{ json: { momento, teste } }];"
+      },
+      "id": "76ca11b7-b0ea-4152-917a-0298305104fd",
+      "name": "Momento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_assessor_destinos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "521bcae3-0bae-4e9b-a7d5-e9235b5fe892",
+      "name": "Supabase: clientes atendidos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "bYVBca9uT849KhYP",
+          "cachedResultName": "assessor_lembretes"
+        },
+        "returnAll": true
+      },
+      "id": "8fcc3dab-f359-4118-bc8a-2457fd41b296",
+      "name": "Lembretes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        304
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "LnRebLLXT3hHXXVT",
+          "cachedResultName": "assessor_tarefas"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "keyValue": "aberta"
+            },
+            {
+              "keyName": "updatedAt",
+              "condition": "gte",
+              "keyValue": "={{ $now.setZone('America/Sao_Paulo').startOf('day').toISO() }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "6714ffd3-2c6c-477b-9b0b-b44919083c99",
+      "name": "Tarefas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        304
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "czjKVg7HFjMKNpAq",
+          "cachedResultName": "assessor_transacoes"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "data",
+              "condition": "gte",
+              "keyValue": "={{ $now.setZone('America/Sao_Paulo').startOf('day').minus({ days: 1 }).toISO() }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "03d77c3b-97db-4376-82bd-d729703491cd",
+      "name": "Transações de hoje",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1104,
+        304
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "EMXP62JHcMJtClgT",
+          "cachedResultName": "assessor_contas"
+        },
+        "returnAll": true
+      },
+      "id": "3770c26c-47d6-42b9-8cb4-208b09283bc8",
+      "name": "Contas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1328,
+        304
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "6AuPgkHFMhGhazoN",
+          "cachedResultName": "assessor_mensagens"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "createdAt",
+              "condition": "gte",
+              "keyValue": "={{ $now.minus({ hours: 3 }).toISO() }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "9fb721e1-2d73-4b65-8fd6-ea6535dbc155",
+      "name": "Mensagens recentes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1552,
+        304
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst GRUPO = '120363412854461070@g.us';\nconst FAMILIA = ['Daniel', 'Quézia', 'Eliezer'];\nconst NL = String.fromCharCode(10);\nconst M = $('Momento').first().json;\nconst agora = DateTime.now().setZone(TZ).setLocale('pt-BR');\nconst ini = agora.startOf('day'), fim = agora.endOf('day');\nconst rows = n => { try { return $(n).all().map(i => i.json).filter(r => r && r.id != null); } catch (e) { return []; } };\nconst dt = v => { if (!v) return null; let d = DateTime.fromISO(String(v)); if (!d.isValid) d = DateTime.fromSQL(String(v)); return d.isValid ? d.setZone(TZ) : null; };\nconst ehHoje = d => !!d && d >= ini && d <= fim;\nconst brl = v => { const [i, c] = Math.abs(Number(v) || 0).toFixed(2).split('.'); return 'R$ ' + i.replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.') + ',' + c; };\nconst de = r => r.autor || 'Daniel';\nlet dest = {};\ntry { dest = $('Supabase: clientes atendidos').first().json || {}; } catch (e) { dest = {}; }\nconst LEMB = rows('Lembretes');\nconst TAR = rows('Tarefas');\nconst TRA = rows('Transações de hoje');\nconst CON = rows('Contas');\nconst MSG = rows('Mensagens recentes');\n\nfunction dados(a) {\n  const L = LEMB.filter(r => de(r) === a).map(r => ({ ...r, d: dt(r.quando) }));\n  const proximos = L.filter(r => r.status === 'pendente' && ehHoje(r.d) && r.d > agora).sort((x, y) => x.d - y.d);\n  const semOk = L.filter(r => r.status === 'aguardando');\n  const feitos = L.filter(r => r.status === 'concluido' && ehHoje(dt(r.updatedAt)));\n  const contas = CON.filter(r => de(r) === a && !['paga', 'pago', 'cancelada', 'cancelado'].includes(String(r.status || '').toLowerCase()) && ehHoje(dt(r.vencimento)));\n  const abertas = TAR.filter(r => de(r) === a && r.status === 'aberta');\n  const urgentes = abertas.filter(r => { const p = dt(r.prazo); return p && p <= fim; });\n  const feitasHoje = TAR.filter(r => de(r) === a && r.status === 'concluida' && ehHoje(dt(r.updatedAt)));\n  const tr = TRA.filter(r => de(r) === a && ehHoje(dt(r.data)));\n  const gastos = tr.filter(r => String(r.tipo || 'despesa') !== 'receita');\n  const receitas = tr.filter(r => String(r.tipo) === 'receita');\n  const ativo2h = MSG.some(r => r.papel === 'usuario' && de(r) === a && dt(r.createdAt) && dt(r.createdAt) >= agora.minus({ hours: 2 }));\n  return { proximos, semOk, feitos, contas, abertas, urgentes, feitasHoje, gastos, receitas, ativo2h };\n}\nconst linhaL = r => '• ' + r.d.toFormat('HH:mm') + ' — ' + String(r.texto || '').split(NL)[0].slice(0, 90);\nfunction blocoAgenda(x) {\n  const b = [];\n  if (x.proximos.length) b.push('⏰ *Lembretes ainda hoje:*' + NL + x.proximos.slice(0, 8).map(linhaL).join(NL));\n  if (x.semOk.length) b.push('🔔 *Esperando seu ok:*' + NL + x.semOk.slice(0, 5).map(r => '• ' + String(r.texto || '').split(NL)[0].slice(0, 90)).join(NL));\n  if (x.contas.length) b.push('💸 *Vence hoje:*' + NL + x.contas.slice(0, 5).map(r => '• ' + (r.descricao || r.beneficiario || 'conta') + (r.valor ? ' — ' + brl(r.valor) : '')).join(NL));\n  return b;\n}\nfunction textoCliente(a, mom) {\n  const n = String(a).split(' ')[0];\n  const x = dados(a);\n  if (mom === 'manha') {\n    const b = blocoAgenda(x);\n    if (x.urgentes.length) b.push('📋 *Tarefas para hoje ou atrasadas:*' + NL + x.urgentes.slice(0, 5).map(t => '• ' + t.titulo).join(NL));\n    else if (x.abertas.length) b.push('📋 ' + x.abertas.length + (x.abertas.length === 1 ? ' tarefa aberta' : ' tarefas abertas'));\n    return '☀️ *Bom dia, ' + n + '!* ' + (b.length ? 'Seu dia hoje:' + NL + NL + b.join(NL + NL) : 'Nada agendado pra hoje 🙌') + NL + NL + 'Gastou algo? É só me mandar por texto, áudio ou foto do comprovante.';\n  }\n  if (mom === 'meio_dia') {\n    const b = blocoAgenda(x);\n    if (!b.length) return null;\n    return '🕛 *' + n + ', resumo do meio-dia*' + NL + NL + b.join(NL + NL);\n  }\n  if (mom === 'tarde') {\n    const b = blocoAgenda(x);\n    const pergunta = x.ativo2h ? '' : 'E aí, teve algum gasto à tarde que ainda não me contou? 😉';\n    if (!b.length && !pergunta) return null;\n    return '🌆 *' + n + ', fim de tarde*' + NL + NL + (b.length ? b.join(NL + NL) + (pergunta ? NL + NL : '') : '') + pergunta;\n  }\n  if (mom === 'noite') {\n    const b = [];\n    if (x.gastos.length) {\n      const tot = x.gastos.reduce((s, r) => s + (Number(r.valor) || 0), 0);\n      b.push('💰 *Gastos de hoje:* ' + brl(tot) + ' em ' + x.gastos.length + (x.gastos.length === 1 ? ' lançamento' : ' lançamentos') + NL + x.gastos.slice(0, 6).map(r => '• ' + (r.descricao || r.categoria || 'gasto') + ' — ' + brl(r.valor)).join(NL) + (x.gastos.length > 6 ? NL + '• +' + (x.gastos.length - 6) + ' outros' : ''));\n    } else b.push('💰 Hoje não registrei nenhum gasto seu.');\n    if (x.receitas.length) b.push('💵 *Entradas:* ' + brl(x.receitas.reduce((s, r) => s + (Number(r.valor) || 0), 0)));\n    const nl = x.feitos.length + x.semOk.length + x.proximos.length;\n    if (nl) b.push('⏰ *Lembretes:* ' + x.feitos.length + (x.feitos.length === 1 ? ' feito' : ' feitos') + (x.semOk.length ? ', ' + x.semOk.length + ' sem ok' : '') + (x.proximos.length ? ', ' + x.proximos.length + ' ainda hoje' : ''));\n    if (x.feitasHoje.length || x.abertas.length) b.push('📋 *Tarefas:* ' + x.feitasHoje.length + (x.feitasHoje.length === 1 ? ' concluída hoje, ' : ' concluídas hoje, ') + x.abertas.length + (x.abertas.length === 1 ? ' aberta' : ' abertas'));\n    return '🌙 *' + n + ', seu dia em resumo*' + NL + NL + b.join(NL + NL) + NL + NL + '*Faltou registrar alguma coisa de hoje?* Me manda que eu anoto agora. Boa noite! 💚';\n  }\n  if (mom === 'checkin') {\n    if (x.ativo2h) return null;\n    return agora.hour < 12\n      ? '👋 ' + n + ', passando pra lembrar: gastou algo hoje cedo? Café, Uber, padaria... me manda que eu anoto.'\n      : '👋 ' + n + ', tudo certo por aí? Não esqueceu de registrar o almoço ou algum gasto da manhã?';\n  }\n  return null;\n}\nfunction textoFamilia(mom) {\n  if (mom === 'manha') return null; // a família já recebe o resumo das 06:00 no grupo\n  const partes = [];\n  for (const a of FAMILIA) {\n    const x = dados(a);\n    if (mom === 'checkin') { if (!x.ativo2h) partes.push(a); continue; }\n    const b = [];\n    if (x.proximos.length) b.push(x.proximos.slice(0, 6).map(linhaL).join(NL));\n    if (x.semOk.length) b.push('🔔 esperando ok: ' + x.semOk.slice(0, 4).map(r => String(r.texto || '').split(NL)[0].slice(0, 60)).join('; '));\n    if (x.contas.length) b.push('💸 vence hoje: ' + x.contas.slice(0, 4).map(r => r.descricao || r.beneficiario || 'conta').join(', '));\n    if (mom === 'noite') {\n      b.push('💰 ' + (x.gastos.length ? x.gastos.length + (x.gastos.length === 1 ? ' lançamento hoje' : ' lançamentos hoje') : 'nenhum gasto registrado hoje'));\n      if (x.feitos.length || x.feitasHoje.length) b.push('✅ feitos hoje: ' + x.feitos.length + (x.feitos.length === 1 ? ' lembrete' : ' lembretes') + ', ' + x.feitasHoje.length + (x.feitasHoje.length === 1 ? ' tarefa' : ' tarefas'));\n    }\n    if (b.length) partes.push('*' + a + ':*' + NL + b.join(NL));\n  }\n  if (mom === 'checkin') return partes.length ? '👋 ' + partes.join(', ') + ': gastaram algo hoje? Me manda aqui que eu anoto. — Dyno 🤖' : null;\n  if (mom === 'tarde') {\n    const quietos = FAMILIA.filter(a => !dados(a).ativo2h);\n    if (!partes.length) return quietos.length ? '🌆 ' + quietos.join(', ') + ': teve algum gasto à tarde que ainda não registraram? 😉 — Dyno 🤖' : null;\n  }\n  if (!partes.length && mom !== 'noite') return null;\n  const titulo = { meio_dia: '🕛 *Resumo do meio-dia*', tarde: '🌆 *Fim de tarde*', noite: '🌙 *Resumo do dia*' }[mom];\n  const fecho = mom === 'noite' ? 'Faltou registrar alguma coisa de hoje? Me manda aqui que eu anoto. Boa noite! 💚' : mom === 'tarde' ? 'Teve algum gasto à tarde que ainda não registraram? 😉' : '';\n  return titulo + (partes.length ? NL + NL + partes.join(NL + NL) : '') + (fecho ? NL + NL + fecho : '');\n}\nconst momentos = M.teste ? ['manha', 'checkin', 'meio_dia', 'tarde', 'noite'] : [M.momento];\nconst out = [];\nfor (const mom of momentos) {\n  for (const a of Object.keys(dest)) {\n    if (FAMILIA.includes(a)) continue;\n    const t = textoCliente(a, mom);\n    if (t) out.push({ json: { momento: mom, autor: a, numero: dest[a], texto: t } });\n  }\n  const f = textoFamilia(mom);\n  if (f) out.push({ json: { momento: mom, autor: null, numero: GRUPO, texto: f } });\n}\nreturn out.map(i => ({ json: { ...i.json, teste: !!M.teste } }));\n"
+      },
+      "id": "560f364f-147d-4f88-860f-7838d87f6488",
+      "name": "Montar mensagens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Em teste manual nada é enviado: só montamos as mensagens para conferir.\n// A assinatura agora vem no cabeçalho (Dina/Dyno), então tiramos o '— Dyno 🤖' antigo.\nreturn $input.all().filter(i => !i.json.teste).map(i => ({ json: { ...i.json, texto: String(i.json.texto || '').replace(/\\s*— Dyno 🤖/g, '') } }));"
+      },
+      "id": "8cf74d58-71d7-43b6-939a-db56da1ef736",
+      "name": "Liberar envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: String.fromCharCode(8203) + ($json.momento === 'noite' ? '*💰 Dyno*' : '*⏰ Dina*') + String.fromCharCode(10) + $json.texto, delay: 1200 }) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "3be372f4-69ed-4ad8-af73-e0681528138a",
+      "name": "Enviar (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2208,
+        208
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "c4c82076-f46b-4520-805c-7d487bf1faeb",
+      "name": "Testar (manual)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().filter(i => i.json.autor).map(i => ({ json: { telefone: i.json.numero, papel: 'assistente', texto: (i.json.momento === 'noite' ? '*💰 Dyno*' : '*⏰ Dina*') + String.fromCharCode(10) + i.json.texto, autor: 'Assessor:' + i.json.autor } }));"
+      },
+      "id": "1ed94de9-4ef3-4ef8-bc7d-74f58ff1d52e",
+      "name": "Só clientes (histórico)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "6AuPgkHFMhGhazoN",
+          "cachedResultName": "assessor_mensagens"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "cd5fae9b-0b7c-4637-84ef-18d5e5e18ce9",
+      "name": "Registrar na conversa",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2432,
+        432
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Horários do dia": {
+      "main": [
+        [
+          {
+            "node": "Momento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Momento": {
+      "main": [
+        [
+          {
+            "node": "Supabase: clientes atendidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: clientes atendidos": {
+      "main": [
+        [
+          {
+            "node": "Lembretes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lembretes": {
+      "main": [
+        [
+          {
+            "node": "Tarefas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tarefas": {
+      "main": [
+        [
+          {
+            "node": "Transações de hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transações de hoje": {
+      "main": [
+        [
+          {
+            "node": "Contas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contas": {
+      "main": [
+        [
+          {
+            "node": "Mensagens recentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagens recentes": {
+      "main": [
+        [
+          {
+            "node": "Montar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar mensagens": {
+      "main": [
+        [
+          {
+            "node": "Liberar envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Liberar envio": {
+      "main": [
+        [
+          {
+            "node": "Enviar (WhatsApp)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Só clientes (histórico)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Testar (manual)": {
+      "main": [
+        [
+          {
+            "node": "Momento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Só clientes (histórico)": {
+      "main": [
+        [
+          {
+            "node": "Registrar na conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "versionId": "62677da9-ca39-4f2d-acbf-70b9a15cafc4",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
+  },
+  "nodeGroups": [],
+  "id": "9VTi7hePHvXOvYrW",
+  "tags": []
+}

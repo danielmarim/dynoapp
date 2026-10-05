@@ -1,0 +1,375 @@
+{
+  "name": "Dyno | Painel e infraestrutura",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "dyno-painel",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "7392bf77-6b71-4715-8c19-996b5aa1d561",
+      "name": "Painel (pagina)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "ada9e32b-e39e-4b03-bded-d092fd1033f0"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"robots\" content=\"noindex,nofollow\"><title>Dyno — Painel</title>\n<style>:root{--cream:#FFF6EA;--navy:#1B1F3B;--green:#14B37D;--ink:#0B6E4D;--orange:#FF8A3D;--red:#D64545}\n*{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--navy);font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif}\nheader{background:var(--navy);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}\nheader h1{margin:0;font-size:18px}header small{opacity:.75}main{max-width:1000px;margin:0 auto;padding:16px}\n.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}\n.card{background:#fff;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(27,31,59,.12)}\n.card h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}\n.big{font-size:28px;font-weight:700}.row{display:flex;justify-content:space-between;gap:8px;padding:3px 0}\n.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:#aaa}.ok{background:var(--green)}.bad{background:var(--red)}\ntable{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:6px 4px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}\nh2{margin:22px 0 8px;font-size:16px}#login{max-width:340px;margin:60px auto}input,button{font:inherit;padding:10px;border-radius:8px;border:1px solid #ccc;width:100%;margin-top:8px}\nbutton{background:var(--green);color:#fff;border:0;font-weight:700;cursor:pointer}.err{color:var(--red)}.bar{height:8px;border-radius:4px;background:#eee;overflow:hidden}.bar i{display:block;height:100%;background:var(--green)}.bar.warn i{background:var(--orange)}.bar.crit i{background:var(--red)}\n.muted{opacity:.65;font-size:12px}</style></head><body>\n<header><h1>Dyno · Painel de observabilidade</h1><small id=\"quando\"></small></header>\n<div id=\"login\"><div class=\"card\"><h3>Acesso</h3><input id=\"tk\" type=\"password\" placeholder=\"Token do painel\" autocomplete=\"off\"><button id=\"entrar\">Entrar</button><p class=\"err\" id=\"erro\"></p></div></div>\n<main id=\"app\" hidden></main>\n<script>\n(function(){\nvar URL_DADOS=location.pathname.replace(/dyno-painel$/,'dyno-painel-dados');\nvar $=function(i){return document.getElementById(i)};\nfunction el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}\nfunction card(titulo){var c=el('div','card');c.appendChild(el('h3','',titulo));return c}\nfunction linha(k,v){var r=el('div','row');r.appendChild(el('span','',k));r.appendChild(el('b','',String(v)));return r}\nfunction bar(p){var b=el('div','bar'+(p>=90?' crit':p>=80?' warn':''));var i=el('i');i.style.width=Math.min(p,100)+'%';b.appendChild(i);return b}\nfunction fmt(ts){try{return new Date(ts).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}catch(e){return ts}}\nfunction render(d){\n var app=$('app');app.textContent='';\n var g=el('div','grid');app.appendChild(g);\n var c=card('Vagas do piloto');c.appendChild(el('div','big',(d.vagas.total-d.vagas.restantes)+' / '+d.vagas.total));c.appendChild(el('div','muted',d.vagas.restantes+' restantes'));g.appendChild(c);\n c=card('Usuários por status');Object.keys(d.usuarios).forEach(function(k){c.appendChild(linha(k,d.usuarios[k]))});g.appendChild(c);\n c=card('Cadastros');c.appendChild(linha('Últimas 24h',d.cadastros_24h));c.appendChild(linha('Últimos 7 dias',d.cadastros_7d));c.appendChild(linha('Bloqueios (24h)',d.rate_limit_24h));g.appendChild(c);\n c=card('Pagamentos');var pk=Object.keys(d.pagamentos);if(!pk.length)c.appendChild(el('div','muted','Sem pagamentos'));pk.forEach(function(k){c.appendChild(linha(k,d.pagamentos[k]))});g.appendChild(c);\n c=card('Saúde dos serviços');['n8n','supabase','asaas','whatsapp'].forEach(function(k){var s=d.saude[k];var r=el('div','row');var l=el('span');var dt=el('span','dot '+(s&&s.nivel==='info'?'ok':'bad'));l.appendChild(dt);l.appendChild(document.createTextNode(k));r.appendChild(l);r.appendChild(el('span','muted',s?fmt(s.ts):'sem dados'));c.appendChild(r)});g.appendChild(c);\n c=card('Servidor (VPS)');var inf=d.infra&&d.infra.length?d.infra[d.infra.length-1]:null;\n if(!inf){c.appendChild(el('div','muted','Agente do servidor ainda não instalado'))}else{[['CPU','cpu'],['Memória','mem'],['Disco','disco']].forEach(function(p){var v=Number(inf[p[1]]);c.appendChild(linha(p[0],v.toFixed(0)+'%'));c.appendChild(bar(v))});c.appendChild(el('div','muted','Última leitura: '+fmt(inf.ts)))}g.appendChild(c);\n c=card('Erros nas últimas 24h');var ek=Object.keys(d.erros_24h);if(!ek.length)c.appendChild(el('div','muted','Nenhum erro'));ek.forEach(function(k){c.appendChild(linha(k,d.erros_24h[k]))});g.appendChild(c);\n c=card('Retenção de logs');c.appendChild(linha('Registros',d.logs_total));c.appendChild(el('div','muted','Mais antigo: '+(d.log_mais_antigo?fmt(d.log_mais_antigo):'-')));c.appendChild(el('div','muted','Política: 7 dias, purga diária 03:15'));g.appendChild(c);\n app.appendChild(el('h2','','Alertas e erros recentes'));\n var t=el('table');var th=el('tr');['Quando','Nível','Origem','Evento'].forEach(function(h){th.appendChild(el('th','',h))});t.appendChild(th);\n d.erros_recentes.forEach(function(e){var r=el('tr');r.appendChild(el('td','',fmt(e.ts)));r.appendChild(el('td','',e.nivel));r.appendChild(el('td','',e.componente));r.appendChild(el('td','',e.evento+(e.detalhe&&e.detalhe.mensagem?' — '+e.detalhe.mensagem:'')));t.appendChild(r)});\n if(!d.erros_recentes.length){var r0=el('tr');r0.appendChild(el('td','muted','Nada por aqui'));t.appendChild(r0)}\n app.appendChild(t);$('quando').textContent='Atualizado '+fmt(d.gerado_em)}\nfunction carregar(){var tk=sessionStorage.getItem('dyno_tk');if(!tk)return;\n fetch(URL_DADOS,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tk})}).then(function(r){return r.json()}).then(function(d){\n  if(!d.ok){sessionStorage.removeItem('dyno_tk');$('login').hidden=false;$('app').hidden=true;$('erro').textContent='Token inválido';return}\n  $('login').hidden=true;$('app').hidden=false;render(d)}).catch(function(){$('erro').textContent='Falha ao carregar'})}\n$('entrar').onclick=function(){sessionStorage.setItem('dyno_tk',$('tk').value.trim());$('tk').value='';$('erro').textContent='';carregar()};\ncarregar();setInterval(carregar,60000);\n})();\n</script></body></html>",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              },
+              {
+                "name": "X-Frame-Options",
+                "value": "DENY"
+              },
+              {
+                "name": "X-Content-Type-Options",
+                "value": "nosniff"
+              },
+              {
+                "name": "Referrer-Policy",
+                "value": "no-referrer"
+              }
+            ]
+          }
+        }
+      },
+      "id": "1af4cc80-4eb8-4c06-ae75-835c8288b297",
+      "name": "Responder pagina",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-painel-dados",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "69a330f3-3a3c-415d-ab8a-a613e88f35bc",
+      "name": "Painel (dados)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        208
+      ],
+      "webhookId": "c9f6bf7d-ac3b-44e2-9244-c4ec5d15438c"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_painel",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_token: String($json.body?.token || \"\").slice(0, 100) }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "0aaaa4ef-d7dd-4970-bd2a-89e9e6e46f6e",
+      "name": "Supabase: painel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        240,
+        208
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.ok === true ? $json : { ok: false } }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "id": "79b92ea9-3a9e-42d7-97fb-69c13d25c04f",
+      "name": "Responder dados",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        480,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-infra",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8eeea7ee-6b3d-4947-a2d3-5812fb34f457",
+      "name": "Infra (agente do servidor)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        448
+      ],
+      "webhookId": "e4d221ec-73ef-4f5f-a51d-b09b66a9421c"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_infra_registrar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_token: String($json.body?.token || \"\").slice(0, 100), p: { cpu: $json.body?.cpu, mem: $json.body?.mem, disco: $json.body?.disco, load: $json.body?.load } }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "0f055752-ee4a-43cb-b9c6-c0431da93190",
+      "name": "Supabase: registrar infra",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        240,
+        448
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: $json.ok === true } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "6dd317b0-7793-46ea-ad58-e5df658bc313",
+      "name": "Responder infra",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        480,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (r.ok !== true) return [{ json: { enviar: false, texto: '' } }];\nconst sd = $getWorkflowStaticData('global');\nconst problemas = [];\nif (r.disco >= 85) problemas.push('disco em ' + r.disco + '%');\nif (r.mem >= 90) problemas.push('memória em ' + r.mem + '%');\nif (r.cpu >= 95) problemas.push('CPU em ' + r.cpu + '%');\nconst agora = Date.now();\nconst enviar = problemas.length > 0 && !(sd.ult && agora - sd.ult < 60 * 60 * 1000);\nif (enviar) sd.ult = agora;\nreturn [{ json: { enviar, texto: '🟠 *Dyno: servidor sob pressão*\\n' + problemas.join(', ') } }];"
+      },
+      "id": "1488e391-a9b9-4cd0-af5e-54e8016a20f4",
+      "name": "Avaliar recursos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.enviar }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f088e6c6-3f4c-4ffb-8243-3e187ccbcdad",
+      "name": "Recurso crítico?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        704,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: \"5511930851325\", text: \"\\u200B\" + $json.texto, delay: 1000 }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "211f1383-e500-4cc8-8d64-eae540a5826a",
+      "name": "WhatsApp: avisar Daniel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        928,
+        512
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Painel (pagina)": {
+      "main": [
+        [
+          {
+            "node": "Responder pagina",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Painel (dados)": {
+      "main": [
+        [
+          {
+            "node": "Supabase: painel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: painel": {
+      "main": [
+        [
+          {
+            "node": "Responder dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Infra (agente do servidor)": {
+      "main": [
+        [
+          {
+            "node": "Supabase: registrar infra",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: registrar infra": {
+      "main": [
+        [
+          {
+            "node": "Responder infra",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Avaliar recursos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avaliar recursos": {
+      "main": [
+        [
+          {
+            "node": "Recurso crítico?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recurso crítico?": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp: avisar Daniel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "versionId": "92d40094-77a8-477a-a340-9e6b9838dc3c",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
+  },
+  "nodeGroups": [],
+  "id": "j3WSfca0UXb06SeW",
+  "tags": []
+}

@@ -1,0 +1,860 @@
+{
+  "name": "Dyno | Importar extrato (conta e cartão)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "8f63b1e0-6a36-489e-8363-655e1457a9b7",
+      "name": "Receber pedido",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const i = $input.first().json || {};\nconst t = String(i.texto || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');\nlet op = i.op || 'arquivo';\nif (!i.op) { if (/^(sim,?\\s*)?importar[.!]*$/.test(t)) op = 'confirmar'; else if (/^nao importar[.!]*$/.test(t)) op = 'cancelar'; }\nreturn [{ json: { op, autor: i.autor || 'Daniel', numero: i.numero, messageId: i.messageId || '', arquivo_nome: String(i.arquivo_nome || 'extrato'), mime: String(i.arquivo_mime || ''), instancia: i.instancia || 'dyno', primeiro: String(i.nome_exibicao || i.autor || '').split(' ')[0] } }];"
+      },
+      "id": "4da0a40f-5e33-4997-958b-8980fcb4a642",
+      "name": "Preparar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.op === 'arquivo' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d2d86c07-38a6-41bc-84f0-a7123ad11b01",
+      "name": "É arquivo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: String.fromCharCode(8203) + '📄 Recebi seu extrato, ' + $json.primeiro + '! Estou lendo os lançamentos, leva até 1 minuto…', delay: 500 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "c2d70b3a-652a-417d-9bdd-99d973d37f02",
+      "name": "Avisar que está lendo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        608,
+        208
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/chat/getBase64FromMediaMessage/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: { key: { id: $('Preparar').first().json.messageId } }, convertToMp4: false }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "23ab74fc-979e-4662-9114-a81088115c52",
+      "name": "Baixar arquivo (Evolution)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        800,
+        208
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Preparar').first().json;\nconst r = $input.first().json || {};\nconst b64 = String(r.base64 || '');\nconst nome = p.arquivo_nome || 'extrato';\nconst mime = String(r.mimetype || p.mime || '').toLowerCase();\nconst ext = (nome.match(/\\.([a-z0-9]+)$/i) || [])[1] ? nome.match(/\\.([a-z0-9]+)$/i)[1].toLowerCase() : '';\nlet kind = 'desconhecido';\nif (/pdf/.test(mime) || ext === 'pdf') kind = 'pdf';\nelse if (/sheet|excel/.test(mime) || ext === 'xlsx' || ext === 'xls') kind = 'excel';\nelse if (/csv|text|ofx|plain/.test(mime) || ['csv', 'ofx', 'txt', 'qfx'].includes(ext)) kind = 'texto';\nif (!b64) return [{ json: { kind: 'erro', motivo: 'download' } }];\nif (kind === 'excel') return [{ json: { kind, nome }, binary: { data: { data: b64, mimeType: mime || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', fileName: nome } } }];\nif (kind === 'texto') {\n  let txt = Buffer.from(b64, 'base64').toString('utf8');\n  if (/�/.test(txt.slice(0, 2000))) txt = Buffer.from(b64, 'base64').toString('latin1');\n  return [{ json: { kind, nome, texto: txt.slice(0, 150000) } }];\n}\nif (kind === 'pdf') return [{ json: { kind, nome, base64: b64 } }];\nreturn [{ json: { kind: 'desconhecido', nome } }];"
+      },
+      "id": "5db1799e-d297-4237-97a8-afda57e52402",
+      "name": "Preparar arquivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind === 'excel' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e9986da2-2c3b-4c6b-b1d4-397c1b528448",
+      "name": "É Excel?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "headerRow": false,
+          "includeEmptyCells": false
+        }
+      },
+      "id": "ff4ce662-1cf6-4db9-b0fe-c3b1ca5b877d",
+      "name": "Ler planilha",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1408,
+        112
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const linhas = $input.all().map(i => i.json).filter(r => r && typeof r === 'object');\nconst txt = linhas.slice(0, 3000).map(r => Object.values(r).map(v => String(v == null ? '' : v).replace(/[\\r\\n;]+/g, ' ')).join(' ; ')).join('\\n');\nconst cab = linhas[0] ? Object.keys(linhas[0]).join(' ; ') : '';\nreturn [{ json: { kind: 'texto', nome: $('Preparar arquivo').first().json.nome, texto: (cab + '\\n' + txt).slice(0, 150000) } }];"
+      },
+      "id": "5dc60221-6cd7-408f-9928-4087285bb6b3",
+      "name": "Planilha em texto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pedido para a camada de IA (tarefa: documento). Quem lê é o provedor de dyno_config.ia_documento (hoje: Claude), com OpenAI de reserva.\nlet a = null;\ntry { a = $('Planilha em texto').first().json; } catch (e) { a = null; }\nif (!a) a = $('Preparar arquivo').first().json;\nconst p = $('Preparar').first().json;\nconst hoje = DateTime.now().setZone('America/Sao_Paulo').toISODate();\nconst regras = \"Você lê extratos de conta bancária e faturas de cartão de crédito brasileiros e devolve TODOS os lançamentos em JSON, sem inventar nada.\\nRegras:\\n- data no formato AAAA-MM-DD. Se o ano não aparecer, deduza pelo período do documento. Hoje é HOJE.\\n- valor sempre positivo (em reais). movimento: despesa (saída, compra, débito, pagamento) ou receita (entrada, crédito, estorno, Pix recebido).\\n- FATURA DE CARTÃO: cada compra é despesa com forma_pagamento \\\"cartão de crédito\\\". Compra parcelada: lance só a parcela desta fatura e ponha \\\"parcela X/Y\\\" na descrição. IOF, juros, multa e anuidade são despesa (categoria contas). Estornos e créditos são receita (categoria reembolso). \\\"Pagamento recebido\\\"/\\\"pagamento da fatura\\\" tem ignorar=true.\\n- EXTRATO DE CONTA: Pix enviado, TED, boleto, compra no débito e tarifas são despesa (forma_pagamento: Pix, transferência, boleto ou cartão de débito). Pix recebido, salário e depósitos são receita.\\n- ignorar=true (com motivo curto) para: linhas de saldo, pagamento de fatura de cartão de crédito (os gastos entram pela fatura), transferências entre contas da própria pessoa, aplicações e resgates de investimento/cofrinho/caixinha, lançamentos cancelados.\\n- descricao curta e legível (nome do estabelecimento ou da pessoa), sem códigos e sem CPF/CNPJ.\\n- categoria: despesas em alimentacao, mercado, transporte, combustivel, moradia, contas, saude, lazer, educacao, compras, assinaturas, viagem, trabalho, impostos ou outros; receitas em salario, vendas, freelance, reembolso, investimentos ou outros.\\n- Se o arquivo não for extrato nem fatura, tipo_documento \\\"outro\\\" e lancamentos vazio.\\n- Confira no fim: a quantidade de lançamentos devolvidos deve bater com as linhas do documento; não pule páginas.\".replace('HOJE', hoje);\nconst schema = {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"tipo_documento\", \"instituicao\", \"periodo_inicio\", \"periodo_fim\", \"lancamentos\"], \"properties\": {\"tipo_documento\": {\"type\": \"string\", \"enum\": [\"extrato_conta\", \"fatura_cartao\", \"outro\"]}, \"instituicao\": {\"type\": [\"string\", \"null\"]}, \"periodo_inicio\": {\"type\": [\"string\", \"null\"]}, \"periodo_fim\": {\"type\": [\"string\", \"null\"]}, \"lancamentos\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"data\", \"descricao\", \"valor\", \"movimento\", \"categoria\", \"forma_pagamento\", \"ignorar\", \"motivo\"], \"properties\": {\"data\": {\"type\": \"string\"}, \"descricao\": {\"type\": \"string\"}, \"valor\": {\"type\": \"number\"}, \"movimento\": {\"type\": \"string\", \"enum\": [\"despesa\", \"receita\"]}, \"categoria\": {\"type\": \"string\", \"enum\": [\"alimentacao\", \"mercado\", \"transporte\", \"combustivel\", \"moradia\", \"contas\", \"saude\", \"lazer\", \"educacao\", \"compras\", \"assinaturas\", \"viagem\", \"trabalho\", \"impostos\", \"outros\", \"salario\", \"vendas\", \"freelance\", \"reembolso\", \"investimentos\"]}, \"forma_pagamento\": {\"type\": [\"string\", \"null\"]}, \"ignorar\": {\"type\": \"boolean\"}, \"motivo\": {\"type\": [\"string\", \"null\"]}}}}}};\nif (a.kind !== 'pdf' && a.kind !== 'texto') return [{ json: { pular: true, kind: a.kind, motivo: a.motivo || a.kind } }];\nconst conteudo = a.kind === 'pdf'\n  ? [{ type: 'file', file: { filename: a.nome || 'extrato.pdf', file_data: 'data:application/pdf;base64,' + a.base64 } }, { type: 'text', text: 'Leia o documento anexado (' + a.nome + ') e devolva todos os lançamentos.' }]\n  : 'Arquivo: ' + a.nome + '\\n\\nCONTEÚDO DO ARQUIVO:\\n' + a.texto;\nreturn [{ json: { pular: false, tarefa: 'documento', origem: 'extrato', autor: p.autor || null, sistema: regras, mensagens: [{ role: 'user', content: conteudo }], esquema: { name: 'extrato', schema }, max_tokens: 24000 } }];"
+      },
+      "id": "5f714ce0-fd32-44a1-8d13-be8b225bce3a",
+      "name": "Montar pedido IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const m = $('Montar pedido IA').first().json;\nlet obj = null, erro = null, ia = null;\nif (m.pular) erro = m.kind === 'desconhecido' ? 'formato' : (m.motivo === 'download' ? 'download' : 'formato');\nelse {\n  const r = $input.first().json || {};\n  ia = r.provedor ? r.provedor + (r.reserva ? ' (reserva)' : '') + (r.modelo ? ' ' + r.modelo : '') : null;\n  if (r.ok && r.json && typeof r.json === 'object') obj = r.json;\n  else if (r.ok && r.texto) { try { obj = JSON.parse(r.texto); } catch (e) { obj = null; } }\n  else if (Array.isArray(r.choices)) { try { obj = JSON.parse(r.choices[0].message.content); } catch (e) { obj = null; } }\n  if (!obj) erro = 'leitura';\n}\nconst lanc = obj && Array.isArray(obj.lancamentos) ? obj.lancamentos.filter(l => l && /^\\d{4}-\\d{2}-\\d{2}$/.test(String(l.data)) && Number(l.valor) > 0).slice(0, 500) : [];\nconst datas = lanc.map(l => l.data).sort();\nconst ini = datas.length ? DateTime.fromISO(datas[0]).minus({ days: 3 }).toISO() : DateTime.now().minus({ days: 1 }).toISO();\nreturn [{ json: { erro, ia, doc: obj ? { tipo: obj.tipo_documento, instituicao: obj.instituicao, de: obj.periodo_inicio, ate: obj.periodo_fim } : null, lanc, ini } }];"
+      },
+      "id": "ccd31c3c-3d18-4ad9-95fe-1a7d0c7fec9b",
+      "name": "Interpretar leitura",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "czjKVg7HFjMKNpAq"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "keyValue": "={{ $('Preparar').first().json.autor }}"
+            },
+            {
+              "keyName": "data",
+              "condition": "gte",
+              "keyValue": "={{ $('Interpretar leitura').first().json.ini }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "f91d97ad-e583-41af-81a9-bf6b2045eb53",
+      "name": "Lançamentos existentes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2400,
+        208
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Preparar').first().json;\nconst L = $('Interpretar leitura').first().json;\nconst NL = String.fromCharCode(10);\nconst brl = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',').replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');\nconst dbr = s => String(s || '').slice(8, 10) + '/' + String(s || '').slice(5, 7);\nconst NOMECAT = { alimentacao: 'Alimentação', educacao: 'Educação', saude: 'Saúde', combustivel: 'Combustível', salario: 'Salário' };\nconst cat = c => NOMECAT[c] || (String(c || 'outros').charAt(0).toUpperCase() + String(c || 'outros').slice(1));\nconst fim = (txt, salvar, itens, resumo) => [{ json: { salvar, texto: String.fromCharCode(8203) + txt, itens: itens || [], resumo: resumo || {} } }];\nif (L.erro) {\n  const msg = L.erro === 'formato'\n    ? 'Não consegui abrir esse tipo de arquivo. Mande o extrato ou a fatura em *PDF*, *CSV*, *OFX* ou *Excel* com a legenda *extrato*.'\n    : L.erro === 'download' ? 'Não consegui baixar o arquivo. Pode mandar de novo?' : 'Tive um problema para ler esse extrato. Tenta mandar de novo (de preferência em PDF ou CSV)?';\n  return fim('📄 ' + p.primeiro + ', ' + msg.charAt(0).toLowerCase() + msg.slice(1), false);\n}\nif (!L.doc || L.doc.tipo === 'outro' || !L.lanc.length) return fim('📄 ' + p.primeiro + ', esse arquivo não parece um extrato de conta nem uma fatura de cartão, então não importei nada. Se for um comprovante, é só mandar sem a legenda *extrato*.', false);\nconst exist = $('Lançamentos existentes').all().map(i => i.json).filter(r => r && r.id != null && (r.autor || 'Daniel') === p.autor)\n  .map(r => ({ v: Number(r.valor) || 0, tipo: r.tipo === 'receita' ? 'receita' : 'despesa', d: DateTime.fromISO(String(r.data)).setZone('America/Sao_Paulo'), usado: false }));\nconst ignorados = [], dup = [], novos = [];\nfor (const l of L.lanc) {\n  if (l.ignorar) { ignorados.push(l); continue; }\n  const d = DateTime.fromISO(l.data, { zone: 'America/Sao_Paulo' });\n  const m = exist.find(e => !e.usado && e.tipo === l.movimento && Math.abs(e.v - Number(l.valor)) < 0.011 && e.d.isValid && Math.abs(e.d.diff(d, 'days').days) <= 2.5);\n  if (m) { m.usado = true; dup.push(l); continue; }\n  novos.push(l);\n}\nconst gastos = novos.filter(l => l.movimento === 'despesa');\nconst entradas = novos.filter(l => l.movimento === 'receita');\nconst soma = a => a.reduce((s, l) => s + Number(l.valor), 0);\nconst porCat = {};\ngastos.forEach(l => { porCat[l.categoria] = (porCat[l.categoria] || 0) + Number(l.valor); });\nconst topCat = Object.entries(porCat).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([c, v]) => cat(c) + ' ' + brl(v)).join(' · ');\nconst maiores = gastos.slice().sort((a, b) => b.valor - a.valor).slice(0, 5).map(l => '• ' + dbr(l.data) + ' ' + String(l.descricao).slice(0, 40) + ' — ' + brl(l.valor)).join(NL);\nconst titulo = (L.doc.tipo === 'fatura_cartao' ? 'Fatura do cartão' : 'Extrato da conta') + (L.doc.instituicao ? ' ' + L.doc.instituicao : '') + (L.doc.de && L.doc.ate ? ' (' + dbr(L.doc.de) + ' a ' + dbr(L.doc.ate) + ')' : '');\nconst linhas = ['📄 *' + titulo + '*', '', 'Encontrei *' + L.lanc.length + ' lançamentos*:'];\nlinhas.push('• ' + novos.length + (novos.length === 1 ? ' novo' : ' novos') + (novos.length ? ': ' + brl(soma(gastos)) + ' em gastos' + (entradas.length ? ' e ' + brl(soma(entradas)) + ' em entradas' : '') : ''));\nif (dup.length) linhas.push('• ' + dup.length + ' já estavam no Dyno (não vou duplicar)');\nif (ignorados.length) linhas.push('• ' + ignorados.length + ' ignorados (pagamento de fatura, saldos, transferências entre suas contas ou investimentos)');\nif (!novos.length) { linhas.push('', 'Tudo desse arquivo já está no Dyno, não há nada novo para importar ✅'); return fim(linhas.join(NL), false); }\nif (topCat) linhas.push('', '*Por categoria:* ' + topCat);\nif (maiores) linhas.push('', '*Maiores gastos:*', maiores);\nlinhas.push('', 'Responda *IMPORTAR* para salvar os ' + novos.length + ' novos, ou *NÃO IMPORTAR* para descartar.');\nconst itens = novos.map(l => ({ tipo: l.movimento, valor: Math.round(Number(l.valor) * 100) / 100, categoria: l.categoria, descricao: String(l.descricao).slice(0, 120), data: DateTime.fromISO(l.data + 'T12:00:00', { zone: 'America/Sao_Paulo' }).toUTC().toISO(), forma_pagamento: String(l.forma_pagamento || (L.doc.tipo === 'fatura_cartao' ? 'cartão de crédito' : '')).slice(0, 40) }));\nreturn fim(linhas.join(NL), true, itens, { titulo, novos: novos.length, gastos: Math.round(soma(gastos) * 100) / 100, entradas: Math.round(soma(entradas) * 100) / 100 });"
+      },
+      "id": "0193fa5c-5b0f-4dae-b3b6-4e24fec315cd",
+      "name": "Separar novos e duplicados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.salvar === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d207961d-3d49-46bc-950b-0a9317616984",
+      "name": "Tem algo para confirmar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2800,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_importacao_salvar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_autor: $('Preparar').first().json.autor, p_numero: $('Preparar').first().json.numero, p_itens: $json.itens, p_resumo: $json.resumo }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "75e51afc-77a1-463a-88a3-8136ce1be472",
+      "name": "Guardar para confirmação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3008,
+        128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $('Preparar').first().json.numero, text: $('Separar novos e duplicados').first().json.texto, delay: 800 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "06ccf5e7-0ad4-489e-af64-ada6a15b930c",
+      "name": "Enviar resumo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3200,
+        208
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_importacao_decidir",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_autor: $json.autor, p_acao: $json.op === 'confirmar' ? 'confirmar' : 'cancelar' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "34013ae3-51fd-4292-98c8-3ef694818f4b",
+      "name": "Supabase: decidir",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        608,
+        480
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qgXgW9Cfnyoli06W",
+          "name": "Supabase_Dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ok === true && $json.acao === 'confirmar' && Array.isArray($json.itens) && $json.itens.length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5535f83f-204b-49ce-bfa1-bdd0b88aa245",
+      "name": "Tem itens para gravar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Preparar').first().json;\nconst r = $input.first().json || {};\nif (!r.ok || r.acao !== 'confirmar') return [];\nreturn (Array.isArray(r.itens) ? r.itens : []).map(i => ({ json: { tipo: i.tipo, valor: i.valor, categoria: i.categoria, descricao: i.descricao, data: i.data, forma_pagamento: i.forma_pagamento || '', autor: p.autor, comprovante_url: '' } }));"
+      },
+      "id": "cecdb269-7526-47f8-b37d-5d5343c29de1",
+      "name": "Itens para gravar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "czjKVg7HFjMKNpAq"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "3f4755d3-7da9-483a-a93b-7bf841f5cba5",
+      "name": "Gravar lançamentos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        400
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Preparar').first().json;\nconst r = $('Supabase: decidir').first().json || {};\nconst ZW = String.fromCharCode(8203);\nconst brl = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',').replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');\nlet n = 0;\ntry { n = $('Gravar lançamentos').all().filter(i => i.json && i.json.id != null).length; } catch (e) { n = 0; }\nlet texto;\nif (!r.ok) texto = p.primeiro + ', não tenho nenhum extrato aguardando confirmação. Para importar, me mande o arquivo (PDF, CSV, OFX ou Excel) com a legenda *extrato*.';\nelse if (r.acao !== 'confirmar') texto = 'Tudo bem, ' + p.primeiro + '! Descartei a importação, nada foi salvo.';\nelse { const s = r.resumo || {}; texto = '✅ Pronto, ' + p.primeiro + '! Importei *' + n + ' lançamentos*' + (s.gastos ? ': ' + brl(s.gastos) + ' em gastos' + (s.entradas ? ' e ' + brl(s.entradas) + ' em entradas' : '') : '') + '. Já aparecem no painel, no Extrato do site e nos relatórios.'; }\nreturn [{ json: { corpo: { number: p.numero, text: ZW + texto, delay: 600 } } }];"
+      },
+      "id": "7f170bd2-71ac-42bd-a241-35f8f8411840",
+      "name": "Montar confirmação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "4515f8be-88fe-4404-ad32-628e81661f22",
+      "name": "Enviar confirmação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1600,
+        560
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l2BZVdQJowvQuT6M",
+          "name": "evolution-dyno"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.pular !== true }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "f1998294-e1f1-4ba3-8bac-0b5faecce7af",
+      "name": "Precisa ler?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2064,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mOXAwF2cZ8zbYs2j"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "4b8ac29b-beff-499d-af77-fb6b7935c837",
+      "name": "Ler lançamentos (IA em camadas)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2272,
+        224
+      ]
+    }
+  ],
+  "connections": {
+    "Receber pedido": {
+      "main": [
+        [
+          {
+            "node": "Preparar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar": {
+      "main": [
+        [
+          {
+            "node": "É arquivo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É arquivo?": {
+      "main": [
+        [
+          {
+            "node": "Avisar que está lendo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase: decidir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avisar que está lendo": {
+      "main": [
+        [
+          {
+            "node": "Baixar arquivo (Evolution)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar arquivo (Evolution)": {
+      "main": [
+        [
+          {
+            "node": "Preparar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar arquivo": {
+      "main": [
+        [
+          {
+            "node": "É Excel?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É Excel?": {
+      "main": [
+        [
+          {
+            "node": "Ler planilha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Montar pedido IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler planilha": {
+      "main": [
+        [
+          {
+            "node": "Planilha em texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Planilha em texto": {
+      "main": [
+        [
+          {
+            "node": "Montar pedido IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpretar leitura": {
+      "main": [
+        [
+          {
+            "node": "Lançamentos existentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lançamentos existentes": {
+      "main": [
+        [
+          {
+            "node": "Separar novos e duplicados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar novos e duplicados": {
+      "main": [
+        [
+          {
+            "node": "Tem algo para confirmar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem algo para confirmar?": {
+      "main": [
+        [
+          {
+            "node": "Guardar para confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar resumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar para confirmação": {
+      "main": [
+        [
+          {
+            "node": "Enviar resumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: decidir": {
+      "main": [
+        [
+          {
+            "node": "Tem itens para gravar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem itens para gravar?": {
+      "main": [
+        [
+          {
+            "node": "Itens para gravar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Montar confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Itens para gravar": {
+      "main": [
+        [
+          {
+            "node": "Gravar lançamentos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gravar lançamentos": {
+      "main": [
+        [
+          {
+            "node": "Montar confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar confirmação": {
+      "main": [
+        [
+          {
+            "node": "Enviar confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar pedido IA": {
+      "main": [
+        [
+          {
+            "node": "Precisa ler?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Precisa ler?": {
+      "main": [
+        [
+          {
+            "node": "Ler lançamentos (IA em camadas)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Interpretar leitura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler lançamentos (IA em camadas)": {
+      "main": [
+        [
+          {
+            "node": "Interpretar leitura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "afe3584a-2369-48e9-a78e-47ddf3c3c0a6",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
+  },
+  "nodeGroups": [],
+  "id": "yBCWxnd2N9d3uDxM",
+  "tags": []
+}
