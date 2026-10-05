@@ -19,6 +19,10 @@ Leia este arquivo primeiro. Ele resume o estado do projeto e diz onde está cada
 
 WhatsApp → Evolution API (wa.dynoapp.com.br) → **n8n** (identifica o cliente no **Supabase**) → **OpenAI** interpreta e devolve resposta + ações → n8n grava e responde. Comprovantes no Google Drive. Cobrança no **Asaas**.
 
+## Repositório
+
+Código e documentação no GitHub (privado): https://github.com/danielmarim/dynoapp — branch `main`, primeiro push em 05/10/2026. Cópia local do Daniel: `H:\Claude\MVP - DynoApp\dynoapp-repo`. Os workflows do n8n ainda precisam ser exportados para a pasta `n8n/` (trocar o valor de `SEGREDO` por `__SEGREDO__`).
+
 ## 3. Onde está cada coisa
 
 | Peça | Onde | Observação |
@@ -40,7 +44,7 @@ O mesmo VPS também roda a Dynamo Wear (Evolution `evolution`, Chatwoot) e um se
 
 ## 4. Credenciais (só os nomes — os valores estão no n8n/Hostinger)
 
-No n8n (Header Auth): `Supabase_Dyno`, `evolution-dyno`, `anthropic-dyno`, `jev-typesafe`, `asaas-prod`, `asaas-access-token`, `Google Places`, `Evolution pesquisa-aereo`. OpenAI: variável de ambiente `OPENAI_API_KEY` do n8n. Google Drive: OAuth2.
+No n8n (Header Auth): `Supabase_Dyno`, `evolution-dyno`, `anthropic-dyno`, `jev-typesafe`, `asaas-prod`, `asaas-access-token`, `Google Places`, `Evolution pesquisa-aereo`. OpenAI: credencial **`openai-dyno`** (projeto DynoApp na OpenAI, limite US$ 20/mês, alertas 80% e 100%) desde 05/10/2026 — usada no cérebro (conversa, áudio, busca), na reflexão das 6h e na camada de IA. A variável `OPENAI_API_KEY` do n8n continua existindo para o DMChat (Dynamo), mas o Dyno não a usa mais. Google Drive: OAuth2.
 
 ## 5. Workflows do Dyno (n8n)
 
@@ -70,6 +74,7 @@ No n8n (Header Auth): `Supabase_Dyno`, `evolution-dyno`, `anthropic-dyno`, `jev-
 | j3WSfca0UXb06SeW | Painel e infraestrutura | Observabilidade |
 | BFmfbtTei9fQCgCB | Página de cadastro (temporária) | **Pode ser desligada** |
 | 0NTpUwVxsZFMm8Li | TESTE IA em camadas | Manual, desligado |
+| asdiDsXdGoWC7Bip | Alerta de câmbio | A cada 15 min (seg–sex 9h–18h): dólar/euro (PTAX do BC; AwesomeAPI se tiver chave) e dispara alertas. Ver `claude/alerta-de-cambio.md` |
 
 **Faça agora:** no n8n, exporte todos os workflows (selecionar todos → Download) e guarde junto deste pacote. É o backup da lógica.
 
@@ -126,8 +131,9 @@ O segredo do cabeçalho `X-Dyno-Site` fica só no ambiente do container (`SITE_S
 7. Validar nome no cadastro (recusar "sim", "eu quero", "ok").
 8. Apresentar a Dina aos clientes em teste (texto precisa de aprovação).
 9. LGPD: incluir Anthropic e TypeSafe no mapa de dados e na Política de Privacidade; SPF/DKIM/DMARC do e-mail.
-10. Site: grade "o que pedir", objeções no FAQ, botão flutuante.
-11. Em ~11/10: ler o relatório de custos de IA e o relatório do Jev em sombra; se o Jev acertar >95% com confiança alta, usar ele para mandar mensagens simples a um modelo mais barato.
+10. Câmbio: chave grátis da AwesomeAPI (credencial `awesomeapi`) e teste real do alerta pelo WhatsApp. Site, post e reel do alerta já publicados/entregues em 05/10.
+11. Site: grade "o que pedir", objeções no FAQ, botão flutuante.
+12. Em ~11/10: ler o relatório de custos de IA e o relatório do Jev em sombra; se o Jev acertar >95% com confiança alta, usar ele para mandar mensagens simples a um modelo mais barato.
 
 ## 11. Conteúdo deste pacote
 

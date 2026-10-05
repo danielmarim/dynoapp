@@ -48,7 +48,7 @@ def page(path, title, desc, body, nav="", scripts="", noindex=False):
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=7">
+<link rel="stylesheet" href="/assets/site.css?v=8">
 </head>
 <body>
 <a class="sr" href="#conteudo">Pular para o conteúdo</a>
@@ -131,11 +131,25 @@ DUPLA = """<section style="padding-top:0"><div class="wrap">
   <div class="sec-head"><span class="kicker">Conheça a dupla</span><h2 class="h">Dois assessores. Uma conversa só.</h2><p>No mesmo número do WhatsApp, o Dyno cuida do seu dinheiro e a Dina cuida da sua agenda e rotina. Fale normalmente: quem responde é quem entende do assunto. Quer falar com um deles? É só chamar pelo nome.</p></div>
   <div class="dupla">
     <div class="duo"><div class="duo-top"><span class="mark duo-mark">D</span><div><b>Dyno</b><small>o do dinheiro 💰</small></div></div>
-      <ul class="list"><li>Gastos por texto, áudio ou foto</li><li>Contas a pagar e boletos</li><li>Limites por categoria e alertas</li><li>Extrato, parcelados e quem te deve</li><li>Resumo e painel do mês</li></ul>
+      <ul class="list"><li>Gastos por texto, áudio ou foto</li><li>Contas a pagar e boletos</li><li>Limites por categoria e alertas</li><li>Extrato, parcelados e quem te deve</li><li>Resumo e painel do mês</li><li>Alerta de dólar e euro</li></ul>
       <div class="ex">“Dyno, quanto gastei com iFood?”</div></div>
     <div class="duo dina"><div class="duo-top"><span class="mark duo-mark">D</span><div><b>Dina</b><small>a da agenda e da rotina ⏰</small></div></div>
       <ul class="list"><li>Lembretes que insistem até você fazer</li><li>Compromissos e agenda do dia</li><li>Tarefas e projetos</li><li>Listas e notas</li><li>Manutenções da casa e do carro</li></ul>
       <div class="ex">“Dina, o que eu tenho amanhã?”</div></div>
+  </div>
+</div></section>"""
+
+CAMBIO = """<section style="padding-top:0"><div class="wrap">
+  <div class="cambio">
+    <div><span class="kicker">Novidade · alerta de câmbio</span><h2 class="h">O dólar caiu? O Dyno te avisa.</h2>
+      <p class="lead" style="font-size:18px">Diga o valor que você quer pagar no dólar ou no euro. O Dyno confere a cotação a cada 15 minutos nos dias úteis e te chama no WhatsApp quando chegar lá.</p>
+      <ul class="list"><li>“me avisa quando o dólar ficar abaixo de 4,90”</li><li>“me avisa se o euro passar de 6”</li><li>“quanto tá o dólar hoje?”</li><li>“cancela meus alertas de câmbio”</li></ul>
+      <p class="note">Ideal para quem vai viajar ou compra lá fora. É só aviso de cotação, não é recomendação de investimento.</p></div>
+    <div class="phone" style="margin:0 auto"><div class="screen" style="min-height:auto">
+      <div class="b me">me avisa quando o dólar ficar abaixo de 4,90</div>
+      <div class="b dy"><small>Dyno</small>Combinado! Hoje está em R$ 4,98. Te aviso quando ficar abaixo de R$ 4,90 💵</div>
+      <div class="b dy al"><small>Dyno · 2 dias depois</small>💵 O dólar chegou a <b>R$ 4,88</b>. Você pediu aviso abaixo de R$ 4,90. 📉 -2,1% na semana.</div>
+    </div></div>
   </div>
 </div></section>"""
 
@@ -173,6 +187,7 @@ page("/index", "Dyno · Seu assessor pessoal no WhatsApp", "Gastos, contas, lemb
     <div class="step"><h3>Acompanhe tudo</h3><p>Resumos no WhatsApp e um painel na área do cliente, com gastos do mês, contas e lembretes.</p></div>
   </div>
 </div></section>
+{CAMBIO}
 {DUPLA}
 {SELOS_HTML}
 {COMPARA}
@@ -226,6 +241,7 @@ page("/precos", "Preços · Dyno", "60 dias grátis no Beta. Depois, R$ 19,90 po
 # ---------- Dúvidas ----------
 FAQ = [
     ("Quem é a Dina?", "É a parceira do Dyno. No mesmo número e na mesma conversa, o Dyno cuida do dinheiro (gastos, contas, limites, resumo) e a Dina cuida da agenda e da rotina (lembretes, compromissos, tarefas e listas). Você não paga nada a mais por ela. Quer falar com um deles? Comece a mensagem com o nome: “Dina, ...” ou “Dyno, ...”."),
+    ("Como funciona o alerta de dólar e euro?", "Mande para o Dyno o valor que você quer, por exemplo “me avisa quando o dólar ficar abaixo de 4,90”. Ele confere a cotação a cada 15 minutos nos dias úteis, das 9h às 18h, e te avisa uma vez quando bater. Dá para ter até 5 alertas e perguntar “quanto tá o dólar?” a qualquer hora. É só informação de cotação, não é recomendação de investimento."),
     ("Preciso baixar algum aplicativo?", "Não. O Dyno funciona direto no seu WhatsApp. O site serve para acompanhar o painel e gerenciar sua assinatura."),
     ("Como entro no Beta?", f'<a href="/beta">Peça sua vaga aqui</a> com seu nome e WhatsApp. Quando o pedido for aprovado, o convite chega pelo <a href="{WA}">WhatsApp do Dyno</a> e o cadastro é feito na própria conversa.'),
     ("Quanto custa?", "No Beta, 60 dias grátis, sem boleto nem cobrança no cadastro. No fim do teste você escolhe se continua: R$ 19,90 por mês ou R$ 199,90 por ano, pagando por Pix ou cartão de crédito. Se não quiser continuar, é só dizer, sem custo."),

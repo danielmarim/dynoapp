@@ -1,0 +1,55 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+[data-composition-id="01-espera"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.h01 { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; }
+.bub01 { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 46px; line-height: 1.28; padding: 26px 42px; max-width: 880px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.me01 { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.dy01 { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.who01 { display: block; font-size: 28px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 6px; }
+.logo01 { position: absolute; border-radius: 50%; background: #14B37D; border: 5px solid #1E1E1E; display: flex; align-items: center; justify-content: center; font-family: "Bodoni Moda", serif; font-weight: 700; color: #1B1F3B; line-height: 1; }
+
+.k01 { position:absolute; left:86px; top:200px; font-size:38px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:#3EE9AF; }
+.t01 { position:absolute; left:86px; right:86px; top:260px; font-size:128px; color:#fff; }
+.t01 .g01 { color:#3EE9AF; }
+.svg01 { position:absolute; left:0; top:0; width:1080px; height:1920px; }
+.f01 { font-family:"Space Grotesk"; font-weight:700; }
+.s01 { position:absolute; left:86px; right:86px; top:1560px; font-size:54px; line-height:1.25; font-weight:700; color:#fff; }
+
+</style>
+<div id="root" data-composition-id="01-espera" data-width="1080" data-height="1920" data-duration="4.8">
+  <div id="f01-bg" class="clip" data-start="0" data-duration="4.8" data-track-index="0" style="position:absolute;inset:0;background:#1B1F3B"></div>
+  <svg data-layout-allow-overlap data-layout-allow-overflow class="svg01" viewBox="0 0 1080 1920">
+    <rect x="70" y="760" width="940" height="700" rx="44" fill="#FFF6EA" stroke="#1E1E1E" stroke-width="5" stroke-linejoin="round"/>
+    <text class="f01" x="120" y="850" font-size="34" fill="#5E6280" letter-spacing="3">💵 DÓLAR · USD/BRL</text>
+    <text class="f01 val01" x="120" y="950" font-size="92" fill="#1B1F3B">R$ 5,16</text>
+    <g class="ref01" transform="translate(880 880)"><circle r="52" fill="#FF8A3D" stroke="#1E1E1E" stroke-width="5" stroke-linejoin="round"/><text y="18" font-size="52" text-anchor="middle">🔄</text></g>
+    <g opacity=".5" stroke="#E2D6C2" stroke-width="3"><path d="M120 1050 H960 M120 1180 H960 M120 1310 H960"/></g>
+    <polyline class="ln01" pathLength="1" points="120,1080 196,980 273,1160 349,1020 425,1220 502,1040 578,1180 655,1000 731,1140 807,1060 884,1200 960,1100" fill="none" stroke="#FF8A3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1" stroke-dashoffset="1"/>
+  </svg>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="k01">você também? 😩</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h01 t01">Esperando o<br>dólar <span data-layout-allow-overlap data-layout-allow-overflow class="g01">cair</span>…</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="s01">…e atualizando a cotação<br>toda hora?</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="01-espera"] ' + s);
+  tl.fromTo(one('.k01'), { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 0.1);
+  tl.fromTo(one('.t01'), { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'power3.out' }, 0.2);
+  tl.fromTo(one('.svg01'), { y: 260, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }, 0.5);
+  tl.to(one('.ln01'), { attr: { 'stroke-dashoffset': 0 }, duration: 2.8, ease: 'none' }, 0.9);
+  const vals = [5.16, 5.21, 5.12, 5.19, 5.09, 5.18, 5.11, 5.20, 5.13, 5.17, 5.10, 5.15], el = one('.val01');
+  const o = { i: 0 };
+  tl.to(o, { i: vals.length - 1, duration: 2.8, ease: 'none', onUpdate: () => { el.textContent = 'R$ ' + vals[Math.round(o.i)].toFixed(2).replace('.', ','); } }, 0.9);
+  for (let k = 0; k < 4; k++) tl.fromTo(one('.ref01'), { rotation: 0, svgOrigin: '880 880' }, { rotation: 360, svgOrigin: '880 880', duration: 0.5, ease: 'power2.inOut', immediateRender: false }, 1.1 + k * 0.75);
+  tl.fromTo(one('.s01'), { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: 'power2.out' }, 2.4);
+  tl.to({}, { duration: 4.8 }, 0);
+  window.__timelines["01-espera"] = tl;
+})();
+</script>
+</template>

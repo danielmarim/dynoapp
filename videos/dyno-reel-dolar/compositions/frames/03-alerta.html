@@ -1,0 +1,65 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+[data-composition-id="03-alerta"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.h03 { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; }
+.bub03 { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 46px; line-height: 1.28; padding: 26px 42px; max-width: 880px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.me03 { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.dy03 { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.who03 { display: block; font-size: 28px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 6px; }
+.logo03 { position: absolute; border-radius: 50%; background: #14B37D; border: 5px solid #1E1E1E; display: flex; align-items: center; justify-content: center; font-family: "Bodoni Moda", serif; font-weight: 700; color: #1B1F3B; line-height: 1; }
+
+.k03 { position:absolute; left:86px; top:200px; font-size:38px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:#0E8A60; }
+.t03 { position:absolute; left:86px; right:86px; top:250px; font-size:120px; }
+.svg03 { position:absolute; left:0; top:0; width:1080px; height:1920px; }
+.f03 { font-family:"Space Grotesk"; font-weight:700; }
+.nt03 { position:absolute; left:60px; right:60px; top:1430px; background:#fff; border:5px solid #1E1E1E; border-radius:40px; padding:30px 36px; box-shadow:12px 12px 0 rgba(26,26,26,.15); }
+.nh03 { display:flex; align-items:center; gap:16px; font-size:30px; font-weight:700; color:#5E6280; }
+.nl03 { width:56px; height:56px; border-radius:50%; background:#14B37D; border:3px solid #1E1E1E; display:flex; align-items:center; justify-content:center; font-family:"Bodoni Moda",serif; font-weight:700; font-size:34px; color:#1B1F3B; }
+.nb03 { margin-top:14px; font-size:48px; line-height:1.25; font-weight:700; }
+.ns03 { margin-top:8px; font-size:30px; color:#5E6280; }
+
+</style>
+<div id="root" data-composition-id="03-alerta" data-width="1080" data-height="1920" data-duration="5.6">
+  <div id="f03-bg" class="clip" data-start="0" data-duration="5.6" data-track-index="0" style="position:absolute;inset:0;background:#FFF6EA"></div>
+  <svg data-layout-allow-overlap data-layout-allow-overflow class="svg03" viewBox="0 0 1080 1920">
+    <rect x="70" y="580" width="940" height="800" rx="44" fill="#fff" stroke="#1E1E1E" stroke-width="5" stroke-linejoin="round"/>
+    <text class="f03" x="120" y="670" font-size="34" fill="#5E6280" letter-spacing="3">💵 DÓLAR · USD/BRL</text>
+    <text class="f03 val03" x="120" y="770" font-size="92" fill="#1B1F3B">R$ 4,98</text>
+    <line x1="120" y1="1167" x2="960" y2="1167" stroke="#14B37D" stroke-width="6" stroke-dasharray="18 14"/>
+    <rect x="120" y="1189" width="260" height="54" rx="27" fill="#0B6E4D"/>
+    <text class="f03" x="250" y="1226" font-size="30" fill="#fff" text-anchor="middle">seu alvo R$ 4,90</text>
+    <polyline class="ln03" pathLength="1" points="120,889 204,855 288,959 372,924 456,1028 540,993 624,1097 708,1063 792,1132 876,1201 960,1236" fill="none" stroke="#1B1F3B" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1" stroke-dashoffset="1"/>
+    <circle class="dot03" cx="960" cy="1236" r="22" fill="#3EE9AF" stroke="#1E1E1E" stroke-width="5" stroke-linejoin="round" opacity="0"/>
+  </svg>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="k03">dias depois…</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h03 t03">Caiu. 📉</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="nt03">
+    <div data-layout-allow-overlap data-layout-allow-overflow class="nh03"><span data-layout-allow-overlap data-layout-allow-overflow class="nl03">D</span>Dyno · agora</div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="nb03">🔔 Dólar a R$&nbsp;4,88 — bateu o seu alerta!</div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="ns03">Só informo, não é recomendação.</div>
+  </div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="03-alerta"] ' + s);
+  tl.fromTo(one('.k03'), { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 0.1);
+  tl.fromTo(one('.t03'), { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out' }, 0.2);
+  tl.fromTo(one('.svg03'), { y: 200, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'power3.out' }, 0.3);
+  tl.to(one('.ln03'), { attr: { 'stroke-dashoffset': 0 }, duration: 2.4, ease: 'none' }, 0.8);
+  const o = { v: 4.98 }, el = one('.val03');
+  tl.to(o, { v: 4.88, duration: 2.4, ease: 'none', onUpdate: () => { el.textContent = 'R$ ' + o.v.toFixed(2).replace('.', ','); } }, 0.8);
+  tl.to(one('.val03'), { attr: { fill: '#0E8A60' }, duration: 0.2 }, 3.0);
+  tl.fromTo(one('.dot03'), { attr: { r: 0 }, opacity: 1 }, { attr: { r: 22 }, opacity: 1, duration: 0.3, ease: 'back.out(3)' }, 3.2);
+  tl.fromTo(one('.nt03'), { y: 300, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.6)' }, 3.4);
+  tl.fromTo(one('.nt03'), { rotation: 0 }, { rotation: 2, duration: 0.08, yoyo: true, repeat: 5, ease: 'sine.inOut' }, 3.9);
+  tl.to({}, { duration: 5.6 }, 0);
+  window.__timelines["03-alerta"] = tl;
+})();
+</script>
+</template>

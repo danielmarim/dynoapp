@@ -33,7 +33,7 @@ O Dyno atende por um número próprio, o **+55 11 93949-7178**, ligado à instâ
 | O que ignora | Outros grupos (inclusive os da Dynamo Wear) e quem não tem convite nem cadastro |
 | Reconexão | Automática pelo workflow de Saúde a cada 5 min |
 
-O **número pessoal do Daniel** (5511930851325, instância `pesquisa-aereo` na Evolution da Dynamo Wear) ainda faz duas coisas: atende o "conversa comigo mesmo" do Daniel e avisa quando uma resposta não sai pelo Dyno. A instância `dyno` antiga, que ficava no servidor da Dynamo, foi desconectada.
+O **número pessoal do Daniel** (5511930851325, instância `pesquisa-aereo` na Evolution da Dynamo Wear) foi desligado do Assessor em 05/10: o cérebro ignora tudo o que chega pela instância pesquisa-aereo (acabou o "conversa comigo mesmo"), e os alertas para o Daniel (saúde, erros, painel, Asaas, falha de envio) saem pelo número do Dyno. Os nós antigos de envio por pesquisa-aereo ficaram desativados. O número continua sendo o do Daniel como usuário e administrador. A instância `dyno` antiga, que ficava no servidor da Dynamo, foi desconectada.
 
 ## Dyno e Dina
 
@@ -47,7 +47,7 @@ Desde 04/10 o atendimento tem duas vozes no mesmo número e na mesma conversa: o
 - **Escolha da voz:** a IA devolve o campo `voz` (dyno ou dina) pelo assunto principal. Se a pessoa começa com "Dina, …" ou "Dyno, …", responde quem foi chamado. Cumprimentos, conta, plano, cobrança e LGPD ficam com o Dyno.
 - **Cérebro (YFgP2bYqeHbQc5t1):** nó "Persona (Dyno e Dina)" entre "Complemento do prompt (extras)" e "OpenAI (cérebro)" acrescenta as regras da dupla; "Interpretar resposta" põe o cabeçalho e remove o que a IA tenha escrito. O antigo prefixo "*Dyno:*" saiu dos nós de envio.
 - **Lembretes (Xbdnisj9AjKJFYAF):** lembretes comuns saem como Dina; lembretes de contas a pagar saem como Dyno. A busca de lugares também sai como Dina.
-- **Ainda como Dyno:** resumo das 6h do grupo da família, alertas de orçamento e mensagens de cadastro e convite.
+- **Ainda como Dyno:** alertas de orçamento e mensagens de cadastro e convite.
 - **Apresentação:** em 04/10 o Dyno apresentou a Dina para as 3 contas ativas da família (Daniel, Quézia, Eliezer), em duas mensagens.
 - O nome "Dina" substituiu a ideia "Woody", descartada pela associação com Toy Story.
 
@@ -66,7 +66,7 @@ Tudo roda em um VPS da Hostinger, com exceção do banco (Supabase gerenciado) e
 | dyno-site | dyno-site (nginx 1.27-alpine) | Site e área do cliente; repassa /api ao n8n | dynoapp.com.br via Traefik |
 | evolution | evolution-api v2.3.7 + postgres + redis | WhatsApp da Dynamo Wear e o número pessoal (instância pesquisa-aereo) | chat.dynamowear.com.br |
 | chatwoot | chatwoot v4.16.1 (rails + sidekiq) + pgvector pg16 + redis | Atendimento da Dynamo Wear (não é do Dyno) | interno |
-| pzserver | Project Zomboid + 2 painéis | Servidor de jogo (não é do Dyno) | UDP 16261-16262, TCP 27015 |
+| pzserver | Project Zomboid + 2 painéis | Servidor de jogo (não é do Dyno). Parado em 05/10; exclusão definitiva pendente (Daniel, no hPanel) | UDP 16261-16262, TCP 27015 |
 
 O firewall da Hostinger (**dyno-vps-padrao**) libera só SSH 22, HTTP 80, HTTPS 443, ICMP e as portas do jogo. Há backups semanais da Hostinger fora do servidor e snapshot semanal do VPS.
 
@@ -265,6 +265,16 @@ O relatório real de 7 dias está agendado para 11/10/2026.
 5. Me avise. Eu ligo `ia_decisao_modo = sombra`: o Jev decide em paralelo sem agir, e comparo por 1 a 2 semanas antes de passá-lo para `ativo`.
 
 **Regras:** a chave nunca vai para o chat, o WhatsApp ou o código, só para a credencial do n8n. Se uma chave vazar, apague-a no console e crie outra. Antes de ativar, Anthropic e TypeSafe entram no mapa de dados da LGPD e na Política de Privacidade.
+
+## Alerta de câmbio (dólar e euro)
+
+Função do Dyno lançada em 05/10. O cliente pede pelo WhatsApp ("me avisa quando o dólar ficar abaixo de R$ 4,90", "quanto tá o euro?", "cancela meus alertas de câmbio") e o Dyno avisa uma vez quando o valor é atingido. Só informa: nunca recomenda comprar ou vender nem prevê cotação.
+
+- **Cotação:** workflow "Dyno | Alerta de câmbio" (asdiDsXdGoWC7Bip), a cada 15 min, seg–sex 9h–18h. Fonte em uso: PTAX do Banco Central (oficial, grátis). AwesomeAPI fica como fonte 1 quando houver chave grátis (credencial `awesomeapi`).
+- **Banco:** `dyno_cambio_cotacoes` (120 dias) e `dyno_cambio_alertas` (RLS, até 5 por pessoa, entra na eliminação LGPD, inativos apagados após 180 dias). RPCs `dyno_cambio_registrar`, `dyno_cambio_contexto`, `dyno_cambio_acao`, `dyno_cambio_resumo`, só service\_role.
+- **Cérebro:** "Câmbio (Supabase)" + "Complemento (câmbio)" colocam cotação e alertas no prompt; "Detectar câmbio" + "Câmbio: salvar alerta" gravam as ações.
+- **Divulgação:** anúncio aos 10 cadastros; seção "O dólar caiu? O Dyno te avisa." na home do site + item na lista do Dyno + pergunta no FAQ; post 1080×1350 e reel de 22 s (com e sem música) para o Instagram.
+- **Pendente:** chave da AwesomeAPI e teste real pelo WhatsApp (criar, consultar, cancelar).
 
 ## n8n: workflows
 
@@ -649,6 +659,7 @@ Em 3 dias o Dyno saiu de um assistente da família para um produto multi-cliente
 
 | Data | Entrega | Detalhe |
 | --- | --- | --- |
+| 05/10 | Alerta de câmbio (dólar e euro) | Cotação PTAX do BC a cada 15 min, até 5 alertas por pessoa; anúncio aos 10 cadastros; seção no site, post e reel no Instagram |
 | 04/10 | Dupla Dyno e Dina | Dina (agenda e rotina) e Dyno (dinheiro) no mesmo número, com cabeçalho por voz; apresentada às 3 contas da família |
 | 04/10 | Site para vender | Conversa animada, selos, vagas ao vivo, comparativo de preço e seção da dupla |
 | 04/10 | Base de clientes revisada | "Em teste" no modo admin; Márcia e Marcos ativos; nomes Anderson e Marcelo corrigidos |

@@ -305,3 +305,7 @@ label.check input{width:20px;height:20px;margin:0;flex:0 0 20px;accent-color:#14
 .duo .ex{margin-top:14px}
 .b.dy.dina{background:#FFE2CC}
 @media (max-width:640px){.dupla{grid-template-columns:1fr}}
+/* alerta de câmbio */
+.cambio{display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center;background:#fff;border:2px solid var(--outline);border-radius:28px;padding:36px;box-shadow:10px 10px 0 var(--sh)}
+.cambio .h{margin:8px 0 12px}
+@media (max-width:860px){.cambio{grid-template-columns:1fr;padding:24px}}

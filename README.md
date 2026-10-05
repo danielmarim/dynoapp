@@ -15,7 +15,7 @@ A lógica vive nos workflows do n8n (ver [`n8n/`](n8n/README.md)). Este reposit�
 
 | Pasta | Conteúdo |
 |---|---|
-| `docs/` | Passagem de bastão e documentação técnica |
+| `docs/` | Passagem de bastão, documentação técnica e notas de funções (ex.: `ALERTA-DE-CAMBIO.md`) |
 | `site/` | Site estático: `build.py` gera `www/`; `templates/` (nginx), `deploy/` (compose), `n8n/` (gerador do workflow da API do site) |
 | `card-semanal/` | Card "Sua semana" (HTML → PNG via Gotenberg `dyno-render`) e código do nó do n8n |
 | `videos/` | Projetos HyperFrames dos vídeos de divulgação (sem áudio `.wav` e sem renders) |
