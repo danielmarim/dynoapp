@@ -1,0 +1,52 @@
+server_tokens off;
+set_real_ip_from 172.16.0.0/12;
+set_real_ip_from 10.0.0.0/8;
+set_real_ip_from 192.168.0.0/16;
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;
+limit_req_zone $binary_remote_addr zone=api:10m rate=20r/m;
+limit_req_zone $binary_remote_addr zone=arq:10m rate=90r/m;
+map $sent_http_content_type $cache_ctl { default "no-cache"; ~text/css "public, max-age=604800"; ~javascript "public, max-age=604800"; ~image/ "public, max-age=604800"; }
+server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+  charset utf-8;
+  gzip on; gzip_types text/css application/javascript image/svg+xml application/json;
+  if ($host = www.dynoapp.com.br) { return 301 https://dynoapp.com.br$request_uri; }
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header X-Frame-Options "DENY" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; frame-src blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+  add_header Cache-Control $cache_ctl;
+  location = /api {
+    limit_except POST { deny all; }
+    limit_req zone=api burst=15 nodelay;
+    limit_req_status 429;
+    client_max_body_size 4k;
+    proxy_pass http://n8n:5678/webhook/dyno-site-api;
+    proxy_set_header X-Dyno-Site "${SITE_SECRET}";
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_hide_header Access-Control-Allow-Origin;
+    proxy_read_timeout 60s;
+  }
+  location = /api/arquivo {
+    limit_except POST { deny all; }
+    limit_req zone=arq burst=40 nodelay;
+    limit_req_status 429;
+    client_max_body_size 4k;
+    proxy_pass http://n8n:5678/webhook/dyno-site-api;
+    proxy_set_header X-Dyno-Site "${SITE_SECRET}";
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_hide_header Access-Control-Allow-Origin;
+    proxy_read_timeout 120s;
+  }
+  location / { try_files $uri $uri.html $uri/ =404; }
+  error_page 404 /404.html;
+}

@@ -1,0 +1,42 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+[data-composition-id="03-pede"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.h03 { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; }
+.bub03 { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 46px; line-height: 1.28; padding: 26px 42px; max-width: 880px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.me03 { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.dy03 { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.who03 { display: block; font-size: 28px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 6px; }
+.logo03 { position: absolute; border-radius: 50%; background: #14B37D; border: 5px solid #1E1E1E; display: flex; align-items: center; justify-content: center; font-family: "Bodoni Moda", serif; font-weight: 700; color: #1B1F3B; line-height: 1; }
+
+.k03 { position:absolute; left:86px; top:300px; font-size:38px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:#0E8A60; }
+.t03 { position:absolute; left:86px; right:86px; top:370px; font-size:124px; }
+.logo03 { left:840px; top:250px; width:150px; height:150px; font-size:96px; }
+
+</style>
+<div id="root" data-composition-id="03-pede" data-width="1080" data-height="1920" data-duration="4.5">
+  <div id="f03-bg" class="clip" data-start="0" data-duration="4.5" data-track-index="0" style="position:absolute;inset:0;background:#FFF6EA"></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="logo03 logo03">D</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="k03">agora, com o Dyno</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h03 t03">Pede uma vez.</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="bub03 me03 r1" style="top:720px"><span data-layout-allow-overlap data-layout-allow-overflow class="who03">Você · 21:02</span>me lembra de pagar a luz dia 10 às 9h</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="bub03 dy03 r2" style="top:1080px"><span data-layout-allow-overlap data-layout-allow-overflow class="who03">Dyno · 21:02</span>⏰ Combinado! Dia 10, às 9h, eu te chamo.</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="03-pede"] ' + s);
+  tl.fromTo(one('.logo03'), { scale: 0, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.55, ease: 'back.out(1.8)' }, 0.1);
+  tl.fromTo(one('.k03'), { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 0.2);
+  tl.fromTo(one('.t03'), { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'power3.out' }, 0.3);
+  tl.fromTo(one('.r1'), { x: 260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.4)' }, 0.9);
+  tl.fromTo(one('.r2'), { x: -260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.4)' }, 2.1);
+  tl.to({}, { duration: 4.5 }, 0);
+  window.__timelines["03-pede"] = tl;
+})();
+</script>
+</template>

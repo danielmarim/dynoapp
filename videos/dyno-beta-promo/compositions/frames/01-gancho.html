@@ -1,0 +1,58 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+#root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.f01-bg { position: absolute; inset: 0; background: #FFF6EA; }
+.f01-dots { position: absolute; inset: 0; opacity: .5; background-image: radial-gradient(rgba(27,31,59,.10) 2px, transparent 2.5px); background-size: 54px 54px; }
+.f01-h { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; }
+.f01-kicker { position: absolute; left: 86px; top: 130px; font-size: 38px; line-height: 1; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #0E8A60; }
+.f01-title { position: absolute; left: 86px; right: 86px; top: 200px; font-size: 118px; line-height: 1.0; }
+.f01-bub { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 48px; line-height: 1.28; padding: 30px 46px; max-width: 880px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.f01-me { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.f01-dy { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.f01-who { display: block; font-size: 30px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 8px; }
+.f01-logo { position: absolute; border-radius: 50%; background: #14B37D; display: flex; align-items: center; justify-content: center; font-family: "Bodoni Moda", serif; font-weight: 700; color: #1B1F3B; line-height: 1; }
+
+.f01-typing { display:flex; gap:18px; padding:40px 54px; }
+.f01-dot { width:24px; height:24px; border-radius:50%; background:#1B1F3B; opacity:.55; display:block; }
+.f01-q { position:absolute; left:86px; right:86px; top:600px; font-size:132px; color:#1B1F3B; }
+.f01-l { display:block; }
+.f01-wa { position:absolute; left:86px; right:60px; top:1150px; font-size:132px; color:#14B37D; white-space:nowrap; }
+.f01-mk { left:455px; top:1560px; width:170px; height:170px; font-size:108px; padding-top:6px; }
+</style>
+<div id="root" data-composition-id="01-gancho" data-width="1080" data-height="1920" data-duration="3.5">
+  <div id="f01-bg" class="clip f01-bg" data-start="0" data-duration="3.5" data-track-index="0"><div class="f01-dots"></div></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f01-bub f01-dy f01-typing" style="top:380px"><span data-layout-allow-overlap data-layout-allow-overflow class="f01-dot"></span><span data-layout-allow-overlap data-layout-allow-overflow class="f01-dot"></span><span data-layout-allow-overlap data-layout-allow-overflow class="f01-dot"></span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f01-h f01-q"><span data-layout-allow-overlap data-layout-allow-overflow class="f01-l">E se você</span><span data-layout-allow-overlap data-layout-allow-overflow class="f01-l">tivesse um</span><span data-layout-allow-overlap data-layout-allow-overflow class="f01-l">assessor</span><span data-layout-allow-overlap data-layout-allow-overflow class="f01-l">pessoal…</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f01-h f01-wa">no WhatsApp?</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f01-logo f01-mk">D</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const q = (s) => document.querySelectorAll('[data-composition-id="01-gancho"] ' + s);
+  const one = (s) => document.querySelector('[data-composition-id="01-gancho"] ' + s);
+
+  tl.fromTo(one('.f01-typing'), { scale: 0.5, opacity: 0, transformOrigin: '0% 100%' }, { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(2)' }, 0.0);
+  q('.f01-dot').forEach((d, i) => {
+    [0, 0.5, 1.0, 1.5, 2.0].forEach((t) => {
+      tl.to(d, { y: -16, opacity: 1, duration: 0.15, ease: 'sine.out' }, 0.2 + t + i * 0.1);
+      tl.to(d, { y: 0, opacity: 0.55, duration: 0.15, ease: 'sine.in' }, 0.35 + t + i * 0.1);
+    });
+  });
+  q('.f01-l').forEach((el, i) => {
+    tl.fromTo(el, { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: 'power3.out' }, 0.2 + i * 0.22);
+  });
+  tl.fromTo(one('.f01-wa'), { scale: 0.6, opacity: 0, transformOrigin: '0% 50%' }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(2.4)' }, 1.35);
+  tl.fromTo(one('.f01-mk'), { scale: 0, rotation: -30 }, { scale: 1, rotation: 0, duration: 0.6, ease: 'back.out(2)' }, 1.85);
+  tl.to(one('.f01-q'), { y: -16, duration: 2.6, ease: 'none' }, 0.6);
+
+  tl.to({}, { duration: 3.5 }, 0);
+  window.__timelines["01-gancho"] = tl;
+})();
+</script>
+</template>

@@ -1,0 +1,64 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+#root { position:absolute; inset:0; width:1080px; height:1920px; overflow:hidden; font-family:"Space Grotesk",sans-serif; color:#1B1F3B; }
+.f02-bg { position:absolute; inset:0; background:#FFF6EA; }
+.f02-dots { position:absolute; inset:0; opacity:.5; background-image:radial-gradient(rgba(27,31,59,.10) 2px, transparent 2.5px); background-size:54px 54px; }
+.f02-h { font-family:"Bodoni Moda",serif; font-weight:700; line-height:1.0; letter-spacing:-.02em; }
+.f02-kicker { position:absolute; left:86px; top:300px; font-size:36px; line-height:1; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:#0E8A60; }
+.f02-title { position:absolute; left:86px; right:86px; top:360px; font-size:104px; color:#1B1F3B; }
+.f02-bub { position:absolute; border:5px solid #1E1E1E; border-radius:54px; font-size:46px; line-height:1.28; padding:28px 44px; max-width:860px; box-shadow:12px 12px 0 rgba(26,26,26,.10); }
+.f02-me { right:76px; background:#fff; border-bottom-right-radius:12px; }
+.f02-dy { left:76px; background:#9AF4D5; border-bottom-left-radius:12px; }
+.f02-who { display:block; font-size:28px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; opacity:.6; margin-bottom:8px; }
+.f02-card { position:absolute; left:76px; right:76px; border:5px solid #1E1E1E; border-radius:48px; background:#fff; padding:36px 48px; box-shadow:12px 12px 0 rgba(26,26,26,.10); }
+.f02-pill { position:absolute; left:76px; right:76px; text-align:center; background:#1B1F3B; color:#FFF6EA; border-radius:999px; padding:34px 40px; font-size:44px; font-weight:700; }
+.f02-glow { position:absolute; width:1300px; height:1300px; left:-110px; top:-40px; border-radius:50%; background:radial-gradient(circle, rgba(20,179,125,.28), rgba(20,179,125,0) 62%); }
+.f02-ic { position:absolute; left:290px; top:420px; width:500px; height:500px; border-radius:50%; background:#252A4D; display:flex; align-items:center; justify-content:center; }
+.f02-ic svg { width:290px; height:290px; stroke:#3EE9AF; fill:none; stroke-width:7; stroke-linecap:round; stroke-linejoin:round; }
+.f02-big { position:absolute; left:40px; right:40px; top:1020px; font-size:128px; text-align:center; white-space:nowrap; color:#FFF6EA; }
+.f02-sub { position:absolute; left:60px; right:60px; top:1190px; font-size:48px; text-align:center; color:#A9ADC6; }
+.f02-brand { position:absolute; left:0; right:0; top:1460px; display:flex; justify-content:center; align-items:center; gap:22px; font-family:"Bodoni Moda",serif; font-weight:700; font-size:54px; color:#FFF6EA; }
+.f02-mk { width:84px; height:84px; border-radius:50%; background:#14B37D; color:#1B1F3B; display:flex; align-items:center; justify-content:center; font-size:54px; padding-top:4px; }
+.f02-step { display:flex; align-items:center; gap:36px; font-size:46px; font-weight:700; }
+.f02-n { flex:none; width:110px; height:110px; border-radius:50%; background:#14B37D; display:flex; align-items:center; justify-content:center; font-family:"Bodoni Moda",serif; font-size:64px; color:#1B1F3B; }</style>
+<div id="root" data-composition-id="02-tutorial" data-width="1080" data-height="1920" data-duration="4.5">
+  <div id="f02-bg" class="clip f02-bg" data-start="0" data-duration="4.5" data-track-index="0"><div class="f02-dots"></div></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-kicker" data-in="left" data-t="0.05">comece aqui</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-h f02-title" data-in="up" data-t="0.15000000000000002">3 passos</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-card f02-step" style="top:620px" data-in="card" data-t="0.5"><b data-layout-allow-overlap data-layout-allow-overflow class="f02-n">1</b><span>Salve o contato do Dyno</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-card f02-step" style="top:870px" data-in="card" data-t="1.0"><b data-layout-allow-overlap data-layout-allow-overflow class="f02-n">2</b><span>Mande texto, áudio ou foto</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-card f02-step" style="top:1120px" data-in="card" data-t="1.5"><b data-layout-allow-overlap data-layout-allow-overflow class="f02-n">3</b><span>Ele anota, organiza e lembra</span></div>
+
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const q = (s) => document.querySelectorAll('[data-composition-id="02-tutorial"] ' + s);
+
+  q('[data-in]').forEach((el) => {
+    const t = parseFloat(el.dataset.t || '0'), k = el.dataset.in;
+    if (k === 'up') tl.fromTo(el, { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out' }, t);
+    else if (k === 'right') tl.fromTo(el, { x: 260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.4)' }, t);
+    else if (k === 'left') tl.fromTo(el, { x: -260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.4)' }, t);
+    else if (k === 'pop') tl.fromTo(el, { scale: 0.6, opacity: 0, transformOrigin: '0% 100%' }, { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(1.9)' }, t);
+    else if (k === 'zoom') tl.fromTo(el, { scale: 0, rotation: -25 }, { scale: 1, rotation: 0, duration: 0.8, ease: 'elastic.out(1, 0.6)' }, t);
+    else if (k === 'bar') tl.fromTo(el, { scaleX: 0, transformOrigin: '0% 50%' }, { scaleX: 1, duration: 0.8, ease: 'power2.out' }, t);
+    else if (k === 'card') tl.fromTo(el, { y: 300, rotation: -3, opacity: 0 }, { y: 0, rotation: 0, opacity: 1, duration: 0.55, ease: 'back.out(1.4)' }, t);
+    else tl.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.6, ease: 'power2.out' }, t);
+  });
+  q('[data-shake]').forEach((el) => {
+    const t = parseFloat(el.dataset.shake);
+    [0, 1, 2, 3, 4].forEach((i) => tl.to(el, { rotation: i % 2 ? -20 : 20, duration: 0.08, ease: 'sine.inOut' }, t + i * 0.08));
+    tl.to(el, { rotation: 0, duration: 0.1 }, t + 0.4);
+  });
+
+  tl.to({}, { duration: 4.5 }, 0);
+  window.__timelines["02-tutorial"] = tl;
+})();
+</script>
+</template>

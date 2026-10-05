@@ -1,0 +1,40 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+[data-composition-id="05-nunca"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.h05 { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; }
+.bub05 { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 46px; line-height: 1.28; padding: 26px 42px; max-width: 880px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.me05 { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.dy05 { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.who05 { display: block; font-size: 28px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 6px; }
+.logo05 { position: absolute; border-radius: 50%; background: #14B37D; border: 5px solid #1E1E1E; display: flex; align-items: center; justify-content: center; font-family: "Bodoni Moda", serif; font-weight: 700; color: #1B1F3B; line-height: 1; }
+
+.logo05 { left:445px; top:330px; width:190px; height:190px; font-size:124px; }
+.t05 { position:absolute; left:0; right:0; top:640px; font-size:270px; line-height:.92; color:#fff; text-align:center; }
+.t05 .m05 { color:#3EE9AF; display:inline-block; }
+.s05 { position:absolute; left:86px; right:86px; top:1240px; font-size:56px; color:#D6D9EC; text-align:center; }
+
+</style>
+<div id="root" data-composition-id="05-nunca" data-width="1080" data-height="1920" data-duration="3">
+  <div id="f05-bg" class="clip" data-start="0" data-duration="3" data-track-index="0" style="position:absolute;inset:0;background:#1B1F3B"></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="logo05 logo05">D</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h05 t05"><span data-layout-allow-overlap data-layout-allow-overflow class="n05" style="display:inline-block">Nunca</span><br><span data-layout-allow-overlap data-layout-allow-overflow class="m05">mais.</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="s05">esquecer uma conta.</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="05-nunca"] ' + s);
+  tl.fromTo(one('.logo05'), { scale: 0 }, { scale: 1, duration: 0.45, ease: 'back.out(2)' }, 0.05);
+  tl.fromTo(one('.n05'), { scale: 2.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: 'power4.out' }, 0.35);
+  tl.fromTo(one('.m05'), { scale: 2.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: 'power4.out' }, 0.8);
+  tl.fromTo(one('.s05'), { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 1.4);
+  tl.to({}, { duration: 3 }, 0);
+  window.__timelines["05-nunca"] = tl;
+})();
+</script>
+</template>

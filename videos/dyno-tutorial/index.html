@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/js/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+      #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #1B1F3B; }
+      .scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="39.5" data-width="1080" data-height="1920">
+      <div id="el-01-tutorial" class="scene" data-composition-id="01-tutorial" data-composition-src="compositions/frames/01-tutorial.html" data-start="0.0" data-duration="4.5" data-track-index="0"></div>
+      <div id="el-02-tutorial" class="scene" data-composition-id="02-tutorial" data-composition-src="compositions/frames/02-tutorial.html" data-start="4.0" data-duration="4.5" data-track-index="1"></div>
+      <div id="el-03-tutorial" class="scene" data-composition-id="03-tutorial" data-composition-src="compositions/frames/03-tutorial.html" data-start="8.0" data-duration="5" data-track-index="0"></div>
+      <div id="el-04-tutorial" class="scene" data-composition-id="04-tutorial" data-composition-src="compositions/frames/04-tutorial.html" data-start="12.5" data-duration="5" data-track-index="1"></div>
+      <div id="el-05-tutorial" class="scene" data-composition-id="05-tutorial" data-composition-src="compositions/frames/05-tutorial.html" data-start="17.0" data-duration="5" data-track-index="0"></div>
+      <div id="el-06-tutorial" class="scene" data-composition-id="06-tutorial" data-composition-src="compositions/frames/06-tutorial.html" data-start="21.5" data-duration="5" data-track-index="1"></div>
+      <div id="el-07-tutorial" class="scene" data-composition-id="07-tutorial" data-composition-src="compositions/frames/07-tutorial.html" data-start="26.0" data-duration="5" data-track-index="0"></div>
+      <div id="el-08-tutorial" class="scene" data-composition-id="08-tutorial" data-composition-src="compositions/frames/08-tutorial.html" data-start="30.5" data-duration="4.5" data-track-index="1"></div>
+      <div id="el-09-tutorial" class="scene" data-composition-id="09-tutorial" data-composition-src="compositions/frames/09-tutorial.html" data-start="34.5" data-duration="5" data-track-index="0"></div>
+      <audio id="el-bgm" src="assets/audio/bgm.wav" data-start="0" data-duration="39.5" data-track-index="11" data-volume="0.7"></audio>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+      (function () { var tl = window.__timelines["main"];
+        tl.to("#el-01-tutorial", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 4.0);
+        tl.fromTo("#el-02-tutorial", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.5, ease: "power3.inOut" }, 4.0);
+        tl.to("#el-02-tutorial", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 8.0);
+        tl.fromTo("#el-03-tutorial", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 8.0);
+        tl.to("#el-03-tutorial", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 12.5);
+        tl.fromTo("#el-04-tutorial", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.5, ease: "power3.inOut" }, 12.5);
+        tl.to("#el-04-tutorial", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 17.0);
+        tl.fromTo("#el-05-tutorial", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 17.0);
+        tl.to("#el-05-tutorial", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 21.5);
+        tl.fromTo("#el-06-tutorial", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.5, ease: "power3.inOut" }, 21.5);
+        tl.to("#el-06-tutorial", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 26.0);
+        tl.fromTo("#el-07-tutorial", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 26.0);
+        tl.to("#el-07-tutorial", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 30.5);
+        tl.fromTo("#el-08-tutorial", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.5, ease: "power3.inOut" }, 30.5);
+        tl.to("#el-08-tutorial", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 34.5);
+        tl.fromTo("#el-09-tutorial", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 34.5);
+        tl.to({}, { duration: 39.5 }, 0);
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /conta
+Disallow: /entrar
+Disallow: /api/
+Sitemap: https://dynoapp.com.br/sitemap.xml

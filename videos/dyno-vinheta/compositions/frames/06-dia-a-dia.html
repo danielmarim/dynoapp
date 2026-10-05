@@ -1,0 +1,48 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+#root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.f06-bg { position: absolute; inset: 0; background: #FFF6EA; }
+.f06-dots { position: absolute; inset: 0; opacity: .5; background-image: radial-gradient(rgba(27,31,59,.10) 2px, transparent 2.5px); background-size: 54px 54px; }
+.f06-h { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; color: #1B1F3B; }
+.f06-kicker { position: absolute; left: 86px; top: 120px; font-size: 38px; line-height: 1; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #0E8A60; }
+.f06-title { position: absolute; left: 86px; right: 86px; top: 196px; font-size: 118px; line-height: 1.0; }
+.f06-pill { position: absolute; border: 5px solid #1E1E1E; border-radius: 999px; background: #fff; font-size: 44px; font-weight: 700; padding: 24px 46px; white-space: nowrap; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.f06-bub { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 48px; line-height: 1.28; padding: 32px 46px; max-width: 900px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.f06-me { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.f06-dy { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.f06-who { display: block; font-size: 32px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 10px; }
+.f06-sun { position:absolute; width:520px; height:520px; right:-120px; top:60px; border-radius:50%; background: radial-gradient(circle, #FFD08A 0%, #FF8A3D 55%, rgba(255,138,61,0) 72%); opacity:.55; }</style>
+<div id="root" data-composition-id="06-dia-a-dia" data-width="1080" data-height="1920" data-duration="5">
+  <div id="f06-bg" class="clip f06-bg" data-start="0" data-duration="5" data-track-index="0"><div class="f06-dots"></div></div>
+  <div data-layout-allow-overlap class="f06-sun"></div>
+  <div data-layout-allow-overlap class="f06-kicker">todo dia</div>
+  <div data-layout-allow-overlap class="f06-h f06-title" style="font-size:100px">Bom dia, lugares<br>e resumos</div>
+  <div data-layout-allow-overlap class="f06-bub f06-dy f06-m1" style="top:620px"><span data-layout-allow-overlap class="f06-who">Dyno · 06:00</span>☀️ Bom dia, família!<br>📖 Devocional do dia</div>
+  <div data-layout-allow-overlap class="f06-bub f06-dy f06-m2" style="top:1000px;background:#fff"><span data-layout-allow-overlap class="f06-who">Dyno</span>🔎 Padaria aberta a 300 m</div>
+  <div data-layout-allow-overlap class="f06-bub f06-dy f06-m3" style="top:1270px;background:#FFB98B"><span data-layout-allow-overlap class="f06-who">Dyno · domingo 20h</span>📊 Seu resumo da semana</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const q = (s) => document.querySelectorAll('[data-composition-id="06-dia-a-dia"] ' + s);
+  const one = (s) => document.querySelector('[data-composition-id="06-dia-a-dia"] ' + s);
+
+  tl.fromTo(one('.f06-sun'), { y: 260, scale: 0.7, opacity: 0 }, { y: 0, scale: 1, opacity: 0.55, duration: 1.4, ease: 'power2.out' }, 0);
+  tl.fromTo(one('.f06-kicker'), { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 0.05);
+  tl.fromTo(one('.f06-title'), { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'power3.out' }, 0.12);
+  tl.fromTo(one('.f06-m1'), { scale: 0.6, opacity: 0, transformOrigin: '0% 100%' }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.8)' }, 0.75);
+  tl.fromTo(one('.f06-m2'), { scale: 0.6, opacity: 0, transformOrigin: '0% 100%' }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.8)' }, 1.95);
+  tl.fromTo(one('.f06-m3'), { scale: 0.6, opacity: 0, transformOrigin: '0% 100%' }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.8)' }, 3.15);
+  tl.to(one('.f06-sun'), { rotation: 20, scale: 1.08, duration: 3.6, ease: 'none' }, 1.4);
+
+  tl.to({}, { duration: 5 }, 0);
+  window.__timelines["06-dia-a-dia"] = tl;
+})();
+</script>
+</template>

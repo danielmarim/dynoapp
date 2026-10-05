@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/js/gsap.min.js" integrity="sha384-sG0Hv1tP1lZCk9KQmrIbY/XNwi+OY84GQqhMscbnsoBFqAz8KNCil1kvfL3Hbbk2" crossorigin="anonymous"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #000;
+      }
+      #root {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #FFF6EA;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="32"
+      data-width="1080"
+      data-height="1920"
+    >
+      <div
+        id="el-01-gancho"
+        class="scene"
+        data-composition-id="01-gancho"
+        data-composition-src="compositions/frames/01-gancho.html"
+        data-start="0"
+        data-duration="3.5"
+        data-track-index="0"
+      ></div>
+
+      <div
+        id="el-02-apresentacao"
+        class="scene"
+        data-composition-id="02-apresentacao"
+        data-composition-src="compositions/frames/02-apresentacao.html"
+        data-start="3"
+        data-duration="4.6"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="el-03-financas"
+        class="scene"
+        data-composition-id="03-financas"
+        data-composition-src="compositions/frames/03-financas.html"
+        data-start="7"
+        data-duration="5.5"
+        data-track-index="0"
+      ></div>
+
+      <div
+        id="el-04-lembretes"
+        class="scene"
+        data-composition-id="04-lembretes"
+        data-composition-src="compositions/frames/04-lembretes.html"
+        data-start="12"
+        data-duration="5.6"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="el-05-casa-carro"
+        class="scene"
+        data-composition-id="05-casa-carro"
+        data-composition-src="compositions/frames/05-casa-carro.html"
+        data-start="17"
+        data-duration="4.5"
+        data-track-index="0"
+      ></div>
+
+      <div
+        id="el-06-dia-a-dia"
+        class="scene"
+        data-composition-id="06-dia-a-dia"
+        data-composition-src="compositions/frames/06-dia-a-dia.html"
+        data-start="21"
+        data-duration="5.5"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="el-07-so-chamar"
+        class="scene"
+        data-composition-id="07-so-chamar"
+        data-composition-src="compositions/frames/07-so-chamar.html"
+        data-start="26"
+        data-duration="6"
+        data-track-index="0"
+      ></div>
+
+      <!-- BGM -->
+      <audio
+        id="el-bgm"
+        src="assets/audio/dyno-bgm.wav"
+        data-start="0"
+        data-duration="32"
+        data-track-index="11"
+        data-volume="0.8"
+      ></audio>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+      // ── frame transitions (injected by transitions.mjs) ──
+      (function () { var tl = window.__timelines["main"];
+        tl.to("#el-01-gancho", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 3);
+        tl.fromTo("#el-02-apresentacao", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 3);
+        tl.to("#el-02-apresentacao", { filter: "blur(10px)", scale: 1.03, opacity: 0, duration: 0.6, ease: "power2.inOut" }, 7);
+        tl.fromTo("#el-03-financas", { filter: "blur(10px)", scale: 0.97, opacity: 0 }, { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.6, ease: "power2.inOut" }, 7);
+        tl.to("#el-03-financas", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 12);
+        tl.fromTo("#el-04-lembretes", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 12);
+        tl.to("#el-04-lembretes", { filter: "blur(10px)", scale: 1.03, opacity: 0, duration: 0.6, ease: "power2.inOut" }, 17);
+        tl.fromTo("#el-05-casa-carro", { filter: "blur(10px)", scale: 0.97, opacity: 0 }, { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.6, ease: "power2.inOut" }, 17);
+        tl.to("#el-05-casa-carro", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 21);
+        tl.fromTo("#el-06-dia-a-dia", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 21);
+        tl.to("#el-06-dia-a-dia", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 26);
+        tl.fromTo("#el-07-so-chamar", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 26);
+        tl.to({}, { duration: 32 }, 0); // full-span anchor — main.duration() == composition total (Studio master duration)
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,59 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+#root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.f02-bg { position: absolute; inset: 0; background: #FFF6EA; }
+.f02-dots { position: absolute; inset: 0; opacity: .5; background-image: radial-gradient(rgba(27,31,59,.10) 2px, transparent 2.5px); background-size: 54px 54px; }
+.f02-h { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; }
+.f02-kicker { position: absolute; left: 86px; top: 130px; font-size: 38px; line-height: 1; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #0E8A60; }
+.f02-title { position: absolute; left: 86px; right: 86px; top: 200px; font-size: 118px; line-height: 1.0; }
+.f02-bub { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 48px; line-height: 1.28; padding: 30px 46px; max-width: 880px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.f02-me { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.f02-dy { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.f02-who { display: block; font-size: 30px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 8px; }
+.f02-logo { position: absolute; border-radius: 50%; background: #14B37D; display: flex; align-items: center; justify-content: center; font-family: "Bodoni Moda", serif; font-weight: 700; color: #1B1F3B; line-height: 1; }
+
+.f02-title { color:#1B1F3B; }
+.f02-aud { display:flex; align-items:center; gap:18px; }
+.f02-play { font-size:40px; }
+.f02-wave { display:flex; align-items:center; gap:7px; height:56px; }
+.f02-wv { display:block; width:8px; border-radius:4px; background:#1B1F3B; opacity:.75; }
+</style>
+<div id="root" data-composition-id="02-anota" data-width="1080" data-height="1920" data-duration="5.5">
+  <div id="f02-bg" class="clip f02-bg" data-start="0" data-duration="5.5" data-track-index="0"><div class="f02-dots"></div></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-kicker">texto, áudio ou foto</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-h f02-title">Você fala,<br>ele anota</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-bub f02-me f02-u" style="top:560px">gastei 45 no mercado 🛒</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-bub f02-dy f02-d" style="top:730px"><span data-layout-allow-overlap data-layout-allow-overflow class="f02-who">Dyno</span>Prontinho! R$ 45 em mercado</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-bub f02-me f02-u f02-aud" style="top:950px">🎤 <span data-layout-allow-overlap data-layout-allow-overflow class="f02-play">▶</span><span data-layout-allow-overlap data-layout-allow-overflow class="f02-wave"><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:18px"></i><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:34px"></i><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:26px"></i><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:46px"></i><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:30px"></i><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:52px"></i><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:22px"></i><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:40px"></i><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:28px"></i><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:44px"></i><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:20px"></i><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:36px"></i><i data-layout-allow-overlap data-layout-allow-overflow class="f02-wv" style="height:24px"></i></span> 0:04</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-bub f02-dy f02-d" style="top:1120px"><span data-layout-allow-overlap data-layout-allow-overflow class="f02-who">Dyno</span>R$ 120 em farmácia ✅</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-bub f02-me f02-u" style="top:1340px">📷 comprovante.jpg</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f02-bub f02-dy f02-d" style="top:1510px"><span data-layout-allow-overlap data-layout-allow-overflow class="f02-who">Dyno</span>Conta de luz lançada ✅</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const q = (s) => document.querySelectorAll('[data-composition-id="02-anota"] ' + s);
+  const one = (s) => document.querySelector('[data-composition-id="02-anota"] ' + s);
+
+  tl.fromTo(one('.f02-kicker'), { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 0.05);
+  tl.fromTo(one('.f02-title'), { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'power3.out' }, 0.12);
+  const us = q('.f02-u'), ds = q('.f02-d');
+  [0, 1, 2].forEach((k) => {
+    const t = 0.6 + k * 1.3;
+    tl.fromTo(us[k], { x: 280, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.4)' }, t);
+    tl.fromTo(ds[k], { scale: 0.6, opacity: 0, transformOrigin: '0% 100%' }, { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(1.9)' }, t + 0.55);
+  });
+  q('.f02-wv').forEach((w, i) => {
+    tl.fromTo(w, { scaleY: 0.3 }, { scaleY: 1, duration: 0.18, ease: 'sine.inOut' }, 2.0 + i * 0.04);
+  });
+
+  tl.to({}, { duration: 5.5 }, 0);
+  window.__timelines["02-anota"] = tl;
+})();
+</script>
+</template>

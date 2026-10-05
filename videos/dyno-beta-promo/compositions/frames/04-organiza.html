@@ -1,0 +1,50 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+#root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.f04-bg { position: absolute; inset: 0; background: #FFF6EA; }
+.f04-dots { position: absolute; inset: 0; opacity: .5; background-image: radial-gradient(rgba(27,31,59,.10) 2px, transparent 2.5px); background-size: 54px 54px; }
+.f04-h { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; }
+.f04-kicker { position: absolute; left: 86px; top: 130px; font-size: 38px; line-height: 1; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #0E8A60; }
+.f04-title { position: absolute; left: 86px; right: 86px; top: 200px; font-size: 118px; line-height: 1.0; }
+.f04-bub { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 48px; line-height: 1.28; padding: 30px 46px; max-width: 880px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.f04-me { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.f04-dy { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.f04-who { display: block; font-size: 30px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 8px; }
+.f04-logo { position: absolute; border-radius: 50%; background: #14B37D; display: flex; align-items: center; justify-content: center; font-family: "Bodoni Moda", serif; font-weight: 700; color: #1B1F3B; line-height: 1; }
+
+.f04-title { color:#1B1F3B; }
+.f04-card { position:absolute; left:86px; right:86px; height:180px; display:flex; align-items:center; padding:0 60px; border:5px solid #1E1E1E; border-radius:70px; font-size:60px; font-weight:700; color:#1B1F3B; box-shadow:12px 12px 0 rgba(26,26,26,.10); }
+</style>
+<div id="root" data-composition-id="04-organiza" data-width="1080" data-height="1920" data-duration="3.5">
+  <div id="f04-bg" class="clip f04-bg" data-start="0" data-duration="3.5" data-track-index="0"><div class="f04-dots"></div></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f04-kicker">e mais</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f04-h f04-title">E organiza<br>o resto</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f04-card" style="top:600px;background:#fff" data-rot="-3">✅ Tarefas</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f04-card" style="top:840px;background:#9AF4D5" data-rot="2">🛒 Listas de compras</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f04-card" style="top:1080px;background:#FFB98B" data-rot="-2">💸 Contas a pagar</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f04-card" style="top:1320px;background:#fff" data-rot="3">📊 Resumo do mês</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const q = (s) => document.querySelectorAll('[data-composition-id="04-organiza"] ' + s);
+  const one = (s) => document.querySelector('[data-composition-id="04-organiza"] ' + s);
+
+  tl.fromTo(one('.f04-kicker'), { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 0.05);
+  tl.fromTo(one('.f04-title'), { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'power3.out' }, 0.12);
+  q('.f04-card').forEach((el, i) => {
+    const r = parseFloat(el.dataset.rot);
+    tl.fromTo(el, { y: 420, rotation: r * 4, opacity: 0 }, { y: 0, rotation: r, opacity: 1, duration: 0.55, ease: 'back.out(1.5)' }, 0.5 + i * 0.35);
+    tl.to(el, { rotation: 0, duration: 0.5, ease: 'sine.out' }, 1.05 + i * 0.35);
+  });
+
+  tl.to({}, { duration: 3.5 }, 0);
+  window.__timelines["04-organiza"] = tl;
+})();
+</script>
+</template>

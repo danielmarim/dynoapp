@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/js/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+      @font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+      @font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+      @font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #FFF6EA; }
+      #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #FFF6EA; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+      .scene { position: absolute; inset: 0; background: #FFF6EA; }
+      .navy { background: #1B1F3B; color: #FFF6EA; }
+      .dots { position: absolute; inset: 0; opacity: .5; background-image: radial-gradient(rgba(27,31,59,.10) 2px, transparent 2.5px); background-size: 54px 54px; }
+      .navy .dots { background-image: radial-gradient(rgba(255,246,234,.08) 2px, transparent 2.5px); }
+      .kick { position: absolute; left: 96px; top: 300px; font-size: 36px; font-weight: 700; letter-spacing: 6px; color: #0E8A60; }
+      .navy .kick { color: #5FE0B0; }
+      .big { position: absolute; left: 96px; width: 820px; font-family: "Bodoni Moda", serif; font-weight: 700; font-size: 112px; line-height: 1.06; }
+      .it { font-style: italic; }
+      .orange { color: #FF8A3D; }
+      .green { color: #0E8A60; }
+      .sheet { position: absolute; left: 96px; top: 520px; width: 820px; height: 440px; display: grid; grid-template-columns: 270px repeat(3, 180px); grid-auto-rows: 86px; border: 5px solid #1B1F3B; border-radius: 24px; background: #FFFFFF; overflow: hidden; box-shadow: 12px 12px 0 rgba(27,31,59,.12); }
+      .c { border-right: 2px solid #D9D2C4; border-bottom: 2px solid #D9D2C4; display: flex; align-items: center; justify-content: flex-end; padding: 0 22px; font-size: 38px; }
+      .h { background: #1B1F3B; color: #FFF6EA; font-weight: 700; letter-spacing: 3px; font-size: 30px; justify-content: center; }
+      .lab { font-weight: 700; justify-content: flex-start; }
+      .on { background: #E3F7EE; }
+      .cursor { width: 4px; height: 46px; background: #FF8A3D; }
+      .meter { position: absolute; left: 96px; top: 1030px; width: 820px; }
+      .meter-t { font-size: 40px; font-weight: 700; margin-bottom: 18px; }
+      .bar { height: 36px; border: 4px solid #1B1F3B; border-radius: 20px; background: #FFFFFF; overflow: hidden; }
+      .fill { height: 100%; background: #14B37D; }
+      .note { position: absolute; left: 96px; top: 1230px; font-family: "Bodoni Moda", serif; font-style: italic; font-weight: 400; font-size: 64px; }
+      .pill { position: absolute; display: flex; gap: 28px; padding: 22px 34px; border: 4px solid #1B1F3B; border-radius: 60px; background: #FFFFFF; font-size: 40px; white-space: nowrap; }
+      .pill b { font-weight: 700; }
+      .bub-me { position: absolute; right: 164px; top: 980px; padding: 30px 40px; background: #14B37D; border: 4px solid #1B1F3B; border-radius: 44px 44px 8px 44px; font-size: 50px; font-weight: 700; }
+      .bub-dy { position: absolute; left: 96px; top: 1160px; display: flex; gap: 14px; padding: 34px 40px; background: #FFFFFF; border: 4px solid #1B1F3B; border-radius: 44px 44px 44px 8px; }
+      .d { width: 24px; height: 24px; border-radius: 12px; background: #1B1F3B; }
+      .cta { position: absolute; left: 96px; top: 1200px; padding: 28px 44px; background: #FF8A3D; border: 4px solid #FFF6EA; border-radius: 60px; font-size: 52px; font-weight: 700; color: #1B1F3B; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="19" data-width="1080" data-height="1920">
+
+      <div id="s1" class="clip scene" data-start="0" data-duration="2.8" data-track-index="0">
+        <div class="dots"></div>
+        <div class="kick">POV</div>
+        <div id="s1t" class="big" style="top: 400px">Sua planilha financeira em <span class="it green">3 atos.</span></div>
+      </div>
+
+      <div id="s2" class="clip scene" data-start="2.6" data-duration="3.0" data-track-index="1">
+        <div class="dots"></div>
+        <div class="kick">ATO 1 · JANEIRO</div>
+        <div class="big" style="top: 370px; font-size: 80px">Agora vai!</div>
+        <div class="sheet">
+          <div class="c h"></div><div class="c h">SEM 1</div><div class="c h">SEM 2</div><div class="c h">SEM 3</div>
+          <div class="c lab">Mercado</div><div class="c on"><span class="v">210</span></div><div class="c on"><span class="v">185</span></div><div class="c on"><span class="v">232</span></div>
+          <div class="c lab">Transporte</div><div class="c on"><span class="v">90</span></div><div class="c on"><span class="v">88</span></div><div class="c on"><span class="v">95</span></div>
+          <div class="c lab">Lazer</div><div class="c on"><span class="v">60</span></div><div class="c on"><span class="v">45</span></div><div class="c on"><span class="v">70</span></div>
+          <div class="c lab">Contas</div><div class="c on"><span class="v">310</span></div><div class="c on"><span class="v">0</span></div><div class="c on"><span class="v">140</span></div>
+        </div>
+        <div class="meter"><div class="meter-t">Motivação</div><div class="bar"><div id="f1" class="fill" style="width: 100%"></div></div></div>
+      </div>
+
+      <div id="s3" class="clip scene" data-start="5.4" data-duration="2.8" data-track-index="0">
+        <div class="dots"></div>
+        <div class="kick">ATO 2 · FEVEREIRO</div>
+        <div class="big" style="top: 370px; font-size: 80px">Depois eu anoto…</div>
+        <div class="sheet">
+          <div class="c h"></div><div class="c h">SEM 1</div><div class="c h">SEM 2</div><div class="c h">SEM 3</div>
+          <div class="c lab">Mercado</div><div class="c on">198</div><div class="c"></div><div class="c"></div>
+          <div class="c lab">Transporte</div><div class="c on">90</div><div class="c"></div><div class="c"></div>
+          <div class="c lab">Lazer</div><div class="c"></div><div class="c"></div><div class="c"></div>
+          <div class="c lab">Contas</div><div class="c"></div><div class="c"></div><div class="c"></div>
+        </div>
+        <div class="meter"><div class="meter-t">Motivação</div><div class="bar"><div id="f2" class="fill" style="width: 100%; background: #FF8A3D"></div></div></div>
+        <div class="pill p2" style="left: 96px; top: 1250px">Pix pro amigo <b>R$ 30</b></div>
+        <div class="pill p2" style="left: 300px; top: 1370px">Café <b>R$ 8</b></div>
+      </div>
+
+      <div id="s4" class="clip scene" data-start="8.0" data-duration="2.6" data-track-index="1">
+        <div class="dots"></div>
+        <div class="kick">ATO 3 · MARÇO</div>
+        <div class="big" style="top: 370px; font-size: 80px">Que planilha?</div>
+        <div class="sheet">
+          <div class="c h"></div><div class="c h">SEM 1</div><div class="c h">SEM 2</div><div class="c h">SEM 3</div>
+          <div class="c lab">Mercado</div><div class="c" style="justify-content: flex-start"><span class="cursor"></span></div><div class="c"></div><div class="c"></div>
+          <div class="c lab">Transporte</div><div class="c"></div><div class="c"></div><div class="c"></div>
+          <div class="c lab">Lazer</div><div class="c"></div><div class="c"></div><div class="c"></div>
+          <div class="c lab">Contas</div><div class="c"></div><div class="c"></div><div class="c"></div>
+        </div>
+        <div class="meter"><div class="meter-t">Motivação</div><div class="bar"><div id="f3" class="fill" style="width: 6%; background: #D9480F"></div></div></div>
+        <div class="note">…e a conta de luz venceu.</div>
+      </div>
+
+      <div id="s5" class="clip scene navy" data-start="10.4" data-duration="3.0" data-track-index="0">
+        <div class="dots"></div>
+        <div id="s5a" class="big" style="top: 420px">Não é falta de disciplina.</div>
+        <div id="s5b" class="big it orange" style="top: 820px; font-weight: 400; font-size: 92px">É coisa demais pra lembrar.</div>
+      </div>
+
+      <div id="s6" class="clip scene" data-start="13.2" data-duration="2.9" data-track-index="1">
+        <div class="dots"></div>
+        <div class="kick">E SE…</div>
+        <div id="s6t" class="big" style="top: 380px; font-size: 92px">anotar fosse só <span class="it green">mandar uma mensagem?</span></div>
+        <div id="me" class="bub-me">gastei 42 no mercado</div>
+        <div id="dy" class="bub-dy"><div class="d"></div><div class="d"></div><div class="d"></div></div>
+      </div>
+
+      <div id="s7" class="clip scene navy" data-start="15.9" data-duration="3.1" data-track-index="0">
+        <div class="dots"></div>
+        <div id="s7a" class="big" style="top: 420px">Algo está chegando.</div>
+        <div id="s7b" class="big it" style="top: 700px; font-size: 92px; color: #5FE0B0">Em 60 dias.</div>
+        <div id="cta" class="cta">Comenta EU QUERO</div>
+      </div>
+
+      <audio id="bgm" src="assets/audio/bgm.wav" data-start="0" data-duration="19" data-track-index="2" data-volume="0.85"></audio>
+    </div>
+    <script>
+      (function () {
+        window.__timelines = window.__timelines || {};
+        const tl = gsap.timeline({ paused: true });
+        // S1
+        tl.fromTo("#s1 .kick", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35 }, 0.1);
+        tl.fromTo("#s1t", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.3);
+        tl.to("#s1t", { scale: 1.04, transformOrigin: "left top", duration: 2, ease: "none" }, 0.9);
+        // S2
+        tl.fromTo("#s2", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 2.6);
+        tl.fromTo("#s2 .sheet", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "back.out(1.6)" }, 2.75);
+        tl.fromTo("#s2 .v", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.12, stagger: 0.09 }, 3.1);
+        tl.fromTo("#f1", { width: "0%" }, { width: "100%", duration: 1.2, ease: "power2.out" }, 3.1);
+        // S3
+        tl.fromTo("#s3", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 5.4);
+        tl.fromTo("#f2", { width: "100%" }, { width: "40%", duration: 1.0, ease: "power2.inOut" }, 5.7);
+        tl.fromTo("#s3 .p2", { opacity: 0, y: 80, rotation: 8 }, { opacity: 1, y: 0, rotation: -3, duration: 0.4, ease: "back.out(1.8)", stagger: 0.35 }, 6.3);
+        // S4
+        tl.fromTo("#s4", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 8.0);
+        tl.fromTo("#s4 .cursor", { opacity: 0 }, { opacity: 1, duration: 0.05, repeat: 9, yoyo: true, ease: "steps(1)" }, 8.2);
+        tl.fromTo("#s4 .note", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.45, ease: "power2.out" }, 9.2);
+        // S5
+        tl.fromTo("#s5", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 10.4);
+        tl.fromTo("#s5a", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 10.6);
+        tl.fromTo("#s5b", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 11.6);
+        // S6
+        tl.fromTo("#s6", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 13.2);
+        tl.fromTo("#s6t", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 13.3);
+        tl.fromTo("#me", { opacity: 0, scale: 0.5, transformOrigin: "right bottom" }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(2)" }, 14.0);
+        tl.fromTo("#dy", { opacity: 0, scale: 0.5, transformOrigin: "left bottom" }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(2)" }, 14.6);
+        tl.fromTo("#dy .d", { y: 0 }, { y: -12, duration: 0.22, yoyo: true, repeat: 3, stagger: 0.1, ease: "sine.inOut" }, 14.9);
+        // S7
+        tl.fromTo("#s7", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 15.9);
+        tl.fromTo("#s7a", { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.5, ease: "power4.out" }, 16.0);
+        tl.fromTo("#s7b", { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.5, ease: "power4.out" }, 16.6);
+        tl.fromTo("#cta", { opacity: 0, scale: 1.4 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(2)" }, 17.3);
+        tl.to({}, { duration: 19 }, 0);
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

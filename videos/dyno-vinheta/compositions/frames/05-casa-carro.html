@@ -1,0 +1,55 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+#root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.f05-bg { position: absolute; inset: 0; background: #FFF6EA; }
+.f05-dots { position: absolute; inset: 0; opacity: .5; background-image: radial-gradient(rgba(27,31,59,.10) 2px, transparent 2.5px); background-size: 54px 54px; }
+.f05-h { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; color: #1B1F3B; }
+.f05-kicker { position: absolute; left: 86px; top: 120px; font-size: 38px; line-height: 1; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #0E8A60; }
+.f05-title { position: absolute; left: 86px; right: 86px; top: 196px; font-size: 118px; line-height: 1.0; }
+.f05-pill { position: absolute; border: 5px solid #1E1E1E; border-radius: 999px; background: #fff; font-size: 44px; font-weight: 700; padding: 24px 46px; white-space: nowrap; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.f05-bub { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 48px; line-height: 1.28; padding: 32px 46px; max-width: 900px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.f05-me { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.f05-dy { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.f05-who { display: block; font-size: 32px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 10px; }
+
+.f05-card { position:absolute; left:86px; right:86px; border:5px solid #1E1E1E; border-radius:64px; background:#fff; padding:36px 50px; display:flex; align-items:center; gap:40px; font-size:56px; font-weight:700; box-shadow:12px 12px 0 rgba(26,26,26,.10); }
+.f05-card small { display:block; font-size:38px; opacity:.65; font-weight:400; margin-top:6px; }
+.f05-ic { width:140px; height:140px; border-radius:50%; border:5px solid #1E1E1E; display:grid; place-items:center; font-size:70px; flex:none; }
+.f05-km { position:absolute; left:86px; top:1460px; font-size:42px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+</style>
+<div id="root" data-composition-id="05-casa-carro" data-width="1080" data-height="1920" data-duration="4">
+  <div id="f05-bg" class="clip f05-bg" data-start="0" data-duration="4" data-track-index="0"><div class="f05-dots"></div></div>
+  <div data-layout-allow-overlap class="f05-kicker">casa e carro</div>
+  <div data-layout-allow-overlap class="f05-h f05-title">Casa e carro<br>em dia</div>
+  <div data-layout-allow-overlap class="f05-card" style="top:640px"><span data-layout-allow-overlap class="f05-ic" style="background:#9AF4D5">🚗</span><span>Troca de óleo<small>aos 50.500 km</small></span></div>
+  <div data-layout-allow-overlap class="f05-card" style="top:900px"><span data-layout-allow-overlap class="f05-ic" style="background:#FFB98B">📄</span><span>IPVA<small>vence em janeiro</small></span></div>
+  <div data-layout-allow-overlap class="f05-card" style="top:1160px"><span data-layout-allow-overlap class="f05-ic" style="background:#fff">🏠</span><span>Filtro de água<small>a cada 6 meses</small></span></div>
+  <div data-layout-allow-overlap class="f05-km">🚦 km do carro: <b data-layout-allow-overlap class="f05-kmv">49.000</b></div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const q = (s) => document.querySelectorAll('[data-composition-id="05-casa-carro"] ' + s);
+  const one = (s) => document.querySelector('[data-composition-id="05-casa-carro"] ' + s);
+
+  tl.fromTo(one('.f05-kicker'), { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 0.05);
+  tl.fromTo(one('.f05-title'), { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'power3.out' }, 0.12);
+  q('.f05-card').forEach((el, i) => {
+    tl.fromTo(el, { y: 160, opacity: 0, rotation: i % 2 ? 3 : -3 }, { y: 0, opacity: 1, rotation: 0, duration: 0.55, ease: 'back.out(1.5)' }, 0.55 + i * 0.45);
+    tl.fromTo(el.querySelector('.f05-ic'), { scale: 0 }, { scale: 1, duration: 0.4, ease: 'back.out(2.4)' }, 0.75 + i * 0.45);
+  });
+  tl.fromTo(one('.f05-km'), { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 2.1);
+  const k = { v: 49000 };
+  tl.fromTo(k, { v: 49000 }, { v: 49820, duration: 1.4, ease: 'power2.out', onUpdate: () => { one('.f05-kmv').textContent = Math.round(k.v).toLocaleString('pt-BR'); } }, 2.2);
+
+  tl.to({}, { duration: 4 }, 0);
+  window.__timelines["05-casa-carro"] = tl;
+})();
+</script>
+</template>

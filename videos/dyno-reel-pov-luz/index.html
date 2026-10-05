@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/js/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+      #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #1B1F3B; }
+      .scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="25" data-width="1080" data-height="1920">
+      <div id="el-01-pov" class="scene" data-composition-id="01-pov" data-composition-src="compositions/frames/01-pov.html" data-start="0" data-duration="4" data-track-index="0"></div>
+      <div id="el-02-apagou" class="scene" data-composition-id="02-apagou" data-composition-src="compositions/frames/02-apagou.html" data-start="4" data-duration="4" data-track-index="1"></div>
+      <div id="el-03-pede" class="scene" data-composition-id="03-pede" data-composition-src="compositions/frames/03-pede.html" data-start="7.5" data-duration="4.5" data-track-index="0"></div>
+      <div id="el-04-insiste" class="scene" data-composition-id="04-insiste" data-composition-src="compositions/frames/04-insiste.html" data-start="11.5" data-duration="7" data-track-index="1"></div>
+      <div id="el-05-nunca" class="scene" data-composition-id="05-nunca" data-composition-src="compositions/frames/05-nunca.html" data-start="18" data-duration="3" data-track-index="0"></div>
+      <div id="el-06-cta" class="scene" data-composition-id="06-cta" data-composition-src="compositions/frames/06-cta.html" data-start="20.5" data-duration="4.5" data-track-index="1"></div>
+      <audio id="el-bgm" src="assets/audio/dyno-bgm-25.wav" data-start="0" data-duration="25" data-track-index="11" data-volume="0.8"></audio>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+      (function () { var tl = window.__timelines["main"];
+        tl.fromTo("#el-03-pede", { clipPath: "circle(0% at 50% 50%)" }, { clipPath: "circle(75% at 50% 50%)", duration: 0.5, ease: "power3.inOut" }, 7.5);
+        tl.fromTo("#el-04-insiste", { clipPath: "inset(0% 0% 0% 100%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.5, ease: "power3.inOut" }, 11.5);
+        tl.to("#el-03-pede", { x: -160, duration: 0.5, ease: "power3.inOut" }, 11.5);
+        tl.fromTo("#el-05-nunca", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.5, ease: "power3.inOut" }, 18);
+        tl.to("#el-04-insiste", { y: -180, duration: 0.5, ease: "power3.inOut" }, 18);
+        tl.fromTo("#el-06-cta", { clipPath: "inset(0% 0% 100% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.5, ease: "power3.inOut" }, 20.5);
+        tl.to("#el-05-nunca", { y: 180, duration: 0.5, ease: "power3.inOut" }, 20.5);
+        tl.to({}, { duration: 25 }, 0);
+      })();
+    </script>
+  </body>
+</html>

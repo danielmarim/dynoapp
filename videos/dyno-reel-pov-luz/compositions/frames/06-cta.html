@@ -1,0 +1,51 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+[data-composition-id="06-cta"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.h06 { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; }
+.bub06 { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 46px; line-height: 1.28; padding: 26px 42px; max-width: 880px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.me06 { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.dy06 { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.who06 { display: block; font-size: 28px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 6px; }
+.logo06 { position: absolute; border-radius: 50%; background: #14B37D; border: 5px solid #1E1E1E; display: flex; align-items: center; justify-content: center; font-family: "Bodoni Moda", serif; font-weight: 700; color: #1B1F3B; line-height: 1; }
+
+.logo06 { left:86px; top:260px; width:120px; height:120px; font-size:78px; }
+.brand06 { position:absolute; left:236px; top:285px; font-family:"Bodoni Moda",serif; font-weight:700; font-size:72px; }
+.pill06 { position:absolute; left:86px; top:500px; background:#FF8A3D; border:5px solid #1E1E1E; border-radius:999px; padding:16px 36px; font-size:40px; font-weight:700; letter-spacing:.08em; }
+.t06 { position:absolute; left:86px; right:86px; top:640px; font-size:190px; line-height:.92; }
+.t06 .g06 { color:#0E8A60; }
+.s06 { position:absolute; left:86px; top:1060px; font-size:54px; }
+.btn06 { position:absolute; left:86px; right:86px; top:1200px; background:#1B1F3B; color:#fff; border:5px solid #1E1E1E; border-radius:40px; padding:34px 40px; font-size:60px; font-weight:700; text-align:center; box-shadow:12px 12px 0 rgba(26,26,26,.15); }
+.url06 { position:absolute; left:86px; right:86px; top:1420px; font-size:46px; font-weight:700; text-align:center; color:#0E8A60; }
+
+</style>
+<div id="root" data-composition-id="06-cta" data-width="1080" data-height="1920" data-duration="4.5">
+  <div id="f06-bg" class="clip" data-start="0" data-duration="4.5" data-track-index="0" style="position:absolute;inset:0;background:#FFF6EA"></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="logo06 logo06">D</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="brand06">Dyno</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="pill06">BETA FECHADO · VAGAS LIMITADAS</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h06 t06">60 dias<br><span data-layout-allow-overlap data-layout-allow-overflow class="g06">grátis.</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="s06">em troca do seu feedback</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="btn06">🔗 Link na bio</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="url06">dynoapp.com.br/beta</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="06-cta"] ' + s);
+  tl.fromTo([one('.logo06'), one('.brand06')], { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out', stagger: 0.08 }, 0.05);
+  tl.fromTo(one('.pill06'), { scale: 0, transformOrigin: '0% 50%' }, { scale: 1, duration: 0.4, ease: 'back.out(2)' }, 0.25);
+  tl.fromTo(one('.t06'), { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'power3.out' }, 0.45);
+  tl.fromTo(one('.s06'), { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.9);
+  tl.fromTo(one('.btn06'), { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.6)' }, 1.15);
+  tl.to(one('.btn06'), { scale: 1.04, duration: 0.3, yoyo: true, repeat: 3, ease: 'sine.inOut' }, 1.8);
+  tl.fromTo(one('.url06'), { opacity: 0 }, { opacity: 1, duration: 0.4 }, 1.5);
+  tl.to({}, { duration: 4.5 }, 0);
+  window.__timelines["06-cta"] = tl;
+})();
+</script>
+</template>

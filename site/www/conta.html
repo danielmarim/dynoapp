@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minha área · Dyno</title>
+<meta name="description" content="Área do cliente do Dyno.">
+<meta name="robots" content="noindex">
+<meta property="og:title" content="Minha área · Dyno">
+<meta property="og:description" content="Área do cliente do Dyno.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://dynoapp.com.br/conta">
+<meta name="theme-color" content="#1B1F3B">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=7">
+</head>
+<body>
+<a class="sr" href="#conteudo">Pular para o conteúdo</a>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/" aria-label="Dyno, página inicial"><span class="mark">D</span>Dyno</a>
+  <nav class="nav" id="nav"><a href="/">Início</a><a href="/como-funciona">Como funciona</a><a href="/precos">Preços</a><a href="/duvidas">Dúvidas</a><a class="btn btn-dark btn-sm" href="/entrar">Entrar</a></nav>
+  <button class="menu-btn" aria-controls="nav" aria-expanded="false" onclick="var n=document.getElementById('nav');n.classList.toggle('open');this.setAttribute('aria-expanded',n.classList.contains('open'))">Menu</button>
+</div></header>
+<main id="conteudo">
+
+<div class="app-head"><div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
+    <div><span class="kicker" style="color:var(--lime)">Área do cliente</span><h1 class="h" id="ola">Olá!</h1><p id="sub">Carregando seus dados…</p></div>
+    <button class="btn btn-ghost btn-sm" id="sair">Sair</button>
+  </div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" aria-controls="p-painel" id="t-painel">Painel</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-extrato" id="t-extrato">Extrato</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-comp" id="t-comp">Comprovantes</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-conta" id="t-conta">Minha conta</button>
+  </div>
+</div></div>
+<div class="wrap">
+  <section class="panel" id="p-painel" role="tabpanel" aria-labelledby="t-painel"><div class="skeleton"></div></section>
+  <section class="panel" id="p-extrato" role="tabpanel" aria-labelledby="t-extrato" hidden></section>
+  <section class="panel" id="p-comp" role="tabpanel" aria-labelledby="t-comp" hidden></section>
+  <section class="panel" id="p-conta" role="tabpanel" aria-labelledby="t-conta" hidden><div class="skeleton"></div></section>
+</div>
+<dialog id="viewer" class="viewer" aria-labelledby="v-t"><div class="v-head"><div><h3 id="v-t">Comprovante</h3><p id="v-s"></p></div><button class="btn btn-ghost btn-sm" id="v-x" aria-label="Fechar">Fechar</button></div><div id="v-c" class="v-c"></div><div class="actions"><a class="btn btn-primary btn-sm" id="v-b" download>Baixar</a></div></dialog>
+<dialog id="dlg"><h3 id="dlg-t"></h3><p id="dlg-p"></p><div class="actions"><button class="btn btn-ghost btn-sm" id="dlg-n">Voltar</button><button class="btn btn-primary btn-sm" id="dlg-s">Confirmar</button></div></dialog>
+<div class="toast" id="toast" role="status"></div>
+
+</main>
+<footer><div class="wrap">
+  <div><a class="brand" href="/"><span class="mark">D</span>Dyno</a><p style="margin-top:12px;max-width:340px">Dyno e Dina, seus assessores pessoais no WhatsApp: o Dyno cuida do dinheiro e a Dina, da agenda e da rotina. Por texto, áudio ou foto.</p></div>
+  <div><b style="color:#fff">Produto</b><a href="/como-funciona">Como funciona</a><a href="/precos">Preços</a><a href="/duvidas">Dúvidas</a><a href="/entrar">Área do cliente</a></div>
+  <div><b style="color:#fff">Contato</b><a href="https://instagram.com/dynoapp.ia" rel="noopener">Instagram @dynoapp.ia</a><a href="https://wa.me/5511939497178" rel="noopener">WhatsApp do Dyno</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a></div>
+  <div class="copy">© 2026 Dyno · DM OBSERVAIT SOLUCOES EM TECNOLOGIA LTDA · CNPJ 65.176.391/0001-45 · Curitiba/PR · <a href="mailto:privacidade@dynoapp.com.br">privacidade@dynoapp.com.br</a>. Beta fechado; lançamento público previsto para 01/12/2026.</div>
+</div></footer>
+<script src="/assets/conta.js?v=3" defer></script>
+</body>
+</html>

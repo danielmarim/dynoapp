@@ -1,0 +1,50 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+#root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.f01-bg { position: absolute; inset: 0; background: #FFF6EA; }
+.f01-dots { position: absolute; inset: 0; opacity: .5; background-image: radial-gradient(rgba(27,31,59,.10) 2px, transparent 2.5px); background-size: 54px 54px; }
+.f01-h { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; color: #1B1F3B; }
+.f01-kicker { position: absolute; left: 86px; top: 120px; font-size: 38px; line-height: 1; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #0E8A60; }
+.f01-title { position: absolute; left: 86px; right: 86px; top: 196px; font-size: 118px; line-height: 1.0; }
+.f01-pill { position: absolute; border: 5px solid #1E1E1E; border-radius: 999px; background: #fff; font-size: 44px; font-weight: 700; padding: 24px 46px; white-space: nowrap; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.f01-bub { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 48px; line-height: 1.28; padding: 32px 46px; max-width: 900px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.f01-me { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.f01-dy { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.f01-who { display: block; font-size: 32px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 10px; }
+.f01-q { position:absolute; left:60px; right:60px; top:760px; font-size:150px; text-align:center; }</style>
+<div id="root" data-composition-id="01-gancho" data-width="1080" data-height="1920" data-duration="3">
+  <div id="f01-bg" class="clip f01-bg" data-start="0" data-duration="3" data-track-index="0"><div class="f01-dots"></div></div>
+  <div data-layout-allow-overlap class="f01-pill f01-n" style="left:70px;top:150px;background:#fff" data-rot="-6">💸 Conta de luz vence…</div>
+  <div data-layout-allow-overlap class="f01-pill f01-n" style="left:560px;top:330px;background:#FFB98B" data-rot="5">🍞 Comprar pão</div>
+  <div data-layout-allow-overlap class="f01-pill f01-n" style="left:110px;top:520px;background:#9AF4D5" data-rot="3">🚗 Troca de óleo?</div>
+  <div data-layout-allow-overlap class="f01-pill f01-n" style="left:470px;top:1180px;background:#fff" data-rot="-4">🧾 Gastei quanto?</div>
+  <div data-layout-allow-overlap class="f01-pill f01-n" style="left:60px;top:1360px;background:#FFB98B" data-rot="6">📺 Netflix renova…</div>
+  <div data-layout-allow-overlap class="f01-pill f01-n" style="left:600px;top:1520px;background:#fff" data-rot="-3">⏰ Reunião 9h</div>
+  <div data-layout-allow-overlap class="f01-h f01-q">Muita coisa<br>pra lembrar?</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const q = (s) => document.querySelectorAll('[data-composition-id="01-gancho"] ' + s);
+  const one = (s) => document.querySelector('[data-composition-id="01-gancho"] ' + s);
+
+  q('.f01-n').forEach((el, i) => {
+    const r = parseFloat(el.dataset.rot);
+    tl.fromTo(el, { y: -260, rotation: r * 3, opacity: 0, scale: 0.8 },
+      { y: 0, rotation: r, opacity: 1, scale: 1, duration: 0.45, ease: 'back.out(1.7)' }, 0.05 + i * 0.28);
+    tl.to(el, { y: 26 + i * 4, rotation: r - 2, duration: 1.6, ease: 'sine.inOut' }, 0.55 + i * 0.28);
+  });
+  tl.fromTo(one('.f01-q'), { scale: 0.86, opacity: 0, y: 30 }, { scale: 1, opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' }, 0.25);
+  tl.to(one('.f01-q'), { scale: 1.05, duration: 2.2, ease: 'none' }, 0.75);
+
+  tl.to({}, { duration: 3 }, 0);
+  window.__timelines["01-gancho"] = tl;
+})();
+</script>
+</template>

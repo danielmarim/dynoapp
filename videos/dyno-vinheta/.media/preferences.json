@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "preferences": {
+    "destination": {
+      "value": "whatsapp",
+      "confirmed_in": [
+        "dyno-vinheta"
+      ],
+      "updated_at": "2026-10-02T15:41:49.823Z"
+    },
+    "aspect": {
+      "value": "1080x1920",
+      "confirmed_in": [
+        "dyno-vinheta"
+      ],
+      "updated_at": "2026-10-02T15:41:49.876Z"
+    },
+    "language": {
+      "value": "pt-BR",
+      "confirmed_in": [
+        "dyno-vinheta"
+      ],
+      "updated_at": "2026-10-02T15:41:49.952Z"
+    },
+    "flow": {
+      "value": "automation",
+      "confirmed_in": [
+        "dyno-vinheta"
+      ],
+      "updated_at": "2026-10-02T15:41:50.006Z"
+    },
+    "storyboard": {
+      "value": "yes",
+      "confirmed_in": [
+        "dyno-vinheta"
+      ],
+      "updated_at": "2026-10-02T15:41:50.063Z"
+    },
+    "style_preset.product-launch-video": {
+      "value": "capsule",
+      "confirmed_in": [
+        "dyno-vinheta"
+      ],
+      "updated_at": "2026-10-02T15:42:03.205Z"
+    }
+  },
+  "sightings": {}
+}

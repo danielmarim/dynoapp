@@ -1,0 +1,48 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+[data-composition-id="04-insiste"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.h04 { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; }
+.bub04 { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 46px; line-height: 1.28; padding: 26px 42px; max-width: 880px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.me04 { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.dy04 { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.who04 { display: block; font-size: 28px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 6px; }
+.logo04 { position: absolute; border-radius: 50%; background: #14B37D; border: 5px solid #1E1E1E; display: flex; align-items: center; justify-content: center; font-family: "Bodoni Moda", serif; font-weight: 700; color: #1B1F3B; line-height: 1; }
+
+.t04 { position:absolute; left:86px; right:86px; top:250px; font-size:118px; }
+.bell04 { display:inline-block; }
+
+</style>
+<div id="root" data-composition-id="04-insiste" data-width="1080" data-height="1920" data-duration="7">
+  <div id="f04-bg" class="clip" data-start="0" data-duration="7" data-track-index="0" style="position:absolute;inset:0;background:#FFF6EA"></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h04 t04">E ele insiste.</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="bub04 dy04 r1" style="top:460px"><span data-layout-allow-overlap data-layout-allow-overflow class="who04">Dyno · 09:00</span><span data-layout-allow-overlap data-layout-allow-overflow class="bell04 b1">⏰</span> Hora de pagar a luz 💡</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="bub04 dy04 r2" style="top:680px;background:#FFB98B"><span data-layout-allow-overlap data-layout-allow-overflow class="who04">Dyno · 09:30</span><span data-layout-allow-overlap data-layout-allow-overflow class="bell04 b2">🔔</span> Ainda não vi seu ok…</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="bub04 dy04 r3" style="top:900px;background:#FF8A3D"><span data-layout-allow-overlap data-layout-allow-overflow class="who04">Dyno · 10:00</span><span data-layout-allow-overlap data-layout-allow-overflow class="bell04 b3">👀</span> Tô aqui, hein. Vence hoje!</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="bub04 me04 r4" style="top:1120px;font-size:60px"><span data-layout-allow-overlap data-layout-allow-overflow class="who04">Você · 10:02</span>paguei ✅</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="bub04 dy04 r5" style="top:1360px"><span data-layout-allow-overlap data-layout-allow-overflow class="who04">Dyno · 10:02</span>Boa! Anotei R$ 187,40 em Casa 🏠</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="04-insiste"] ' + s);
+  tl.fromTo(one('.t04'), { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out' }, 0.1);
+  tl.fromTo(one('.r1'), { x: -260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.4)' }, 0.6);
+  [0,1,2,3].forEach((k) => tl.to(one('.b1'), { rotation: k % 2 ? -18 : 18, duration: 0.09 }, 1.05 + k * 0.09));
+  tl.to(one('.b1'), { rotation: 0, duration: 0.1 }, 1.42);
+  tl.fromTo(one('.r2'), { scale: 0.6, opacity: 0, transformOrigin: '0% 100%' }, { scale: 1, opacity: 1, duration: 0.42, ease: 'back.out(2)' }, 1.6);
+  [0,1,2,3,4,5].forEach((k) => tl.to(one('.b2'), { rotation: k % 2 ? -22 : 22, duration: 0.08 }, 2.0 + k * 0.08));
+  tl.to(one('.b2'), { rotation: 0, duration: 0.1 }, 2.5);
+  tl.fromTo(one('.r3'), { scale: 0.6, opacity: 0, transformOrigin: '0% 100%' }, { scale: 1, opacity: 1, duration: 0.42, ease: 'back.out(2.2)' }, 2.65);
+  tl.fromTo(one('.r3'), { x: 0 }, { x: 14, duration: 0.05, yoyo: true, repeat: 7, ease: 'none' }, 3.1);
+  tl.fromTo(one('.r4'), { x: 260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.5)' }, 3.9);
+  tl.fromTo(one('.r5'), { x: -260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.4)' }, 4.8);
+  tl.to({}, { duration: 7 }, 0);
+  window.__timelines["04-insiste"] = tl;
+})();
+</script>
+</template>

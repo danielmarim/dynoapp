@@ -1,0 +1,59 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+#root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.f06-bg { position: absolute; inset: 0; background: #1B1F3B; }
+.f06-dots { position: absolute; inset: 0; opacity: .5; background-image: radial-gradient(rgba(255,246,234,.06) 2px, transparent 2.5px); background-size: 54px 54px; }
+.f06-h { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; }
+.f06-kicker { position: absolute; left: 86px; top: 130px; font-size: 38px; line-height: 1; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #0E8A60; }
+.f06-title { position: absolute; left: 86px; right: 86px; top: 200px; font-size: 118px; line-height: 1.0; }
+.f06-bub { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 48px; line-height: 1.28; padding: 30px 46px; max-width: 880px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.f06-me { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.f06-dy { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.f06-who { display: block; font-size: 30px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 8px; }
+.f06-logo { position: absolute; border-radius: 50%; background: #14B37D; display: flex; align-items: center; justify-content: center; font-family: "Bodoni Moda", serif; font-weight: 700; color: #1B1F3B; line-height: 1; }
+
+.f06-glow { position:absolute; width:1400px; height:1400px; left:-160px; top:-60px; border-radius:50%; background: radial-gradient(circle, rgba(20,179,125,.26), rgba(20,179,125,0) 62%); }
+.f06-ring { position:absolute; left:290px; top:280px; width:500px; height:500px; border-radius:50%; background:rgba(20,179,125,.18); }
+.f06-mk { left:345px; top:335px; width:390px; height:390px; font-size:250px; padding-top:16px; }
+.f06-name { position:absolute; left:0; right:0; top:840px; font-size:220px; text-align:center; color:#FFF6EA; }
+.f06-ch { display:inline-block; }
+.f06-tag { position:absolute; left:40px; right:40px; top:1110px; font-size:42px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; text-align:center; color:#A9ADC6; }
+.f06-cta { position:absolute; left:86px; right:86px; top:1290px; background:#14B37D; color:#1B1F3B; border-radius:999px; padding:48px 40px; font-size:56px; line-height:1.25; font-weight:700; text-align:center; }
+</style>
+<div id="root" data-composition-id="06-chamada" data-width="1080" data-height="1920" data-duration="3.5">
+  <div id="f06-bg" class="clip f06-bg" data-start="0" data-duration="3.5" data-track-index="0"><div class="f06-dots"></div></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f06-glow"></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f06-ring"></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f06-logo f06-mk">D</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f06-h f06-name"><span data-layout-allow-overlap data-layout-allow-overflow class="f06-ch">D</span><span data-layout-allow-overlap data-layout-allow-overflow class="f06-ch">y</span><span data-layout-allow-overlap data-layout-allow-overflow class="f06-ch">n</span><span data-layout-allow-overlap data-layout-allow-overflow class="f06-ch">o</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f06-tag">seu assessor pessoal no WhatsApp</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="f06-cta">Quer participar?<br>Me chama no privado 💬</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const q = (s) => document.querySelectorAll('[data-composition-id="06-chamada"] ' + s);
+  const one = (s) => document.querySelector('[data-composition-id="06-chamada"] ' + s);
+
+  tl.fromTo(one('.f06-glow'), { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.0, ease: 'power2.out' }, 0);
+  tl.fromTo(one('.f06-mk'), { scale: 0, rotation: -40 }, { scale: 1, rotation: 0, duration: 0.8, ease: 'elastic.out(1, 0.6)' }, 0.1);
+  tl.fromTo(one('.f06-ring'), { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: 'power2.out' }, 0.35);
+  tl.to(one('.f06-ring'), { scale: 1.12, duration: 2.4, ease: 'sine.inOut' }, 0.95);
+  q('.f06-ch').forEach((el, i) => {
+    tl.fromTo(el, { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: 'back.out(2)' }, 0.55 + i * 0.08);
+  });
+  tl.fromTo(one('.f06-tag'), { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 1.0);
+  tl.fromTo(one('.f06-cta'), { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(2)' }, 1.3);
+  tl.to(one('.f06-cta'), { scale: 1.06, duration: 0.2, ease: 'power2.out' }, 1.95);
+  tl.to(one('.f06-cta'), { scale: 1, duration: 0.25, ease: 'power2.in' }, 2.15);
+
+  tl.to({}, { duration: 3.5 }, 0);
+  window.__timelines["06-chamada"] = tl;
+})();
+</script>
+</template>

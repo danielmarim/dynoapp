@@ -1,0 +1,49 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+[data-composition-id="01-pov"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.h01 { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; }
+.bub01 { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 46px; line-height: 1.28; padding: 26px 42px; max-width: 880px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.me01 { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.dy01 { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.who01 { display: block; font-size: 28px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 6px; }
+.logo01 { position: absolute; border-radius: 50%; background: #14B37D; border: 5px solid #1E1E1E; display: flex; align-items: center; justify-content: center; font-family: "Bodoni Moda", serif; font-weight: 700; color: #1B1F3B; line-height: 1; }
+
+.glow01 { position:absolute; left:340px; top:150px; width:400px; height:400px; border-radius:50%; background:radial-gradient(circle,#FFE27A 0%,rgba(255,226,122,.35) 40%,rgba(255,226,122,0) 70%); }
+.bulb01 { position:absolute; left:440px; top:200px; width:200px; font-size:200px; line-height:1; text-align:center; }
+.pill01 { position:absolute; left:86px; top:640px; background:#3EE9AF; border:5px solid #1E1E1E; border-radius:999px; padding:16px 40px; font-size:56px; font-weight:700; letter-spacing:.06em; }
+.t01 { position:absolute; left:86px; right:86px; top:790px; font-size:124px; color:#fff; }
+.t01b { position:absolute; left:86px; right:86px; top:1250px; font-size:150px; color:#FF8A3D; }
+.handle01 { position:absolute; left:86px; top:1560px; font-size:34px; font-weight:700; letter-spacing:.1em; color:#A9ADC6; }
+
+</style>
+<div id="root" data-composition-id="01-pov" data-width="1080" data-height="1920" data-duration="4">
+  <div id="f01-bg" class="clip" data-start="0" data-duration="4" data-track-index="0" style="position:absolute;inset:0;background:#1B1F3B"></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="glow01"></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="bulb01">💡</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="pill01">POV:</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h01 t01">você esqueceu de pagar a luz…</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h01 t01b">de novo 🫠</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="handle01">@dynoapp.ia</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="01-pov"] ' + s);
+  tl.fromTo(one('.glow01'), { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: 'power2.out' }, 0);
+  tl.fromTo(one('.bulb01'), { y: -60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'back.out(1.6)' }, 0.05);
+  tl.fromTo(one('.pill01'), { scale: 0, transformOrigin: '0% 50%' }, { scale: 1, duration: 0.4, ease: 'back.out(2)' }, 0.35);
+  tl.fromTo(one('.t01'), { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }, 0.6);
+  tl.fromTo(one('.t01b'), { scale: 1.6, opacity: 0, transformOrigin: '0% 50%' }, { scale: 1, opacity: 1, duration: 0.35, ease: 'power4.out' }, 2.0);
+  tl.fromTo(one('.t01b'), { rotation: 0 }, { rotation: -3, duration: 0.12, yoyo: true, repeat: 3, ease: 'sine.inOut' }, 2.35);
+  tl.fromTo(one('.handle01'), { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.8);
+  [0,1,2,3,4].forEach((k) => tl.to(one('.glow01'), { opacity: k % 2 ? 1 : 0.25, duration: 0.07 }, 3.25 + k * 0.1));
+  tl.to({}, { duration: 4 }, 0);
+  window.__timelines["01-pov"] = tl;
+})();
+</script>
+</template>

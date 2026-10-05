@@ -1,0 +1,55 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Bodoni Moda"; src: url("assets/fonts/bodoni-moda-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+#root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Space Grotesk", sans-serif; color: #1B1F3B; }
+.f04-bg { position: absolute; inset: 0; background: #FFF6EA; }
+.f04-dots { position: absolute; inset: 0; opacity: .5; background-image: radial-gradient(rgba(27,31,59,.10) 2px, transparent 2.5px); background-size: 54px 54px; }
+.f04-h { font-family: "Bodoni Moda", serif; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em; color: #1B1F3B; }
+.f04-kicker { position: absolute; left: 86px; top: 120px; font-size: 38px; line-height: 1; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #0E8A60; }
+.f04-title { position: absolute; left: 86px; right: 86px; top: 196px; font-size: 118px; line-height: 1.0; }
+.f04-pill { position: absolute; border: 5px solid #1E1E1E; border-radius: 999px; background: #fff; font-size: 44px; font-weight: 700; padding: 24px 46px; white-space: nowrap; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.f04-bub { position: absolute; border: 5px solid #1E1E1E; border-radius: 54px; font-size: 48px; line-height: 1.28; padding: 32px 46px; max-width: 900px; box-shadow: 12px 12px 0 rgba(26,26,26,.10); }
+.f04-me { right: 76px; background: #fff; border-bottom-right-radius: 12px; }
+.f04-dy { left: 76px; background: #9AF4D5; border-bottom-left-radius: 12px; }
+.f04-who { display: block; font-size: 32px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 10px; }
+.f04-bell,.f04-bell2,.f04-chk { display:inline-block; }</style>
+<div id="root" data-composition-id="04-lembretes" data-width="1080" data-height="1920" data-duration="5">
+  <div id="f04-bg" class="clip f04-bg" data-start="0" data-duration="5" data-track-index="0"><div class="f04-dots"></div></div>
+  <div data-layout-allow-overlap class="f04-kicker">lembretes e contas</div>
+  <div data-layout-allow-overlap class="f04-h f04-title">Lembra até você<br>dizer ok</div>
+  <div data-layout-allow-overlap class="f04-bub f04-dy f04-r1" style="top:640px"><span data-layout-allow-overlap class="f04-who">Dyno · 09:00</span><span data-layout-allow-overlap class="f04-bell">⏰</span> Conta de luz vence hoje</div>
+  <div data-layout-allow-overlap class="f04-bub f04-dy f04-r2" style="top:900px;background:#FFB98B"><span data-layout-allow-overlap class="f04-who">Dyno · 09:10</span><span data-layout-allow-overlap class="f04-bell2">🔔</span> E aí, já pagou?</div>
+  <div data-layout-allow-overlap class="f04-bub f04-me f04-ok" style="top:1160px"><span data-layout-allow-overlap class="f04-who">Quézia</span>paguei <span data-layout-allow-overlap class="f04-chk">✅</span></div>
+  <div data-layout-allow-overlap class="f04-pill f04-nf" style="left:86px;top:1440px">📺 Netflix renova sexta</div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const q = (s) => document.querySelectorAll('[data-composition-id="04-lembretes"] ' + s);
+  const one = (s) => document.querySelector('[data-composition-id="04-lembretes"] ' + s);
+
+  tl.fromTo(one('.f04-kicker'), { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 0.05);
+  tl.fromTo(one('.f04-title'), { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'power3.out' }, 0.12);
+  tl.fromTo(one('.f04-r1'), { x: -240, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.4)' }, 0.6);
+  [0, 1, 2, 3].forEach((k) => tl.to(one('.f04-bell'), { rotation: k % 2 ? -18 : 18, duration: 0.09, ease: 'sine.inOut' }, 1.05 + k * 0.09));
+  tl.to(one('.f04-bell'), { rotation: 0, duration: 0.12 }, 1.41);
+  tl.fromTo(one('.f04-r2'), { scale: 0.6, opacity: 0, transformOrigin: '0% 100%' }, { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2)' }, 1.75);
+  tl.to(one('.f04-r2'), { scale: 1.06, duration: 0.15, ease: 'power2.out' }, 2.25);
+  tl.to(one('.f04-r2'), { scale: 1, duration: 0.2, ease: 'power2.in' }, 2.4);
+  [0, 1, 2, 3].forEach((k) => tl.to(one('.f04-bell2'), { rotation: k % 2 ? -20 : 20, duration: 0.08, ease: 'sine.inOut' }, 2.2 + k * 0.08));
+  tl.to(one('.f04-bell2'), { rotation: 0, duration: 0.1 }, 2.52);
+  tl.fromTo(one('.f04-ok'), { x: 240, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.5)' }, 2.85);
+  tl.fromTo(one('.f04-chk'), { scale: 0 }, { scale: 1.35, duration: 0.25, ease: 'back.out(3)' }, 3.2);
+  tl.to(one('.f04-chk'), { scale: 1, duration: 0.2 }, 3.45);
+  tl.fromTo(one('.f04-nf'), { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.6)' }, 3.8);
+
+  tl.to({}, { duration: 5 }, 0);
+  window.__timelines["04-lembretes"] = tl;
+})();
+</script>
+</template>

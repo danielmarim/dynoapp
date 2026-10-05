@@ -1,0 +1,22 @@
+{
+ "como-funciona": {
+  "id": "c4124a3ee64e4a53aa36690301ae0ee7",
+  "description": "happy children's ukulele with light piano, soft whistles, joyful and heartwarming",
+  "duration": 19.0
+ },
+ "financas": {
+  "id": "c4f37cb38a8c4dbcbe1db9711af78be1",
+  "description": "rhythmic lofi hip-hop beat, dynamic and modern",
+  "duration": 41.0
+ },
+ "lembretes": {
+  "id": "092e5561e67c48e8927b0960d847d9e3",
+  "description": "playful jazzy pizzicato, light and quirky, upbeat tempo",
+  "duration": 24.0
+ },
+ "duvidas": {
+  "id": "79478ede51694bd29a380ac312568ca8",
+  "description": "soft piano, low volume, hopeful and emotional",
+  "duration": 46.0
+ }
+}

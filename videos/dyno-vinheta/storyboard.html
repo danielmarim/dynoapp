@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Dyno — vinheta · storyboard v1</title>
+<style>
+:root{--cream:#FFF6EA;--ink:#1B1F3B;--green:#14B37D;--mint:#9AF4D5;--orange:#FF8A3D;--peach:#FFB98B;--white:#fff;--outline:#1E1E1E;--sh:rgba(26,26,26,.10)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#ECE6DC;font-family:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);padding:40px}
+header{display:flex;align-items:baseline;gap:18px;margin-bottom:28px;flex-wrap:wrap}
+header h1{font-family:"Bodoni Moda",Georgia,serif;font-size:40px}
+header .dek{font-size:16px;opacity:.8}
+header .tag{border:2px solid var(--outline);border-radius:999px;padding:4px 14px;font-size:13px;font-weight:600;letter-spacing:.08em;background:#fff}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:28px}
+.cell{display:flex;flex-direction:column;gap:8px}
+.frame{aspect-ratio:9/16;container-type:inline-size;background:var(--cream);border:2px solid var(--outline);border-radius:18px;position:relative;overflow:hidden;box-shadow:6px 6px 0 var(--sh)}
+.lbl{display:flex;justify-content:space-between;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.note{font-size:13px;line-height:1.45}
+.chip{align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:2px solid var(--outline);border-radius:999px;padding:2px 10px;background:var(--mint)}
+.h{font-family:"Bodoni Moda",Georgia,serif;font-weight:800;line-height:.98;letter-spacing:-.02em;color:var(--ink)}
+.pill{position:absolute;border:.5cqw solid var(--outline);border-radius:999px;background:#fff;font-size:4.2cqw;font-weight:600;padding:2.4cqw 4.5cqw;white-space:nowrap;box-shadow:1.2cqw 1.2cqw 0 var(--sh)}
+.bub{position:absolute;border:.5cqw solid var(--outline);border-radius:5cqw;font-size:4.6cqw;line-height:1.3;padding:3.2cqw 4.5cqw;max-width:74cqw;box-shadow:1.2cqw 1.2cqw 0 var(--sh)}
+.me{right:7cqw;background:#fff;border-bottom-right-radius:1cqw}
+.dy{left:7cqw;background:var(--mint);border-bottom-left-radius:1cqw}
+.who{display:block;font-size:3.2cqw;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin-bottom:1cqw}
+.title{position:absolute;left:8cqw;right:8cqw;top:12cqw;font-size:12cqw}
+.kicker{position:absolute;left:8cqw;top:6cqw;font-size:3.4cqw;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--green)}
+.glow{position:absolute;width:120cqw;height:120cqw;border-radius:50%;background:radial-gradient(circle,rgba(20,179,125,.22),transparent 60%);left:-10cqw;top:40cqw}
+.foot{position:absolute;left:8cqw;right:8cqw;bottom:8cqw;font-size:3.6cqw;font-weight:600;letter-spacing:.1em;text-transform:uppercase;opacity:.6}
+.bar{position:absolute;left:8cqw;right:8cqw;height:7cqw;border:.5cqw solid var(--outline);border-radius:999px;background:#fff;overflow:hidden}
+.bar i{display:block;height:100%;width:80%;background:var(--orange)}
+.card{position:absolute;left:8cqw;right:8cqw;border:.5cqw solid var(--outline);border-radius:6cqw;background:#fff;padding:4cqw 5cqw;display:flex;align-items:center;gap:4cqw;font-size:5cqw;font-weight:600;box-shadow:1.2cqw 1.2cqw 0 var(--sh)}
+.card .ic{width:13cqw;height:13cqw;border-radius:50%;border:.5cqw solid var(--outline);display:grid;place-items:center;font-size:6.5cqw;flex:none}
+.card small{display:block;font-size:3.6cqw;opacity:.65;font-weight:500}
+.seams,.tokens{grid-column:span 2;border:2px solid var(--outline);border-radius:18px;background:#fff;padding:20px}
+.seams h3,.tokens h3{font-size:13px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px}
+.strip{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px}
+.strip b{border:2px solid var(--outline);border-radius:999px;padding:3px 10px;background:var(--cream)}
+.sw{display:flex;gap:10px;margin:10px 0;flex-wrap:wrap}
+.sw div{width:86px;font-size:11px}
+.sw span{display:block;height:44px;border:2px solid var(--outline);border-radius:12px;margin-bottom:4px}
+.tokens p{font-size:13px;line-height:1.5;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Dyno — vinheta</h1>
+  <span class="dek">O assessor pessoal da família no WhatsApp: anota, lembra e organiza tudo.</span>
+  <span class="tag">v1 · 1080×1920 · 32s · 7 cenas · sem narração + música</span>
+</header>
+
+<div class="grid">
+
+<!-- 01 -->
+<div class="cell" id="frame-01">
+  <div class="frame">
+    <div class="pill" style="left:6cqw;top:10cqw;transform:rotate(-6deg)">💸 Conta de luz vence…</div>
+    <div class="pill" style="right:5cqw;top:28cqw;transform:rotate(5deg);background:var(--peach)">🍞 Comprar pão</div>
+    <div class="pill" style="left:10cqw;top:46cqw;transform:rotate(3deg);background:var(--mint)">🚗 Troca de óleo?</div>
+    <div class="pill" style="right:8cqw;top:122cqw;transform:rotate(-4deg)">🧾 Gastei quanto?</div>
+    <div class="pill" style="left:5cqw;top:140cqw;transform:rotate(6deg);background:var(--peach)">📺 Netflix renova…</div>
+    <div class="pill" style="right:6cqw;top:156cqw;transform:rotate(-3deg)">⏰ Reunião 9h</div>
+    <div class="h" style="position:absolute;left:8cqw;right:8cqw;top:72cqw;font-size:14cqw;text-align:center">Muita coisa pra lembrar?</div>
+  </div>
+  <div class="lbl"><span>01 · Gancho</span><span>0–3s</span></div>
+  <p class="note"><b>Primeiro movimento:</b> as pílulas de notificação caem e se empilham em volta da frase, cada vez mais rápido. Sai com corte seco.</p>
+  <span class="chip">corte</span>
+</div>
+
+<!-- 02 -->
+<div class="cell" id="frame-02">
+  <div class="frame">
+    <div class="glow"></div>
+    <svg viewBox="0 0 200 200" style="position:absolute;left:25cqw;top:44cqw;width:50cqw;height:50cqw">
+      <line x1="76" y1="40" x2="66" y2="16" stroke="#1E1E1E" stroke-width="5" stroke-linecap="round"/><circle cx="64" cy="12" r="8" fill="#FF8A3D" stroke="#1E1E1E" stroke-width="4"/>
+      <line x1="124" y1="40" x2="134" y2="16" stroke="#1E1E1E" stroke-width="5" stroke-linecap="round"/><circle cx="136" cy="12" r="8" fill="#FF8A3D" stroke="#1E1E1E" stroke-width="4"/>
+      <path d="M40 44 h120 a26 26 0 0 1 26 26 v62 a26 26 0 0 1 -26 26 h-74 l-30 24 v-24 h-16 a26 26 0 0 1 -26 -26 v-62 a26 26 0 0 1 26 -26z" fill="#14B37D" stroke="#1E1E1E" stroke-width="5"/>
+      <text x="100" y="128" text-anchor="middle" font-family="Georgia,serif" font-weight="800" font-size="74" fill="#FFF6EA">D</text>
+    </svg>
+    <div class="h" style="position:absolute;left:8cqw;right:8cqw;top:104cqw;font-size:11cqw;text-align:center">Olá, sou o Dyno</div>
+    <div style="position:absolute;left:8cqw;right:8cqw;top:122cqw;font-size:5.4cqw;text-align:center;font-weight:500">seu assessor pessoal</div>
+    <div class="pill" style="left:50%;transform:translateX(-50%);top:138cqw;background:var(--mint)">💬 no grupo da família</div>
+  </div>
+  <div class="lbl"><span>02 · Apresentação</span><span>3–7s</span></div>
+  <p class="note"><b>Primeiro movimento:</b> uma onda verde varre as pílulas e o mascote nasce no centro com um "pop" de mola. As anteninhas balançam e o título sobe. Sai num crossfade.</p>
+  <span class="chip">crossfade</span>
+</div>
+
+<!-- 03 -->
+<div class="cell" id="frame-03">
+  <div class="frame">
+    <div class="kicker">finanças</div>
+    <div class="h title" style="font-size:11cqw">Seu dinheiro no controle</div>
+    <div class="bub me" style="top:64cqw"><span class="who">Daniel</span>gastei 42 no mercado</div>
+    <div class="bub dy" style="top:90cqw"><span class="who">Dyno</span>Fechou! R$ 42,00 anotado 🛒</div>
+    <div style="position:absolute;left:8cqw;top:128cqw;font-size:4cqw;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Orçamento mercado · 80%</div>
+    <div class="bar" style="top:136cqw"><i></i></div>
+    <div class="foot">📷 comprovante por foto · relatório do mês só seu</div>
+  </div>
+  <div class="lbl"><span>03 · Finanças</span><span>7–12s</span></div>
+  <p class="note"><b>Primeiro movimento:</b> o balão do Daniel desliza da direita e o Dyno responde. Os "…" de digitação aparecem antes. A barra enche até 80% com contagem. Sai numa cortina para a esquerda.</p>
+  <span class="chip">cortina ←</span>
+</div>
+
+<!-- 04 -->
+<div class="cell" id="frame-04">
+  <div class="frame">
+    <div class="kicker">lembretes e contas</div>
+    <div class="h title" style="font-size:11cqw">Lembra até você dizer ok</div>
+    <div class="bub dy" style="top:62cqw"><span class="who">Dyno · 09:00</span>⏰ Conta de luz vence hoje</div>
+    <div class="bub dy" style="top:88cqw;background:var(--peach)"><span class="who">Dyno · 09:10</span>🔔 E aí, já pagou?</div>
+    <div class="bub me" style="top:114cqw"><span class="who">Quézia</span>paguei ✅</div>
+    <div class="pill" style="left:8cqw;top:146cqw">📺 Netflix renova sexta</div>
+  </div>
+  <div class="lbl"><span>04 · Lembretes</span><span>12–17s</span></div>
+  <p class="note"><b>Primeiro movimento:</b> o lembrete entra e o sininho balança. O segundo aviso chega com um "pulso". O "paguei ✅" fecha com um check verde, e o chip da assinatura aparece por último. Sai num crossfade.</p>
+  <span class="chip">crossfade</span>
+</div>
+
+<!-- 05 -->
+<div class="cell" id="frame-05">
+  <div class="frame">
+    <div class="kicker">casa e carro</div>
+    <div class="h title" style="font-size:11cqw">Casa e carro em dia</div>
+    <div class="card" style="top:62cqw"><span class="ic" style="background:var(--mint)">🚗</span><span>Troca de óleo<small>aos 50.500 km</small></span></div>
+    <div class="card" style="top:88cqw"><span class="ic" style="background:var(--peach)">📄</span><span>IPVA<small>vence em janeiro</small></span></div>
+    <div class="card" style="top:114cqw"><span class="ic" style="background:#fff">🏠</span><span>Filtro de água<small>a cada 6 meses</small></span></div>
+    <div class="foot">🚦 km do carro: 49.820</div>
+  </div>
+  <div class="lbl"><span>05 · Casa e carro</span><span>17–21s</span></div>
+  <p class="note"><b>Primeiro movimento:</b> três cartões entram em cascata de baixo para cima, e o contador de km gira no rodapé. Sai numa cortina para a esquerda.</p>
+  <span class="chip">cortina ←</span>
+</div>
+
+<!-- 06 -->
+<div class="cell" id="frame-06">
+  <div class="frame">
+    <div class="kicker">todo dia</div>
+    <div class="h title" style="font-size:10.5cqw">Bom dia, lugares e resumos</div>
+    <div class="bub dy" style="top:58cqw"><span class="who">Dyno · 06:00</span>☀️ Bom dia, família!<br>📖 Devocional do dia</div>
+    <div class="bub dy" style="top:94cqw;background:#fff"><span class="who">Dyno</span>🔎 Padaria aberta a 300 m</div>
+    <div class="bub dy" style="top:120cqw;background:var(--peach)"><span class="who">Dyno · domingo 20h</span>📊 Seu resumo da semana</div>
+  </div>
+  <div class="lbl"><span>06 · Dia a dia</span><span>21–26s</span></div>
+  <p class="note"><b>Primeiro movimento:</b> um sol sobe atrás do título e os três balões chegam um a um, como numa conversa rolando. Sai num crossfade de volta ao mascote.</p>
+  <span class="chip">crossfade</span>
+</div>
+
+<!-- 07 -->
+<div class="cell" id="frame-07">
+  <div class="frame">
+    <div class="glow" style="top:20cqw"></div>
+    <svg viewBox="0 0 200 200" style="position:absolute;left:30cqw;top:30cqw;width:40cqw;height:40cqw">
+      <line x1="76" y1="40" x2="66" y2="16" stroke="#1E1E1E" stroke-width="5" stroke-linecap="round"/><circle cx="64" cy="12" r="8" fill="#FF8A3D" stroke="#1E1E1E" stroke-width="4"/>
+      <line x1="124" y1="40" x2="134" y2="16" stroke="#1E1E1E" stroke-width="5" stroke-linecap="round"/><circle cx="136" cy="12" r="8" fill="#FF8A3D" stroke="#1E1E1E" stroke-width="4"/>
+      <path d="M40 44 h120 a26 26 0 0 1 26 26 v62 a26 26 0 0 1 -26 26 h-74 l-30 24 v-24 h-16 a26 26 0 0 1 -26 -26 v-62 a26 26 0 0 1 26 -26z" fill="#14B37D" stroke="#1E1E1E" stroke-width="5"/>
+      <text x="100" y="128" text-anchor="middle" font-family="Georgia,serif" font-weight="800" font-size="74" fill="#FFF6EA">D</text>
+    </svg>
+    <div class="h" style="position:absolute;left:0;right:0;top:78cqw;font-size:26cqw;text-align:center">Dyno</div>
+    <div style="position:absolute;left:0;right:0;top:108cqw;font-size:5.6cqw;text-align:center;font-weight:600;letter-spacing:.14em;text-transform:uppercase">seu assessor pessoal</div>
+    <div class="pill" style="left:50%;transform:translateX(-50%);top:126cqw;background:var(--orange);font-size:4.6cqw">É só chamar no grupo 💬</div>
+    <div class="foot" style="text-align:center">DM Assessor Pessoal</div>
+  </div>
+  <div class="lbl"><span>07 · É só chamar</span><span>26–32s</span></div>
+  <p class="note"><b>Primeiro movimento:</b> o mascote volta e repete a cena 02. "Dyno" se monta letra a letra e o botão laranja aparece com uma mola. A tela fica parada por cerca de 2 segundos.</p>
+  <span class="chip">parada no fim</span>
+</div>
+
+<div class="seams">
+  <h3>Transições</h3>
+  <div class="strip"><b>01</b>→ corte →<b>02</b>→ crossfade →<b>03</b>→ cortina ← →<b>04</b>→ crossfade →<b>05</b>→ cortina ← →<b>06</b>→ crossfade →<b>07</b> parada</div>
+  <p class="note" style="margin-top:10px">Fio condutor: o balão de conversa (o próprio mascote é um balão), presente em todas as cenas. Retomada: o mascote da 02 volta na 07.</p>
+</div>
+
+<div class="tokens">
+  <h3>Identidade Dyno</h3>
+  <div class="sw">
+    <div><span style="background:#14B37D"></span>Verde Dyno #14B37D</div>
+    <div><span style="background:#FF8A3D"></span>Laranja #FF8A3D</div>
+    <div><span style="background:#1B1F3B"></span>Tinta #1B1F3B</div>
+    <div><span style="background:#FFF6EA"></span>Creme #FFF6EA</div>
+    <div><span style="background:#9AF4D5"></span>Menta #9AF4D5</div>
+  </div>
+  <p><b>Tipografia:</b> Bodoni Moda para os títulos e Space Grotesk para os textos (no esboço aparecem fontes parecidas). <b>Formas:</b> pílulas e balões com contorno escuro e sombra suave. <b>Evitar:</b> brilho neon, telas falsas do WhatsApp oficial (logo e verde do WhatsApp), texto do devocional e dados reais.</p>
+</div>
+
+</div>
+</body>
+</html>

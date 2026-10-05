@@ -1,0 +1,17 @@
+# segredos
+.env
+*.env
+*.secret
+.proxy_secret
+# gerados / pesados
+node_modules/
+renders/
+snapshots/
+*.mp4
+*.mov
+*.wav
+site/bundle*
+site/chunk_*
+*.bak
+__pycache__/
+.DS_Store

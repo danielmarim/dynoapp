@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quero participar do Beta · Dyno</title>
+<meta name="description" content="Peça sua vaga no Beta fechado do Dyno: 60 dias grátis, convite pelo WhatsApp.">
+
+<meta property="og:title" content="Quero participar do Beta · Dyno">
+<meta property="og:description" content="Peça sua vaga no Beta fechado do Dyno: 60 dias grátis, convite pelo WhatsApp.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://dynoapp.com.br/beta">
+<meta name="theme-color" content="#1B1F3B">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=7">
+</head>
+<body>
+<a class="sr" href="#conteudo">Pular para o conteúdo</a>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/" aria-label="Dyno, página inicial"><span class="mark">D</span>Dyno</a>
+  <nav class="nav" id="nav"><a href="/">Início</a><a href="/como-funciona">Como funciona</a><a href="/precos">Preços</a><a href="/duvidas">Dúvidas</a><a class="btn btn-dark btn-sm" href="/entrar">Entrar</a></nav>
+  <button class="menu-btn" aria-controls="nav" aria-expanded="false" onclick="var n=document.getElementById('nav');n.classList.toggle('open');this.setAttribute('aria-expanded',n.classList.contains('open'))">Menu</button>
+</div></header>
+<main id="conteudo">
+
+<section class="auth dots"><div class="wrap">
+  <div class="auth-card beta-card">
+    <span class="kicker">Beta fechado · 60 dias grátis<span data-vagas-pill></span></span>
+    <h1 class="h" id="bh">Quero participar</h1>
+    <form id="fb" novalidate>
+      <div class="passo"><span class="num">1</span><div>
+        <b>Seus dados</b>
+        <p>Depois da aprovação, o convite chega pelo WhatsApp do Dyno e o cadastro é feito na conversa.</p>
+        <label for="nome">Nome completo</label>
+        <input class="input" id="nome" name="nome" autocomplete="name" maxlength="80" placeholder="Maria da Silva" required>
+        <label for="tel">WhatsApp com DDD</label>
+        <input class="input" id="tel" name="tel" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="(11) 91234-5678" required>
+        <div class="hp" aria-hidden="true"><label for="site">Site</label><input id="site" name="site" tabindex="-1" autocomplete="off"></div>
+        <label class="check"><input type="checkbox" id="aceite"><span>Li a <a href="/privacidade" target="_blank">Política de Privacidade</a> e autorizo o uso do meu nome e WhatsApp para analisar o pedido e enviar o convite.</span></label>
+      </div></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px" type="submit" id="bb">Enviar pedido</button>
+      <div class="msg" id="mb" role="status"></div>
+    </form>
+    <div id="ok" hidden>
+      <h2 class="h" style="font-size:28px;margin:6px 0 10px" id="ok-t">Pedido recebido! 🎉</h2>
+      <p id="ok-p">Vamos analisar e, assim que aprovado, você recebe o convite pelo <b>WhatsApp do Dyno: +55 (11) 93949-7178</b>. Salve esse número nos seus contatos como <b>Dyno</b>.</p>
+      <div class="cta-row"><a class="btn btn-ghost btn-sm" href="/como-funciona">Ver como funciona</a></div>
+    </div>
+    <p class="note" style="margin-top:22px">Já recebeu o convite? Responda a mensagem do Dyno no WhatsApp. Já é cliente? <a href="/entrar">Entre na sua área</a>.</p>
+  </div>
+</div></section>
+
+</main>
+<footer><div class="wrap">
+  <div><a class="brand" href="/"><span class="mark">D</span>Dyno</a><p style="margin-top:12px;max-width:340px">Dyno e Dina, seus assessores pessoais no WhatsApp: o Dyno cuida do dinheiro e a Dina, da agenda e da rotina. Por texto, áudio ou foto.</p></div>
+  <div><b style="color:#fff">Produto</b><a href="/como-funciona">Como funciona</a><a href="/precos">Preços</a><a href="/duvidas">Dúvidas</a><a href="/entrar">Área do cliente</a></div>
+  <div><b style="color:#fff">Contato</b><a href="https://instagram.com/dynoapp.ia" rel="noopener">Instagram @dynoapp.ia</a><a href="https://wa.me/5511939497178" rel="noopener">WhatsApp do Dyno</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a></div>
+  <div class="copy">© 2026 Dyno · DM OBSERVAIT SOLUCOES EM TECNOLOGIA LTDA · CNPJ 65.176.391/0001-45 · Curitiba/PR · <a href="mailto:privacidade@dynoapp.com.br">privacidade@dynoapp.com.br</a>. Beta fechado; lançamento público previsto para 01/12/2026.</div>
+</div></footer>
+<script src="/assets/beta.js?v=2" defer></script><script src="/assets/home.js?v=1" defer></script>
+</body>
+</html>
