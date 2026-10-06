@@ -41,6 +41,10 @@ Desde 04/10 o atendimento tem duas vozes no mesmo número e na mesma conversa: o
 
 | Assistente | Cabeçalho | Cuida de |
 | --- | --- | --- |
+| 05/10 | Lembretes menos insistentes | Insistência a cada 30 min; o aviso anterior sem resposta é apagado para todos (ids em `dyno_lembretes.msg_id` e `msg_jid`) |
+| 05/10 | Dados no Supabase por número do cliente | Mensagens, memórias, transações, tarefas, lembretes, contas, orçamentos e assinaturas; leituras filtradas por cliente; LGPD e API do site usam o número |
+| 05/10 | Extrato por print em PDF | PDF de uma página muito comprida (app salvo como PDF) é cortado em fatias e lido pelo Claude |
+| 05/10 | Aba Funcionalidades e menu de quem está logado | 35 funções do Dyno e da Dina no site; "Minha área" no lugar de "Entrar" |
 | Dyno (ele) | *💰 Dyno* | Gastos e receitas, contas a pagar, boletos e comprovantes, extrato, limites e alertas, parcelados, recebíveis, dashboards e relatórios |
 | Dina (ela) | *⏰ Dina* | Lembretes que insistem, compromissos, tarefas e projetos, listas e notas, manutenções da casa e do carro, lugares perto |
 
@@ -691,7 +695,6 @@ Em 3 dias o Dyno saiu de um assistente da família para um produto multi-cliente
 | 03/10 | Extras | Notas, listas, parcelados, recebíveis, desfazer, Excel, tarefas por projeto |
 | 03/10 | Dashboard financeiro em imagem | PNG por período |
 | 02/10 | Agentes de contas, assinaturas, casa e carro | Lembretes automáticos e baixa com despesa |
-| 05/10 | Lembretes menos insistentes | Insistência a cada 30 min; o aviso anterior sem resposta é apagado para todos (ids em `dyno_lembretes.msg_id` e `msg_jid`) |
 | 02/10 | Lembretes que insistem, orçamentos, resumo semanal, 6h | Insistência inicial de 10 em 10 min, alertas de 80% e 100% |
 | 02/10 | MVP no ar | Cérebro com OpenAI, gastos por texto, áudio e foto, tarefas, memória |
 
@@ -714,7 +717,7 @@ O que falta está em 4 fases, com lançamento aberto em 01/12/2026. Cada fase s�
 
 ### 2. Base sólida (10 a 31 de outubro)
 
-- [ ] Migrar as Data tables `assessor_*` para o Supabase, com `conta_id`, e apontar cérebro, agendados e site para lá
+- [ ] Migrar o que sobrou das Data tables para o Supabase: manutenções, veículos, rotina, extras e devocional (mensagens, memórias, transações, tarefas, lembretes, contas, orçamentos e assinaturas já migrados em 05/10)
 - [ ] Ambiente de testes (cópia dos workflows principais com um número de teste)
 - [ ] Fixar a versão do n8n e ligar a retenção de execuções de 7 dias numa janela de manutenção
 - [ ] Abrir o CNPJ, preencher razão social e encarregado (DPO), e fazer a revisão jurídica de Termos e Privacidade
@@ -750,6 +753,10 @@ O que falta está em 4 fases, com lançamento aberto em 01/12/2026. Cada fase s�
 - [ ] Lançar com Essencial e Completo; liberar o Premium quando o Open Finance estiver pronto
 - [ ] Página de preços do site com os 3 planos, Completo em destaque e teste de 14 dias
 - [ ] Trocar de plano pela área do cliente e pelo WhatsApp
+
+### Funções planejadas (ordem atualizada em 06/10)
+
+Ver `docs/FUNCIONALIDADES-E-ROADMAP.md`: card semanal para todos, edição pelo WhatsApp, previsão do mês, cartão de crédito, categorias próprias, metas, agenda, boas-vindas guiadas, edição no painel, modo casal, pgvector, Google Agenda e áudio longo (adiado).
 
 ## Riscos e pendências imediatas
 
