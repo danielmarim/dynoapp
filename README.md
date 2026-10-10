@@ -20,6 +20,7 @@ A lógica vive nos workflows do n8n (ver [`n8n/`](n8n/README.md)). Este reposit�
 | `card-semanal/` | Card "Sua semana" (HTML → PNG via Gotenberg `dyno-render`) e código do nó do n8n |
 | `videos/` | Projetos HyperFrames dos vídeos de divulgação (sem áudio `.wav` e sem renders) |
 | `n8n/` | Lugar para os exports dos workflows |
+| `agentes/` | Instruções dos agentes de operação (ex.: Vigia de erros), reaproveitáveis em Rotinas, Paperclip ou Hermes |
 | `redundancia/` | Servidor reserva: árbitro, agente do principal, vigia do reserva, guia e teste de ponta a ponta |
 | `whisper/` | Compose e guia do Whisper (transcrição local) no VPS, só na rede interna do n8n |
 

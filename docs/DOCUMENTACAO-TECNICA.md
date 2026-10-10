@@ -364,6 +364,7 @@ Todas as tabelas têm RLS ligado. O n8n acessa só com a chave de serviço, e as
 | dyno\_config | Configurações gerais |
 | dyno\_servidor / dyno\_servidor\_eventos | Árbitro do servidor reserva: qual servidor atende, batimentos e histórico de viradas (ver `redundancia/`) |
 | dyno\_whisper\_sombra | Comparação Whisper local × OpenAI nos áudios (texto só dos áudios do Daniel) |
+| dyno\_vigia\_relatos | Problemas encontrados pelo agente Vigia de erros: causa, correção, ocorrências e status (ver `agentes/`) |
 
 Funções principais (RPC):
 
