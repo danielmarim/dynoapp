@@ -1,0 +1,40 @@
+name: dyno-whisper
+
+# Whisper (github.com/openai/whisper) como serviço HTTP interno, via whisper-asr-webservice.
+# Sem porta pública e sem Traefik: só os containers da rede n8n_default chegam em http://dyno-whisper:9000.
+services:
+  dyno-whisper:
+    image: onerahmet/openai-whisper-asr-webservice:v1.10.0
+    container_name: dyno-whisper
+    restart: unless-stopped
+    environment:
+      ASR_ENGINE: openai_whisper   # o Whisper da OpenAI; faster_whisper é ~4x mais rápido em CPU
+      ASR_MODEL: small             # tiny | base | small | medium | turbo | large-v3
+      MODEL_IDLE_TIMEOUT: "0"      # 0 = modelo sempre carregado (sem espera no primeiro áudio)
+      TZ: America/Sao_Paulo
+    volumes:
+      - dyno_whisper_cache:/root/.cache   # modelos baixados ficam aqui e sobrevivem a reimplantações
+    networks:
+      - n8n_default
+    # O VPS é dividido com n8n, Evolution, Chatwoot e Dynamo Wear: o Whisper não pode tomar tudo.
+    cpus: "3"
+    mem_limit: 6g
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/docs', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  dyno_whisper_cache:
+    name: dyno_whisper_cache
+
+networks:
+  n8n_default:
+    external: true
