@@ -59,6 +59,7 @@ No n8n (Header Auth): `Supabase_Dyno`, `evolution-dyno`, `anthropic-dyno`, `jev-
 | yBCWxnd2N9d3uDxM | Importar extrato | Extrato/fatura (PDF, CSV, OFX, Excel) lido pelo **Claude**, confirma antes de gravar |
 | mOXAwF2cZ8zbYs2j | IA em camadas | Escolhe OpenAI/Claude/Jev por `dyno_config` |
 | Yw7mI0ybOITBwJoQ | Jev modo sombra | Jev classifica cada mensagem, grava em `dyno_ia_sombra` |
+| V08b0qgQ3qb0Q0vI | Whisper modo sombra | Whisper local transcreve o mesmo áudio que a OpenAI e grava a comparação em `dyno_whisper_sombra`. Precisa do container `dyno-whisper` (pasta `whisper/`) |
 | K4GH2JArrLnZbJAG | Extras | Notas, parcelados, recebíveis, desfazer, Excel |
 | 4sWI6Gs5o7AAR59R | Extras diários | 09:30 parcelas e tarefas atrasadas |
 | 2mEE5d9YWcgutRbD | Agentes diários | 09:00 assinaturas, manutenções, km do carro |
@@ -76,7 +77,7 @@ No n8n (Header Auth): `Supabase_Dyno`, `evolution-dyno`, `anthropic-dyno`, `jev-
 | 0NTpUwVxsZFMm8Li | TESTE IA em camadas | Manual, desligado |
 | asdiDsXdGoWC7Bip | Alerta de câmbio | A cada 15 min (seg–sex 9h–18h): dólar/euro (PTAX do BC; AwesomeAPI se tiver chave) e dispara alertas. Ver `ALERTA-DE-CAMBIO.md` |
 
-Além desses, há 3 desligados de setup/teste: Setup Evolution (LsVMn71OPQmyc4Mz), TEMP limpeza de testes (uOt8WPfaI5lk6PT2) e TESTE Google Places (uodpCgu2VBUwqbO4). Total: 28 do Dyno, 24 ativos.
+Além desses, há 3 desligados de setup/teste: Setup Evolution (LsVMn71OPQmyc4Mz), TEMP limpeza de testes (uOt8WPfaI5lk6PT2) e TESTE Google Places (uodpCgu2VBUwqbO4). Total: 29 do Dyno, 25 ativos.
 
 **Faça agora:** exporte os workflows pela interface do n8n para `n8n/_download/` e rode `python n8n/limpar_export.py`. O script só aceita os "Dyno |" (o n8n também tem os da Dynamo Wear e outros), troca o `SEGREDO`, tira `pinData` e barra arquivos com cara de chave. É o backup da lógica.
 
@@ -91,6 +92,7 @@ Além desses, há 3 desligados de setup/teste: Setup Evolution (LsVMn71OPQmyc4Mz
 
 - Custos por chamada: tabela `dyno_ia_uso`; relatório `select dyno_ia_custos(7);`.
 - Jev em sombra: `select dyno_ia_sombra_relatorio(7);`. Desligar: `update dyno_config set valor='desligado' where chave='ia_decisao_modo';`
+- Whisper em sombra (desde 10/10): `select dyno_whisper_sombra_relatorio(7);`. Desligar: desativar o nó **Montar sombra (Whisper)** no cérebro.
 - O Claude Sonnet 5.5 **recusa `tool_choice` forçado**; a camada usa `auto`.
 
 ## 7. Clientes (05/10/2026)

@@ -70,6 +70,7 @@ Tudo roda em um VPS da Hostinger, com exceção do banco (Supabase gerenciado) e
 | dyno-site | dyno-site (nginx 1.27-alpine) | Site e área do cliente; repassa /api ao n8n | dynoapp.com.br via Traefik |
 | evolution | evolution-api v2.3.7 + postgres + redis | WhatsApp da Dynamo Wear e o número pessoal (instância pesquisa-aereo) | chat.dynamowear.com.br |
 | chatwoot | chatwoot v4.16.1 (rails + sidekiq) + pgvector pg16 + redis | Atendimento da Dynamo Wear (não é do Dyno) | interno |
+| dyno-whisper | dyno-whisper (whisper-asr-webservice v1.10.0, modelo `small`) | Whisper local em modo sombra ao lado da OpenAI. Compose e guia em `whisper/`. **Ainda não instalado** (10/10) | interno: só a rede n8n\_default (`http://dyno-whisper:9000`) |
 | pzserver | Project Zomboid + 2 painéis | Servidor de jogo (não é do Dyno). Parado em 05/10; exclusão definitiva pendente (Daniel, no hPanel) | UDP 16261-16262, TCP 27015 |
 
 O firewall da Hostinger (**dyno-vps-padrao**) libera só SSH 22, HTTP 80, HTTPS 443, ICMP e as portas do jogo. Há backups semanais da Hostinger fora do servidor e snapshot semanal do VPS.
@@ -173,7 +174,7 @@ O Dyno é feito sem servidor de aplicação próprio: a lógica fica toda no n8n
 
 | Camada | Ferramenta | Uso no Dyno |
 | --- | --- | --- |
-| Orquestração | n8n self-hosted (Docker) | 28 workflows (24 ativos): cérebro, agendados, cadastro, cobrança, API do site, operação |
+| Orquestração | n8n self-hosted (Docker) | 29 workflows (25 ativos): cérebro, agendados, cadastro, cobrança, API do site, operação |
 | Canal | Evolution API v2.3.7 (WhatsApp Web, não oficial) | Recebe e envia mensagens, baixa mídia, foto e recado do perfil |
 | IA | OpenAI gpt-5.6-luna | Entende a mensagem e devolve JSON `{resposta, acoes[]}`; lê foto, PDF e extratos; pesquisa na web |
 | IA (voz) | OpenAI gpt-4o-mini-transcribe | Transcreve áudios |
@@ -200,7 +201,7 @@ A camada de IA fica no workflow **Dyno | IA em camadas** (mOXAwF2cZ8zbYs2j), que
 | documento (extrato, fatura, PDF, foto) | `ia_documento` | **claude** (desde 04/10), OpenAI de reserva | Claude Sonnet 5.5 |
 | simples (categoria, check-ins, textos curtos) | `ia_simples` | openai | Claude Haiku 4.5 (`claude-haiku-4-5`) |
 | decisão (intenção, "ok" de lembrete, duplicado) | `ia_decisao_modo` | **sombra** (desde 04/10) | sombra → ativo, com Jev (`jev-latest`) |
-| áudio | — | OpenAI | Continua na OpenAI (a API do Claude não transcreve) |
+| áudio | — | OpenAI | Whisper local em **modo sombra** desde 10/10 (ver abaixo). A API do Claude não transcreve |
 
 **Como funciona:**
 
@@ -242,6 +243,16 @@ As três intenções vieram certas. A pergunta de sim/não errou em um caso com 
 O campo `state` pode ser um texto ou um objeto. A camada devolve também uma forma simplificada em `json`, por exemplo `{intencao: {valor, confianca}}`, além da resposta original em `decisao`.
 
 Crédito comprado: US$ 10 na Anthropic e US$ 10 na TypeSafe (04/10).
+
+### Whisper local em modo sombra
+
+Desde 10/10 o cérebro manda cada áudio também ao **Whisper local** (container `dyno-whisper`, pasta `whisper/`), sem mudar a resposta: quem responde continua sendo a transcrição da OpenAI.
+
+- No cérebro, o ramo **Montar sombra (Whisper)** → **Whisper (modo sombra)** sai do nó Transcrever áudio e roda por último, depois da resposta, sem esperar.
+- O workflow **Dyno | Whisper modo sombra** (V08b0qgQ3qb0Q0vI) transcreve no container, compara palavra a palavra com a OpenAI e grava em `dyno_whisper_sombra`: latência dos dois, duração do áudio, número de palavras e similaridade (0 a 1). O texto só é guardado nos áudios do Daniel; de clientes ficam só as métricas.
+- Enquanto o container não estiver instalado, o Whisper não responde e nada é gravado.
+- Relatório: `select dyno_whisper_sombra_relatorio(7);`. Desligar: desativar o nó **Montar sombra (Whisper)** no cérebro.
+- Ao trocar `ASR_MODEL` ou `ASR_ENGINE` no compose, troque também as constantes no nó **Comparar com a OpenAI**, para o relatório separar por modelo.
 
 ### Medição de custo de IA
 
@@ -285,7 +296,7 @@ Função do Dyno lançada em 05/10. O cliente pede pelo WhatsApp ("me avisa quan
 
 ## n8n: workflows
 
-O Dyno tem 24 workflows ativos (inclui o Jev modo sombra e o Alerta de câmbio) e 4 desligados (só de setup ou teste, incluindo o TESTE IA em camadas, 0NTpUwVxsZFMm8Li), todos no projeto pessoal do n8n. Editor: n8n.srv1825327.hstgr.cloud.
+O Dyno tem 25 workflows ativos (inclui o Jev e o Whisper em modo sombra e o Alerta de câmbio) e 4 desligados (só de setup ou teste, incluindo o TESTE IA em camadas, 0NTpUwVxsZFMm8Li), todos no projeto pessoal do n8n. Editor: n8n.srv1825327.hstgr.cloud.
 
 ### Atendimento (tempo real)
 
@@ -667,6 +678,7 @@ Em 3 dias o Dyno saiu de um assistente da família para um produto multi-cliente
 
 | Data | Entrega | Detalhe |
 | --- | --- | --- |
+| 10/10 | Whisper local em modo sombra | Compose do container `dyno-whisper` (pasta `whisper/`), workflow Dyno \| Whisper modo sombra e tabela `dyno_whisper_sombra`; compara com a OpenAI sem mudar a resposta. Falta instalar o container |
 | 05/10 | Alerta de câmbio (dólar e euro) | Cotação PTAX do BC a cada 15 min, até 5 alertas por pessoa; anúncio aos 10 cadastros; seção no site, post e reel no Instagram |
 | 04/10 | Dupla Dyno e Dina | Dina (agenda e rotina) e Dyno (dinheiro) no mesmo número, com cabeçalho por voz; apresentada às 3 contas da família |
 | 04/10 | Site para vender | Conversa animada, selos, vagas ao vivo, comparativo de preço e seção da dupla |

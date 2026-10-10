@@ -7,8 +7,9 @@ Transcrição de áudio local com o [Whisper da OpenAI](https://github.com/opena
 O container fica na rede `n8n_default`, sem porta pública e sem Traefik. Só o n8n (e outros containers da mesma
 rede) chega nele, em `http://dyno-whisper:9000`. O firewall `dyno-vps-padrao` não precisa mudar.
 
-Hoje o cérebro transcreve com a OpenAI (`gpt-4o-mini-transcribe`). Este serviço **não muda o cérebro sozinho**: ele
-só fica disponível para o n8n chamar. Ver [Usar no n8n](#usar-no-n8n).
+Hoje o cérebro transcreve com a OpenAI (`gpt-4o-mini-transcribe`). Desde 10/10 ele também manda cada áudio a este
+serviço em **modo sombra**: o Whisper transcreve, o resultado é comparado com o da OpenAI e a resposta ao cliente não
+muda. Ver [Modo sombra](#modo-sombra).
 
 ## Antes de instalar
 
@@ -50,30 +51,41 @@ docker run --rm --network n8n_default -v "$PWD":/a curlimages/curl:8.10.1 -s \
 A resposta traz o texto em `text`, além dos trechos com tempo em `segments`. A documentação interativa da API fica
 em `http://dyno-whisper:9000/docs` (só de dentro da rede).
 
-## Usar no n8n
+## Modo sombra
 
-No workflow **Dyno | WhatsApp (cérebro)**, o nó **Transcrever áudio** chama a OpenAI. Para usar o Whisper local,
-um nó **HTTP Request** fica assim:
+Já está ligado no n8n e começa a gravar sozinho quando o container subir:
 
-| Campo | Valor |
-| --- | --- |
-| Method | POST |
-| URL | `http://dyno-whisper:9000/asr?task=transcribe&language=pt&output=json` |
-| Authentication | None (o serviço só existe na rede interna) |
-| Body Content Type | Form-Data |
-| Body | `audio_file` = n8n Binary File, campo `data` (o mesmo do nó **Converter áudio em arquivo**) |
-| Options → Response → Response Format | JSON (o serviço responde como `text/plain`) |
-| Options → Timeout | 120000 |
+- No cérebro (**Dyno | WhatsApp (cérebro)**), o ramo **Montar sombra (Whisper)** → **Whisper (modo sombra)** sai do nó
+  **Transcrever áudio**. Ele roda por último, depois da resposta ao cliente, e não espera o Whisper terminar.
+- O workflow **Dyno | Whisper modo sombra** (V08b0qgQ3qb0Q0vI) manda o áudio para
+  `http://dyno-whisper:9000/asr?task=transcribe&language=pt&output=json`, compara palavra a palavra com o texto da OpenAI
+  e grava na tabela `dyno_whisper_sombra` do Supabase: latência dos dois, duração do áudio, número de palavras e
+  similaridade (0 a 1).
+- O texto das duas transcrições só é guardado nos áudios do Daniel, para dar para ver quem errou. De clientes ficam só
+  as métricas.
+- Sem o container instalado, o endereço `dyno-whisper` não existe e nada é gravado.
 
-O texto sai em `$json.text`, o mesmo campo que o nó **Preparar entrada** já lê da OpenAI. Como a transcrição
-local não tem custo por áudio, o nó **Uso IA: áudio** pode registrar `provedor: 'whisper-local'` com uso vazio.
+Relatório dos últimos 7 dias (no SQL do Supabase):
 
-Sugestão: antes de trocar, rode os dois em paralelo por alguns dias (Whisper em modo sombra, como foi feito com o
-Jev) e compare a qualidade nos áudios reais dos clientes.
+```sql
+select dyno_whisper_sombra_relatorio(7);
+-- e os áudios do Daniel lado a lado:
+select criado_em, similaridade, texto_openai, texto_whisper from dyno_whisper_sombra
+where texto_openai is not null order by criado_em desc limit 20;
+```
+
+Para desligar, desative o nó **Montar sombra (Whisper)** no cérebro e publique.
+
+**Para o Whisper passar a responder:** no cérebro, o nó **Transcrever áudio** vira um HTTP Request para o endereço acima
+(POST, Form-Data com `audio_file` = binário `data`, Response Format JSON, timeout 120000). O texto sai em `$json.text`,
+o mesmo campo que o nó **Preparar entrada** já lê. Faça isso só depois de o relatório mostrar similaridade alta e
+latência aceitável.
 
 ## Escolher o modelo
 
-Troque `ASR_MODEL` no compose e reimplante. Memória aproximada com o motor `openai_whisper`:
+Troque `ASR_MODEL` no compose e reimplante. Troque também as constantes `MOTOR` e `MODELO` no nó **Comparar com a
+OpenAI** do workflow de sombra, para o relatório separar os resultados por modelo. Memória aproximada com o motor
+`openai_whisper`:
 
 | Modelo | Memória | Observação |
 | --- | --- | --- |
