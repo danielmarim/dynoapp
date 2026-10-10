@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/js/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #060A13; }
+      #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #060A13; }
+      .scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="14.0" data-width="1080" data-height="1920">
+      <div id="el-01-abre" class="scene" data-composition-id="01-abre" data-composition-src="compositions/frames/01-abre.html" data-start="0" data-duration="2.8" data-track-index="0"></div>
+      <div id="el-02-lista" class="scene" data-composition-id="02-lista" data-composition-src="compositions/frames/02-lista.html" data-start="2.6" data-duration="9.4" data-track-index="1"></div>
+      <div id="el-03-cta" class="scene" data-composition-id="03-cta" data-composition-src="compositions/frames/03-cta.html" data-start="11.8" data-duration="3.0" data-track-index="0"></div>
+      <audio id="el-bgm" src="assets/audio/bgm.wav" data-start="0" data-duration="14.0" data-track-index="11" data-volume="0.75"></audio>
+      <audio id="el-sfx" src="assets/sfx/sfx-mix.wav" data-start="0" data-duration="14.0" data-track-index="12" data-volume="1"></audio>
+    </div>
+    <script>
+      (function () {
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#el-02-lista", { clipPath: "inset(0% 0% 0% 100%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.4, ease: "power3.inOut" }, 2.6);
+        tl.fromTo("#el-03-cta", { clipPath: "circle(0% at 50% 50%)" }, { clipPath: "circle(90% at 50% 50%)", duration: 0.45, ease: "power3.inOut" }, 11.8);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

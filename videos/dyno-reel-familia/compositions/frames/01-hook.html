@@ -1,0 +1,77 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-800-normal.woff2") format("woff2"); font-weight: 800; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-600-normal.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; }
+[data-composition-id="01-hook"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Figtree", sans-serif; color: #E9EEF7; }
+.bg01 { position: absolute; inset: 0; background: #060A13; }
+.dots01 { position: absolute; inset: -40px; background-image: radial-gradient(circle, rgba(47,212,126,.55) 2px, transparent 2.6px); background-size: 34px 34px; -webkit-mask-image: radial-gradient(ellipse 60% 45% at 50% 72%, #000 0%, transparent 70%); mask-image: radial-gradient(ellipse 60% 45% at 50% 72%, #000 0%, transparent 70%); opacity: .55; }
+.glow01 { position: absolute; inset: 0; background: radial-gradient(ellipse 70% 40% at 50% 72%, rgba(47,212,126,.16), transparent 70%); }
+.h01 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; letter-spacing: -0.04em; line-height: 0.98; color: #E9EEF7; }
+.g01 { color: #2FD47E; }
+.eb01 { font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 30px; letter-spacing: .14em; text-transform: uppercase; color: #8C9AB3; }
+.mut01 { color: #8C9AB3; }
+.pill01 { display: inline-flex; align-items: center; gap: 14px; border: 2px solid rgba(160,185,225,.22); background: rgba(15,24,40,.7); border-radius: 999px; padding: 14px 28px; font-size: 32px; font-weight: 600; color: #A9B4CA; }
+.dot01 { width: 16px; height: 16px; border-radius: 50%; background: #2FD47E; box-shadow: 0 0 0 6px rgba(47,212,126,.18); flex: none; }
+.btn01 { display: flex; align-items: center; justify-content: center; background: #2FD47E; color: #04210F; border-radius: 999px; padding: 34px 44px; font-size: 46px; font-weight: 700; }
+.card01 { background: #0B1220; border: 2px solid rgba(160,185,225,.14); border-radius: 44px; }
+.logo01 { border-radius: 50%; background: #2FD47E; color: #0A1A33; display: flex; align-items: center; justify-content: center; font-family: Georgia, "Times New Roman", serif; font-weight: 700; line-height: 1; flex: none; }
+.av01 { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: Georgia, serif; font-weight: 700; font-size: 30px; color: #0A1A33; flex: none; }
+.avdy01 { background: #2FD47E; } .avdi01 { background: #F2B544; }
+.phone01 { position: absolute; background: #070C16; border-radius: 80px; box-shadow: 0 60px 140px rgba(0,0,0,.6), inset 0 0 0 3px rgba(255,255,255,.07); border: 14px solid #141C2C; overflow: hidden; }
+.ph-head01 { display: flex; align-items: center; gap: 22px; padding: 34px 40px 26px; border-bottom: 2px solid rgba(160,185,225,.12); }
+.ph-head01 b { display: block; font-size: 38px; } .ph-head01 small { display: block; font-size: 26px; color: #8C9AB3; }
+.b01 { position: absolute; max-width: 76%; padding: 24px 30px 18px; border-radius: 34px; font-size: 38px; line-height: 1.28; font-weight: 600; }
+.me01 { right: 34px; background: #0E3B27; border: 2px solid rgba(47,212,126,.25); border-bottom-right-radius: 10px; }
+.bot01 { left: 34px; background: #0F1828; border: 2px solid rgba(160,185,225,.14); border-bottom-left-radius: 10px; }
+.who01 { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+.who01 .av01 { width: 38px; height: 38px; font-size: 22px; }
+.who01 em { font-style: normal; font-weight: 600; color: #8C9AB3; font-size: 22px; }
+.tm01 { display: block; text-align: right; font-family: "JetBrains Mono", monospace; font-size: 20px; color: #A9B4CA; margin-top: 6px; }
+
+.eb01 { position:absolute; left:90px; top:300px; }
+.t01 { position:absolute; left:90px; right:90px; top:360px; font-size:150px; }
+.ring01 { position:absolute; left:140px; right:140px; top:1000px; height:620px; }
+.p01 { position:absolute; width:200px; text-align:center; }
+.p01 .c01 { width:170px; height:170px; margin:0 auto; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:"Bricolage Grotesque"; font-weight:800; font-size:76px; color:#0A1A33; border:6px solid #060A13; box-shadow:0 0 0 3px rgba(160,185,225,.22); }
+.p01 span { display:block; margin-top:16px; font-size:34px; font-weight:700; }
+.mid01 { position:absolute; left:50%; top:50%; width:190px; height:190px; margin:-95px 0 0 -95px; font-size:110px; box-shadow:0 0 0 18px rgba(47,212,126,.12), 0 0 80px rgba(47,212,126,.45); }
+.ln01 { position:absolute; left:0; top:0; width:800px; height:620px; }
+
+</style>
+<div id="root" data-composition-id="01-hook" data-width="1080" data-height="1920" data-duration="4.6">
+  <div id="f01-bg" class="clip" data-start="0" data-duration="4.6" data-track-index="0" style="position:absolute;inset:0">
+    <div class="bg01"></div><div class="glow01"></div><div class="dots01"></div>
+  </div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="eb01 eb01x">Modo família · Premium</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h01 t01">A casa toda no <span class="g01">mesmo Dyno.</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="ring01">
+    <svg data-layout-allow-overlap data-layout-allow-overflow class="ln01" viewBox="0 0 800 620"><g stroke="rgba(47,212,126,.45)" stroke-width="4" stroke-dasharray="10 12" fill="none">
+      <path class="l01" d="M400 310 L110 90"/><path class="l01" d="M400 310 L690 90"/><path class="l01" d="M400 310 L110 530"/><path class="l01" d="M400 310 L690 530"/></g></svg>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="logo01 mid01">D</div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="p01" style="left:10px;top:-5px"><div class="c01" style="background:#2FD47E">V</div><span>Você</span></div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="p01" style="left:590px;top:-5px"><div class="c01" style="background:#F2B544">A</div><span>Ana</span></div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="p01" style="left:10px;top:395px"><div class="c01" style="background:#7FB2FF">P</div><span>Pedro</span></div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="p01" style="left:590px;top:395px"><div class="c01" style="background:#FF9B8A">L</div><span>Léo</span></div>
+  </div>
+</div>
+<script>
+(function () {
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="01-hook"] ' + s);
+  const all = (s) => Array.from(document.querySelectorAll('[data-composition-id="01-hook"] ' + s));
+  tl.fromTo(one('.eb01x'), { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 0.1);
+  tl.fromTo(one('.t01'), { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }, 0.25);
+  tl.fromTo(one('.mid01'), { scale: 0 }, { scale: 1, duration: 0.5, ease: 'back.out(2)' }, 0.9);
+  tl.fromTo(all('.p01'), { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2)', stagger: 0.18 }, 1.25);
+  tl.fromTo(all('.l01'), { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.18 }, 1.3);
+  tl.to(all('.l01'), { attr: { 'stroke-dashoffset': -88 }, duration: 2.6, ease: 'none' }, 1.8);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["01-hook"] = tl;
+})();
+</script>
+</template>

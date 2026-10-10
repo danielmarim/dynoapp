@@ -1,0 +1,81 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-800-normal.woff2") format("woff2"); font-weight: 800; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-600-normal.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; }
+[data-composition-id="05-persona"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Figtree", sans-serif; color: #E9EEF7; }
+.bg05 { position: absolute; inset: 0; background: #060A13; }
+.dots05 { position: absolute; inset: -40px; background-image: radial-gradient(circle, rgba(47,212,126,.55) 2px, transparent 2.6px); background-size: 34px 34px; -webkit-mask-image: radial-gradient(ellipse 60% 45% at 50% 50%, #000 0%, transparent 70%); mask-image: radial-gradient(ellipse 60% 45% at 50% 50%, #000 0%, transparent 70%); opacity: .55; }
+.glow05 { position: absolute; inset: 0; background: radial-gradient(ellipse 70% 40% at 50% 50%, rgba(47,212,126,.16), transparent 70%); }
+.h05 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; letter-spacing: -0.04em; line-height: 0.98; color: #E9EEF7; }
+.g05 { color: #2FD47E; }
+.eb05 { font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 30px; letter-spacing: .14em; text-transform: uppercase; color: #8C9AB3; }
+.mut05 { color: #8C9AB3; }
+.pill05 { display: inline-flex; align-items: center; gap: 14px; border: 2px solid rgba(160,185,225,.22); background: rgba(15,24,40,.7); border-radius: 999px; padding: 14px 28px; font-size: 32px; font-weight: 600; color: #A9B4CA; }
+.dot05 { width: 16px; height: 16px; border-radius: 50%; background: #2FD47E; box-shadow: 0 0 0 6px rgba(47,212,126,.18); flex: none; }
+.btn05 { display: flex; align-items: center; justify-content: center; background: #2FD47E; color: #04210F; border-radius: 999px; padding: 34px 44px; font-size: 46px; font-weight: 700; }
+.card05 { background: #0B1220; border: 2px solid rgba(160,185,225,.14); border-radius: 44px; }
+.logo05 { border-radius: 50%; background: #2FD47E; color: #0A1A33; display: flex; align-items: center; justify-content: center; font-family: Georgia, "Times New Roman", serif; font-weight: 700; line-height: 1; flex: none; }
+.av05 { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: Georgia, serif; font-weight: 700; font-size: 30px; color: #0A1A33; flex: none; }
+.avdy05 { background: #2FD47E; } .avdi05 { background: #F2B544; }
+.phone05 { position: absolute; background: #070C16; border-radius: 80px; box-shadow: 0 60px 140px rgba(0,0,0,.6), inset 0 0 0 3px rgba(255,255,255,.07); border: 14px solid #141C2C; overflow: hidden; }
+.ph-head05 { display: flex; align-items: center; gap: 22px; padding: 34px 40px 26px; border-bottom: 2px solid rgba(160,185,225,.12); }
+.ph-head05 b { display: block; font-size: 38px; } .ph-head05 small { display: block; font-size: 26px; color: #8C9AB3; }
+.b05 { position: absolute; max-width: 76%; padding: 24px 30px 18px; border-radius: 34px; font-size: 38px; line-height: 1.28; font-weight: 600; }
+.me05 { right: 34px; background: #0E3B27; border: 2px solid rgba(47,212,126,.25); border-bottom-right-radius: 10px; }
+.bot05 { left: 34px; background: #0F1828; border: 2px solid rgba(160,185,225,.14); border-bottom-left-radius: 10px; }
+.who05 { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+.who05 .av05 { width: 38px; height: 38px; font-size: 22px; }
+.who05 em { font-style: normal; font-weight: 600; color: #8C9AB3; font-size: 22px; }
+.tm05 { display: block; text-align: right; font-family: "JetBrains Mono", monospace; font-size: 20px; color: #A9B4CA; margin-top: 6px; }
+
+.eb05 { position:absolute; left:90px; top:170px; }
+.t05 { position:absolute; left:90px; right:90px; top:220px; font-size:96px; }
+.row05 { position:absolute; left:90px; right:90px; top:560px; display:flex; flex-wrap:wrap; gap:18px; }
+.pr05 { font-size:34px; padding:16px 28px; }
+.tap05 { position:absolute; left:690px; top:640px; width:90px; height:90px; border-radius:50%; background:rgba(233,238,247,.85); box-shadow:0 0 0 14px rgba(233,238,247,.18); }
+.msg05 { position:absolute; left:90px; right:200px; top:880px; max-width:none; font-size:36px; }
+.aud05 { position:absolute; left:90px; top:1250px; max-width:none; display:flex; align-items:center; gap:22px; padding:22px 30px; }
+.play05 { width:72px; height:72px; border-radius:50%; background:#2FD47E; color:#04210F; display:flex; align-items:center; justify-content:center; font-size:30px; flex:none; }
+.wave05 { display:flex; align-items:center; gap:8px; height:76px; }
+.wave05 i { display:block; width:9px; border-radius:4px; background:#2FD47E; }
+.dur05 { font-family:"JetBrains Mono"; font-size:28px; color:#A9B4CA; }
+.cap05 { position:absolute; left:90px; top:1420px; }
+
+</style>
+<div id="root" data-composition-id="05-persona" data-width="1080" data-height="1920" data-duration="5.6">
+  <div id="f05-bg" class="clip" data-start="0" data-duration="5.6" data-track-index="0" style="position:absolute;inset:0">
+    <div class="bg05"></div><div class="glow05"></div><div class="dots05"></div>
+  </div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="eb05">Novo · 4 e 5 de 5</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h05 t05">Escolha o jeito. <span class="g05">A voz acompanha.</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="row05"><span data-layout-allow-overlap data-layout-allow-overflow class="pill05 pr05 p050">Padrão</span><span data-layout-allow-overlap data-layout-allow-overflow class="pill05 pr05 p051">Zen</span><span data-layout-allow-overlap data-layout-allow-overflow class="pill05 pr05 p052">Profissional</span><span data-layout-allow-overlap data-layout-allow-overflow class="pill05 pr05 p053">Coach</span><span data-layout-allow-overlap data-layout-allow-overflow class="pill05 pr05 p054">Extrovertido</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="tap05"></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="b05 bot05 msg05"><div class="who05"><span class="av05 avdy05">D</span>Dyno <em>coach</em></div>Bora, Ana! 💪 R$ 42 no almoço, registrado. Ainda sobram <b class="g05">R$ 180</b> de folga no mês. Segue firme!</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="b05 bot05 aud05"><div class="play05">▶</div><div class="wave05"><i style="height:21px"></i><i style="height:39px"></i><i style="height:60px"></i><i style="height:33px"></i><i style="height:72px"></i><i style="height:45px"></i><i style="height:27px"></i><i style="height:63px"></i><i style="height:39px"></i><i style="height:54px"></i><i style="height:24px"></i><i style="height:66px"></i><i style="height:42px"></i><i style="height:30px"></i><i style="height:57px"></i><i style="height:36px"></i><i style="height:18px"></i><i style="height:51px"></i><i style="height:33px"></i><i style="height:24px"></i></div><span class="dur05">0:06</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="cap05"><span class="pill05"><span class="dot05"></span>Responde em áudio, no mesmo tom</span></div>
+</div>
+<script>
+(function () {
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="05-persona"] ' + s);
+  const all = (s) => Array.from(document.querySelectorAll('[data-composition-id="05-persona"] ' + s));
+  tl.fromTo([one('.eb05'), one('.t05')], { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out', stagger: 0.1 }, 0.15);
+  tl.fromTo(all('.pr05'), { y: 40, opacity: 0, scale: 0.8 }, { y: 0, opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(2)', stagger: 0.12 }, 0.6);
+  tl.fromTo(one('.tap05'), { opacity: 0, scale: 1.6, x: 60, y: 200 }, { opacity: 1, scale: 1, x: 0, y: 0, duration: 0.55, ease: 'power2.out' }, 1.5);
+  tl.to(one('.tap05'), { scale: 0.7, duration: 0.12, yoyo: true, repeat: 1 }, 2.1);
+  tl.to(one('.p053'), { backgroundColor: '#2FD47E', color: '#04210F', borderColor: '#2FD47E', duration: 0.25 }, 2.15);
+  tl.to(one('.tap05'), { opacity: 0, duration: 0.3 }, 2.5);
+  tl.fromTo(one('.msg05'), { x: -140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.4)' }, 2.7);
+  tl.fromTo(one('.aud05'), { x: -140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.4)' }, 3.6);
+  tl.fromTo(all('.wave05 i'), { scaleY: 0.25, transformOrigin: '50% 50%' }, { scaleY: 1, duration: 0.3, ease: 'sine.inOut', stagger: { each: 0.06, repeat: 5, yoyo: true } }, 3.9);
+  tl.fromTo(one('.cap05'), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4 }, 4.3);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["05-persona"] = tl;
+})();
+</script>
+</template>

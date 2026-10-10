@@ -47,6 +47,67 @@ server {
     proxy_hide_header Access-Control-Allow-Origin;
     proxy_read_timeout 120s;
   }
+  # 07/10/2026: Open Finance (Pluggy). Token de conexao para o widget, em workflow proprio do n8n.
+  location = /api/banco {
+    limit_except POST { deny all; }
+    limit_req zone=api burst=10 nodelay;
+    limit_req_status 429;
+    client_max_body_size 1k;
+    proxy_pass http://n8n:5678/webhook/dyno-site-banco;
+    proxy_set_header X-Dyno-Site "${SITE_SECRET}";
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_hide_header Access-Control-Allow-Origin;
+    proxy_read_timeout 30s;
+  }
+  # Pagina de conexao: unica com CSP liberando o script e o iframe da Pluggy (add_header aqui substitui os do server, por isso repete todos).
+  location = /conectar-banco {
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.pluggy.ai; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; frame-src https://connect.pluggy.ai https://*.pluggy.ai; connect-src 'self' https://api.pluggy.ai https://*.pluggy.ai; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+    add_header Cache-Control "no-store" always;
+    try_files /conectar-banco.html =404;
+  }
+  # 07/10/2026: links diretos da area do cliente (dynoapp.com.br/minhaconta/<aba>[/<id>]) abrem a mesma pagina /conta
+  location ^~ /minhaconta { try_files /conta.html =404; }
+  location / { try_files $uri $uri.html $uri/ =404; }
+  error_page 404 /404.html;
+}
+
+# 08/10/2026: Dyno Business (business.dynoapp.com.br). Paginas em /usr/share/nginx/html/business; assets e /api compartilhados.
+server {
+  listen 80;
+  server_name business.dynoapp.com.br;
+  root /usr/share/nginx/html/business;
+  charset utf-8;
+  gzip on; gzip_types text/css application/javascript image/svg+xml application/json;
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header X-Frame-Options "DENY" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+  add_header Cache-Control $cache_ctl;
+  location = /api {
+    limit_except POST { deny all; }
+    limit_req zone=api burst=15 nodelay;
+    limit_req_status 429;
+    client_max_body_size 4k;
+    proxy_pass http://n8n:5678/webhook/dyno-site-api;
+    proxy_set_header X-Dyno-Site "${SITE_SECRET}";
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_hide_header Access-Control-Allow-Origin;
+    proxy_read_timeout 60s;
+  }
+  location ^~ /assets/ { root /usr/share/nginx/html; }
+  # 08/10/2026: favicon, apple-touch-icon e og-dyno-business.png proprios do Business ficam em /business (decodificados do .b64 pelo entrypoint)
+  location ^~ /minhaconta { try_files /minhaconta.html =404; }
   location / { try_files $uri $uri.html $uri/ =404; }
   error_page 404 /404.html;
 }

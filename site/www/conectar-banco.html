@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conectar banco · Dyno</title>
+<meta name="description" content="Conecte sua conta bancária ao Dyno pelo Open Finance para seus gastos entrarem sozinhos.">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1B1F3B">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=9">
+</head>
+<body>
+<a class="sr" href="#conteudo">Pular para o conteúdo</a>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/" aria-label="Dyno, página inicial"><span class="mark">D</span>Dyno</a>
+  <nav class="nav" id="nav"><a href="/">Início</a><a href="/como-funciona">Como funciona</a><a href="/funcionalidades">Funcionalidades</a><a href="/precos">Preços</a><a href="/duvidas">Dúvidas</a><a class="btn btn-dark btn-sm" href="/entrar" id="nav-entrar">Entrar</a></nav>
+  <button class="menu-btn" aria-controls="nav" aria-expanded="false" onclick="var n=document.getElementById('nav');n.classList.toggle('open');this.setAttribute('aria-expanded',n.classList.contains('open'))">Menu</button>
+</div></header>
+<main id="conteudo">
+
+<section class="auth dots"><div class="wrap">
+  <div class="auth-card" id="cb">
+    <span class="kicker">Open Finance</span>
+    <h1 class="h" id="cb-titulo">Conectar seu banco</h1>
+    <div id="cb-inicio" hidden>
+      <p>Ao conectar, o <b>Dyno</b> passa a receber os lançamentos da sua conta e do seu cartão e registra seus gastos sozinho, sem você precisar mandar mensagem.</p>
+      <ul class="cb-lista">
+        <li>🔒 <b>Só leitura.</b> O Dyno vê saldo e lançamentos. Não faz Pix, pagamentos nem transferências.</li>
+        <li>🏦 A conexão é feita pela <b>Pluggy</b>, empresa de Open Finance, dentro do ambiente do seu banco. O Dyno nunca vê a sua senha.</li>
+        <li>🧾 Os lançamentos entram categorizados no seu painel e nos resumos, sem duplicar o que você já registrou.</li>
+        <li>✋ Você desconecta quando quiser dizendo <b>“desconectar banco”</b> no WhatsApp, e o acesso é encerrado na hora.</li>
+      </ul>
+      <p class="cb-nota">Ao continuar, você autoriza o compartilhamento desses dados com o Dyno para as funções acima. Detalhes na <a href="/privacidade">Política de Privacidade</a>.</p>
+      <button class="btn btn-primary" id="cb-btn" type="button">Escolher meu banco</button>
+    </div>
+    <p class="msg" id="cb-msg" role="status" aria-live="polite"></p>
+    <p id="cb-volta" hidden><a class="btn btn-dark" href="https://wa.me/5511939497178">Voltar para o WhatsApp</a></p>
+  </div>
+</div></section>
+<style>
+.cb-lista{margin:14px 0 6px;padding-left:0;list-style:none;display:grid;gap:10px}
+.cb-nota{font-size:14px;opacity:.85;margin-top:12px}
+#cb-btn{margin-top:18px;width:100%}
+#cb-volta{margin-top:18px}
+</style>
+
+</main>
+<footer><div class="wrap">
+  <div><a class="brand" href="/"><span class="mark">D</span>Dyno</a><p style="margin-top:12px;max-width:340px">Dyno e Dina, seus assessores pessoais no WhatsApp: o Dyno cuida do dinheiro e a Dina, da agenda e da rotina. Por texto, áudio ou foto.</p></div>
+  <div><b style="color:#fff">Produto</b><a href="/como-funciona">Como funciona</a><a href="/funcionalidades">Funcionalidades</a><a href="/precos">Preços</a><a href="/duvidas">Dúvidas</a><a href="/entrar">Área do cliente</a></div>
+  <div><b style="color:#fff">Contato</b><a href="https://instagram.com/dynoapp.ia" rel="noopener">Instagram @dynoapp.ia</a><a href="https://wa.me/5511939497178" rel="noopener">WhatsApp do Dyno</a><a href="mailto:suporte@dynoapp.com.br">suporte@dynoapp.com.br</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a></div>
+  <div class="copy">© 2026 Dyno · DM OBSERVAIT SOLUCOES EM TECNOLOGIA LTDA · CNPJ 65.176.391/0001-45 · Curitiba/PR · Suporte: <a href="mailto:suporte@dynoapp.com.br">suporte@dynoapp.com.br</a> (resposta em até 24 h) · Privacidade: <a href="mailto:privacidade@dynoapp.com.br">privacidade@dynoapp.com.br</a>. Beta fechado; lançamento público previsto para 01/12/2026.</div>
+</div></footer>
+<script src="/assets/conectar-banco.js?v=1" defer></script>
+</body>
+</html>

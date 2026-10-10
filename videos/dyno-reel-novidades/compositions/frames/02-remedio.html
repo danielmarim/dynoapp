@@ -1,0 +1,73 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-800-normal.woff2") format("woff2"); font-weight: 800; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-600-normal.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; }
+[data-composition-id="02-remedio"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Figtree", sans-serif; color: #E9EEF7; }
+.bg02 { position: absolute; inset: 0; background: #060A13; }
+.dots02 { position: absolute; inset: -40px; background-image: radial-gradient(circle, rgba(47,212,126,.55) 2px, transparent 2.6px); background-size: 34px 34px; -webkit-mask-image: radial-gradient(ellipse 60% 45% at 50% 60%, #000 0%, transparent 70%); mask-image: radial-gradient(ellipse 60% 45% at 50% 60%, #000 0%, transparent 70%); opacity: .55; }
+.glow02 { position: absolute; inset: 0; background: radial-gradient(ellipse 70% 40% at 50% 60%, rgba(47,212,126,.16), transparent 70%); }
+.h02 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; letter-spacing: -0.04em; line-height: 0.98; color: #E9EEF7; }
+.g02 { color: #2FD47E; }
+.eb02 { font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 30px; letter-spacing: .14em; text-transform: uppercase; color: #8C9AB3; }
+.mut02 { color: #8C9AB3; }
+.pill02 { display: inline-flex; align-items: center; gap: 14px; border: 2px solid rgba(160,185,225,.22); background: rgba(15,24,40,.7); border-radius: 999px; padding: 14px 28px; font-size: 32px; font-weight: 600; color: #A9B4CA; }
+.dot02 { width: 16px; height: 16px; border-radius: 50%; background: #2FD47E; box-shadow: 0 0 0 6px rgba(47,212,126,.18); flex: none; }
+.btn02 { display: flex; align-items: center; justify-content: center; background: #2FD47E; color: #04210F; border-radius: 999px; padding: 34px 44px; font-size: 46px; font-weight: 700; }
+.card02 { background: #0B1220; border: 2px solid rgba(160,185,225,.14); border-radius: 44px; }
+.logo02 { border-radius: 50%; background: #2FD47E; color: #0A1A33; display: flex; align-items: center; justify-content: center; font-family: Georgia, "Times New Roman", serif; font-weight: 700; line-height: 1; flex: none; }
+.av02 { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: Georgia, serif; font-weight: 700; font-size: 30px; color: #0A1A33; flex: none; }
+.avdy02 { background: #2FD47E; } .avdi02 { background: #F2B544; }
+.phone02 { position: absolute; background: #070C16; border-radius: 80px; box-shadow: 0 60px 140px rgba(0,0,0,.6), inset 0 0 0 3px rgba(255,255,255,.07); border: 14px solid #141C2C; overflow: hidden; }
+.ph-head02 { display: flex; align-items: center; gap: 22px; padding: 34px 40px 26px; border-bottom: 2px solid rgba(160,185,225,.12); }
+.ph-head02 b { display: block; font-size: 38px; } .ph-head02 small { display: block; font-size: 26px; color: #8C9AB3; }
+.b02 { position: absolute; max-width: 76%; padding: 24px 30px 18px; border-radius: 34px; font-size: 38px; line-height: 1.28; font-weight: 600; }
+.me02 { right: 34px; background: #0E3B27; border: 2px solid rgba(47,212,126,.25); border-bottom-right-radius: 10px; }
+.bot02 { left: 34px; background: #0F1828; border: 2px solid rgba(160,185,225,.14); border-bottom-left-radius: 10px; }
+.who02 { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+.who02 .av02 { width: 38px; height: 38px; font-size: 22px; }
+.who02 em { font-style: normal; font-weight: 600; color: #8C9AB3; font-size: 22px; }
+.tm02 { display: block; text-align: right; font-family: "JetBrains Mono", monospace; font-size: 20px; color: #A9B4CA; margin-top: 6px; }
+
+.eb02 { position:absolute; left:90px; top:170px; }
+.t02 { position:absolute; left:90px; right:90px; top:220px; font-size:96px; }
+.ph02 { left:110px; right:110px; top:470px; bottom:120px; }
+.b02 { font-size:34px; }
+
+</style>
+<div id="root" data-composition-id="02-remedio" data-width="1080" data-height="1920" data-duration="5.8">
+  <div id="f02-bg" class="clip" data-start="0" data-duration="5.8" data-track-index="0" style="position:absolute;inset:0">
+    <div class="bg02"></div><div class="glow02"></div><div class="dots02"></div>
+  </div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="eb02">Novo · 1 de 5</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h02 t02">Remédio com <span class="g02">confirmação.</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="phone02 ph02">
+    <div class="ph-head02"><div class="logo02" style="width:84px;height:84px;font-size:46px">D</div><div><b>Dyno</b><small>Dyno e Dina · online</small></div></div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="b02 me02 m102" style="top:170px">me lembra de tomar Losartana 50 mg todo dia às 8h<span class="tm02">21:58</span></div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="b02 bot02 d102" style="top:360px"><div class="who02"><span class="av02 avdi02">D</span>Dina <em>rotina</em></div>Combinado! 💊 Todo dia às <b class="g02">8h</b> eu te lembro.<span class="tm02">21:58</span></div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="b02 bot02 d202" style="top:560px"><div class="who02"><span class="av02 avdi02">D</span>Dina <em>08:00</em></div>💊 <b>Hora do remédio, Ana:</b> Losartana 50 mg.<br>Já tomou? Responda <b class="g02">sim</b>.<span class="tm02">08:00</span></div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="b02 me02 m202" style="top:830px">Sim ✅<span class="tm02">08:03</span></div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="b02 bot02 d302" style="top:960px"><div class="who02"><span class="av02 avdi02">D</span>Dina</div>Registrado! Até amanhã. 💚<span class="tm02">08:03</span></div>
+  </div>
+</div>
+<script>
+(function () {
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="02-remedio"] ' + s);
+  const all = (s) => Array.from(document.querySelectorAll('[data-composition-id="02-remedio"] ' + s));
+  tl.fromTo([one('.eb02'), one('.t02')], { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out', stagger: 0.1 }, 0.15);
+  tl.fromTo(one('.ph02'), { y: 300, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }, 0.25);
+  tl.fromTo(one('.m102'), { x: 140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'back.out(1.5)' }, 0.9);
+  tl.fromTo(one('.d102'), { x: -140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'back.out(1.5)' }, 1.8);
+  tl.fromTo(one('.d202'), { x: -140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'back.out(1.5)' }, 2.8);
+  tl.fromTo(one('.m202'), { x: 140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'back.out(1.5)' }, 4.0);
+  tl.fromTo(one('.d302'), { x: -140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'back.out(1.5)' }, 4.7);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["02-remedio"] = tl;
+})();
+</script>
+</template>

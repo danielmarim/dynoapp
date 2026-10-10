@@ -1,15 +1,17 @@
 {
+  "id": "nslhB7FRnKuAOPuf",
   "name": "Dyno | API do site (área do cliente)",
+  "description": "API do site dynoapp.com.br: login por código no WhatsApp, conta, plano, cancelamento e painel de gastos/tarefas. Chamado pelo nginx do site em /api.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
   "nodes": [
     {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "dyno-site-api",
-        "responseMode": "responseNode",
-        "options": {
-          "allowedOrigins": "https://dynoapp.com.br,https://www.dynoapp.com.br"
-        }
-      },
       "id": "1f326581-a113-442a-8f12-6f715de68be4",
       "name": "Site: requisição",
       "type": "n8n-nodes-base.webhook",
@@ -18,22 +20,41 @@
         0,
         0
       ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-site-api",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://dynoapp.com.br,https://www.dynoapp.com.br"
+        },
+        "authentication": "headerAuth"
+      },
       "webhookId": "0c84893f-2732-4c77-87e2-a9f627ffe6f4"
     },
     {
-      "parameters": {
-        "jsCode": "const SEGREDO = '__SEGREDO__';\nconst req = $input.first().json || {};\nconst h = req.headers || {};\nconst b = req.body || {};\nconst m = String(h.cookie || '').match(/(?:^|;\\s*)dyno_sess=([a-f0-9]{64})/);\nconst token = m ? m[1] : '';\nconst ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || '').trim().slice(0, 64);\nconst acao = String(b.acao || '');\nconst responder = (status, resposta) => [{ json: { proximo: 'responder', acao, status, resposta } }];\nif (String(h['x-dyno-site'] || '') !== SEGREDO) return responder(403, { ok: false, erro: 'proibido' });\nconst rpc = (nome, args) => [{ json: { proximo: 'rpc', acao, rpc: nome, args, token, ip, ciclo: b.ciclo === 'YEARLY' ? 'YEARLY' : 'MONTHLY' } }];\nswitch (acao) {\n  case 'codigo': return rpc('dyno_site_codigo_pedir', { p_whatsapp: String(b.whatsapp || '').slice(0, 30), p_ip: ip });\n  case 'entrar': return rpc('dyno_site_codigo_validar', { p_whatsapp: String(b.whatsapp || '').slice(0, 30), p_codigo: String(b.codigo || '').slice(0, 10), p_ip: ip });\n  case 'beta':\n    if (String(b.site || '') !== '') return responder(200, { ok: true, situacao: 'recebido' });\n    return rpc('dyno_beta_pedir', { p_nome: String(b.nome || '').slice(0, 90), p_whatsapp: String(b.whatsapp || '').slice(0, 30), p_instagram: String(b.instagram || '').slice(0, 80), p_segue: b.segue === true, p_aceite: b.aceite === true, p_ip: ip });\n  case 'conta':\n  case 'painel':\n  case 'extrato':\n  case 'arquivo':\n  case 'zip':\n    if (!token) return responder(401, { ok: false, erro: 'sessao' });\n    return rpc('dyno_site_conta', { p_token: token });\n  case 'plano':\n    if (!token) return responder(401, { ok: false, erro: 'sessao' });\n    return rpc('dyno_site_plano', { p_token: token, p_ciclo: b.ciclo === 'YEARLY' ? 'YEARLY' : 'MONTHLY' });\n  case 'cancelar':\n    if (!token) return responder(401, { ok: false, erro: 'sessao' });\n    return rpc('dyno_site_cancelar', { p_token: token });\n  case 'sair':\n    return rpc('dyno_site_sair', { p_token: token });\n  default:\n    return responder(400, { ok: false, erro: 'acao_invalida' });\n}"
-      },
       "id": "c130c04d-46df-415e-b505-411604b57843",
       "name": "Preparar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         240,
-        304
-      ]
+        300
+      ],
+      "parameters": {
+        "jsCode": "// 07/10/2026: o cabeçalho X-Dyno-Site agora é validado pelo próprio Webhook (credencial Header Auth 'dyno-site').\nconst req = $input.first().json || {};\nconst h = req.headers || {};\nconst b = req.body || {};\nconst m = String(h.cookie || '').match(/(?:^|;\\s*)dyno_sess=([a-f0-9]{64})/);\nconst token = m ? m[1] : '';\nconst ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || '').trim().slice(0, 64);\nconst acao = String(b.acao || '');\nconst responder = (status, resposta) => [{ json: { proximo: 'responder', acao, status, resposta } }];\nconst rpc = (nome, args) => [{ json: { proximo: 'rpc', acao, rpc: nome, args, token, ip, ciclo: b.ciclo === 'YEARLY' ? 'YEARLY' : 'MONTHLY' } }];\nswitch (acao) {\n  case 'codigo': return rpc('dyno_site_codigo_pedir', { p_whatsapp: String(b.whatsapp || '').slice(0, 30), p_ip: ip });\n  case 'entrar': return rpc('dyno_site_codigo_validar', { p_whatsapp: String(b.whatsapp || '').slice(0, 30), p_codigo: String(b.codigo || '').slice(0, 10), p_ip: ip });\n  case 'beta':\n    if (String(b.site || '') !== '') return responder(200, { ok: true, situacao: 'recebido' });\n    return rpc('dyno_beta_pedir', { p_nome: String(b.nome || '').slice(0, 90), p_whatsapp: String(b.whatsapp || '').slice(0, 30), p_instagram: String(b.instagram || '').slice(0, 80), p_segue: b.segue === true, p_aceite: b.aceite === true, p_ip: ip });\n  case 'conta':\n  case 'painel':\n  case 'extrato':\n  case 'arquivo':\n  case 'zip':\n    if (!token) return responder(401, { ok: false, erro: 'sessao' });\n    return rpc('dyno_site_conta', { p_token: token });\n  case 'plano':\n    if (!token) return responder(401, { ok: false, erro: 'sessao' });\n    return rpc('dyno_site_plano', { p_token: token, p_ciclo: b.ciclo === 'YEARLY' ? 'YEARLY' : 'MONTHLY' });\n  case 'cancelar':\n    if (!token) return responder(401, { ok: false, erro: 'sessao' });\n    return rpc('dyno_site_cancelar', { p_token: token });\n  case 'sair':\n    return rpc('dyno_site_sair', { p_token: token });\n  default:\n    return responder(400, { ok: false, erro: 'acao_invalida' });\n}",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
+      "id": "3f7e5f8e-defb-42e7-b58c-287ebb178c94",
+      "name": "Precisa do banco?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        300
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -50,65 +71,64 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "3f7e5f8e-defb-42e7-b58c-287ebb178c94",
-      "name": "Precisa do banco?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        480,
-        304
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ \"https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/\" + $json.rpc }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.args) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "6756b46b-f11e-408e-ae30-16e54304d566",
       "name": "Supabase: RPC",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
         720,
-        208
+        200
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qgXgW9Cfnyoli06W",
-          "name": "Supabase_Dyno"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify($json.args) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "={{ \"https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/\" + $json.rpc }}"
       },
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": {
-        "jsCode": "const ZW = String.fromCharCode(8203);\nconst NL = String.fromCharCode(10);\nconst p = $('Preparar').first().json;\nconst r = $input.first().json || {};\nconst out = (o) => [{ json: Object.assign({ acao: p.acao }, o) }];\nconst responder = (status, resposta, cookie) => out({ proximo: 'responder', status, resposta, cookie: cookie || '' });\nif (r.error || (r.code && r.message)) return responder(500, { ok: false, erro: 'indisponivel' });\nconst COOKIE = (t, idade) => 'dyno_sess=' + t + '; Path=/; Max-Age=' + idade + '; HttpOnly; Secure; SameSite=Lax';\nswitch (p.acao) {\n  case 'codigo': {\n    if (r.enviar) {\n      const texto = 'Olá, ' + (r.nome || '') + '! Seu código para entrar no site do Dyno é:' + NL + NL + '*' + r.codigo + '*' + NL + NL + 'Ele vale por 10 minutos. Se não foi você que pediu, é só ignorar esta mensagem.';\n      return out({ proximo: 'whatsapp', status: 200, resposta: { ok: true }, corpo: { number: r.numero, text: ZW + texto, delay: 300 } });\n    }\n    if (r.motivo === 'muitas_tentativas') return responder(429, { ok: false, erro: 'muitas_tentativas' });\n    if (r.motivo === 'numero_invalido') return responder(400, { ok: false, erro: 'numero_invalido' });\n    return responder(200, { ok: true });\n  }\n  case 'entrar':\n    if (r.ok && r.token) return responder(200, { ok: true, nome: r.nome }, COOKIE(r.token, 2592000));\n    return responder(400, { ok: false, erro: r.erro || 'codigo_invalido' });\n  case 'conta': {\n    if (!r.ok) return responder(401, { ok: false, erro: 'sessao' }, COOKIE('', 0));\n    const resposta = { ok: true, usuario: r.usuario, pagamentos: r.pagamentos || [] };\n    if (r.interno && r.interno.assinatura) return out({ proximo: 'asaas_get', status: 200, resposta, caminho: '/subscriptions/' + r.interno.assinatura + '/payments?limit=6' });\n    return responder(200, resposta);\n  }\n  case 'painel': {\n    if (!r.ok) return responder(401, { ok: false, erro: 'sessao' }, COOKIE('', 0));\n    const i = r.interno || {};\n    return out({ proximo: 'dados', status: 200, autor: i.autor || '__sem_autor__', telefone: i.whatsapp || '__sem__', nome: (r.usuario || {}).primeiro_nome || '' });\n  }\n  case 'extrato':\n  case 'arquivo':\n  case 'zip': {\n    if (!r.ok) return responder(401, { ok: false, erro: 'sessao' }, COOKIE('', 0));\n    const i = r.interno || {};\n    let corpo = {};\n    try { corpo = $('Site: requisição').first().json.body || {}; } catch (e) { corpo = {}; }\n    const TZ = 'America/Sao_Paulo';\n    const hoje = DateTime.now().setZone(TZ);\n    const iso = (s) => /^\\d{4}-\\d{2}-\\d{2}$/.test(String(s || '')) ? String(s) : null;\n    let de = iso(corpo.de) || hoje.startOf('month').toISODate();\n    let ate = iso(corpo.ate) || hoje.toISODate();\n    if (de > ate) { const t = de; de = ate; ate = t; }\n    let ini = DateTime.fromISO(de, { zone: TZ }).startOf('day');\n    const fim = DateTime.fromISO(ate, { zone: TZ }).endOf('day');\n    if (fim.diff(ini, 'months').months > 24) ini = fim.minus({ months: 24 }).startOf('day');\n    const ids = Array.isArray(corpo.ids) ? corpo.ids.map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 40) : [];\n    return out({ proximo: p.acao, status: 200, autor: i.autor || '__sem_autor__', de: ini.toISODate(), ate: fim.toISODate(), de_iso: ini.minus({ days: 1 }).toUTC().toISO(), ate_iso: fim.plus({ days: 1 }).toUTC().toISO(), ini_iso: ini.toUTC().toISO(), fim_iso: fim.toUTC().toISO(), id: Number(corpo.id) || 0, ids });\n  }\n  case 'plano': {\n    if (!r.ok) return responder(r.erro === 'sessao' ? 401 : 400, { ok: false, erro: r.erro });\n    const confirmar = { rpc: 'dyno_site_plano', args: { p_token: p.token, p_ciclo: r.ciclo, p_confirmar: true } };\n    if (r.assinatura) return out({ proximo: 'asaas_put', status: 200, resposta: { ok: true, ciclo: r.ciclo }, caminho: '/subscriptions/' + r.assinatura, corpo: { value: r.valor, cycle: r.ciclo, description: r.descricao, updatePendingPayments: true }, confirmar });\n    return out(Object.assign({ proximo: 'rpc2', status: 200, resposta: { ok: true, ciclo: r.ciclo } }, confirmar));\n  }\n  case 'cancelar': {\n    if (!r.ok) return responder(r.erro === 'sessao' ? 401 : 400, { ok: false, erro: r.erro });\n    const confirmar = { rpc: 'dyno_site_cancelar', args: { p_token: p.token, p_confirmar: true } };\n    if (r.assinatura) return out({ proximo: 'asaas_delete', status: 200, resposta: { ok: true }, caminho: '/subscriptions/' + r.assinatura, nome: r.nome, confirmar });\n    return out(Object.assign({ proximo: 'rpc2', status: 200, resposta: { ok: true }, nome: r.nome }, confirmar));\n  }\n  case 'beta': {\n    if (r.ok && r.situacao === 'recebido' && r.admin && r.texto_admin) return out({ proximo: 'whatsapp', status: 200, resposta: { ok: true, situacao: 'recebido' }, corpo: { number: r.admin, text: ZW + r.texto_admin, delay: 300 } });\n    if (r.ok) return responder(200, { ok: true, situacao: r.situacao || 'recebido' });\n    if (r.erro === 'muitas_tentativas') return responder(429, { ok: false, erro: 'muitas_tentativas' });\n    return responder(400, { ok: false, erro: r.erro || 'dados' });\n  }\n  case 'vagas': {\n    const tot = Number(r.total) || 10, rest = Math.max(0, Math.min(tot, Number(r.restantes) || 0));\n    return responder(200, { ok: true, total: tot, restantes: rest });\n  }\n  case 'sair':\n    return responder(200, { ok: true }, COOKIE('', 0));\n}\nreturn responder(400, { ok: false, erro: 'acao_invalida' });"
-      },
       "id": "6c0d302a-07b0-4e42-8bac-4baa656d1c75",
       "name": "Decidir",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         960,
-        208
-      ]
+        200
+      ],
+      "parameters": {
+        "jsCode": "const ZW = String.fromCharCode(8203);\nconst NL = String.fromCharCode(10);\nconst p = $('Preparar').first().json;\nconst r = $input.first().json || {};\nconst out = (o) => [{ json: Object.assign({ acao: p.acao }, o) }];\nconst responder = (status, resposta, cookie) => out({ proximo: 'responder', status, resposta, cookie: cookie || '' });\nif (r.error || (r.code && r.message)) return responder(500, { ok: false, erro: 'indisponivel' });\nconst COOKIE = (t, idade) => 'dyno_sess=' + t + '; Path=/; Max-Age=' + idade + '; HttpOnly; Secure; SameSite=Lax';\nswitch (p.acao) {\n  case 'codigo': {\n    if (r.enviar) {\n      const texto = 'Olá, ' + (r.nome || '') + '! Seu código para entrar no site do Dyno é:' + NL + NL + '*' + r.codigo + '*' + NL + NL + 'Ele vale por 10 minutos. Se não foi você que pediu, é só ignorar esta mensagem.';\n      return out({ proximo: 'whatsapp', status: 200, resposta: { ok: true }, corpo: { number: r.numero, text: ZW + texto, delay: 300 } });\n    }\n    if (r.motivo === 'muitas_tentativas') return responder(429, { ok: false, erro: 'muitas_tentativas' });\n    if (r.motivo === 'numero_invalido') return responder(400, { ok: false, erro: 'numero_invalido' });\n    return responder(200, { ok: true });\n  }\n  case 'entrar':\n    if (r.ok && r.token) return responder(200, { ok: true, nome: r.nome }, COOKIE(r.token, 2592000));\n    return responder(400, { ok: false, erro: r.erro || 'codigo_invalido' });\n  case 'conta': {\n    if (!r.ok) return responder(401, { ok: false, erro: 'sessao' }, COOKIE('', 0));\n    const resposta = { ok: true, usuario: r.usuario, pagamentos: r.pagamentos || [] };\n    if (r.interno && r.interno.assinatura) return out({ proximo: 'asaas_get', status: 200, resposta, caminho: '/subscriptions/' + r.interno.assinatura + '/payments?limit=6' });\n    return responder(200, resposta);\n  }\n  case 'painel': {\n    if (!r.ok) return responder(401, { ok: false, erro: 'sessao' }, COOKIE('', 0));\n    const i = r.interno || {};\n    return out({ proximo: 'dados', status: 200, autor: i.autor || '__sem_autor__', telefone: i.whatsapp || '__sem__', nome: (r.usuario || {}).primeiro_nome || '' });\n  }\n  case 'extrato':\n  case 'arquivo':\n  case 'zip': {\n    if (!r.ok) return responder(401, { ok: false, erro: 'sessao' }, COOKIE('', 0));\n    const i = r.interno || {};\n    let corpo = {};\n    try { corpo = $('Site: requisição').first().json.body || {}; } catch (e) { corpo = {}; }\n    const TZ = 'America/Sao_Paulo';\n    const hoje = DateTime.now().setZone(TZ);\n    const iso = (s) => /^\\d{4}-\\d{2}-\\d{2}$/.test(String(s || '')) ? String(s) : null;\n    let de = iso(corpo.de) || hoje.startOf('month').toISODate();\n    let ate = iso(corpo.ate) || hoje.toISODate();\n    if (de > ate) { const t = de; de = ate; ate = t; }\n    let ini = DateTime.fromISO(de, { zone: TZ }).startOf('day');\n    const fim = DateTime.fromISO(ate, { zone: TZ }).endOf('day');\n    if (fim.diff(ini, 'months').months > 24) ini = fim.minus({ months: 24 }).startOf('day');\n    const ids = Array.isArray(corpo.ids) ? corpo.ids.map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 40) : [];\n    return out({ proximo: p.acao, status: 200, autor: i.autor || '__sem_autor__', de: ini.toISODate(), ate: fim.toISODate(), de_iso: ini.minus({ days: 1 }).toUTC().toISO(), ate_iso: fim.plus({ days: 1 }).toUTC().toISO(), ini_iso: ini.toUTC().toISO(), fim_iso: fim.toUTC().toISO(), id: Number(corpo.id) || 0, ids });\n  }\n  case 'plano': {\n    if (!r.ok) return responder(r.erro === 'sessao' ? 401 : 400, { ok: false, erro: r.erro });\n    const confirmar = { rpc: 'dyno_site_plano', args: { p_token: p.token, p_ciclo: r.ciclo, p_confirmar: true } };\n    if (r.assinatura) return out({ proximo: 'asaas_put', status: 200, resposta: { ok: true, ciclo: r.ciclo }, caminho: '/subscriptions/' + r.assinatura, corpo: { value: r.valor, cycle: r.ciclo, description: r.descricao, updatePendingPayments: true }, confirmar });\n    return out(Object.assign({ proximo: 'rpc2', status: 200, resposta: { ok: true, ciclo: r.ciclo } }, confirmar));\n  }\n  case 'cancelar': {\n    if (!r.ok) return responder(r.erro === 'sessao' ? 401 : 400, { ok: false, erro: r.erro });\n    const confirmar = { rpc: 'dyno_site_cancelar', args: { p_token: p.token, p_confirmar: true } };\n    if (r.assinatura) return out({ proximo: 'asaas_delete', status: 200, resposta: { ok: true }, caminho: '/subscriptions/' + r.assinatura, nome: r.nome, confirmar });\n    return out(Object.assign({ proximo: 'rpc2', status: 200, resposta: { ok: true }, nome: r.nome }, confirmar));\n  }\n  case 'beta': {\n    if (r.ok && r.situacao === 'recebido' && r.admin && r.texto_admin) return out({ proximo: 'whatsapp', status: 200, resposta: { ok: true, situacao: 'recebido' }, corpo: { number: r.admin, text: ZW + r.texto_admin, delay: 300 } });\n    if (r.ok) return responder(200, { ok: true, situacao: r.situacao || 'recebido' });\n    if (r.erro === 'muitas_tentativas') return responder(429, { ok: false, erro: 'muitas_tentativas' });\n    return responder(400, { ok: false, erro: r.erro || 'dados' });\n  }\n  case 'vagas': {\n    const tot = Number(r.total) || 20, rest = Math.max(0, Math.min(tot, Number(r.restantes) || 0));\n    return responder(200, { ok: true, total: tot, restantes: rest });\n  }\n  case 'familia':\n  case 'familia_add':\n  case 'familia_del': {\n    if (r.erro === 'sessao') return responder(401, { ok: false, erro: 'sessao' }, COOKIE('', 0));\n    return responder(r.ok ? 200 : 400, r);\n  }\n  case 'agenda_iniciar':\n    if (r.ok && r.url) return responder(200, { ok: true, url: r.url, nome: r.nome || '' });\n    return responder(400, { ok: false, erro: r.erro || 'invalido' });\n  case 'agenda_callback': {\n    if (!r.ok) return responder(400, { ok: false, erro: r.erro || 'expirado' });\n    let corpo = {};\n    try { corpo = $('Site: requisição').first().json.body || {}; } catch (e) { corpo = {}; }\n    const codigo = String(corpo.code || '').slice(0, 512);\n    if (!codigo) return responder(400, { ok: false, erro: 'codigo' });\n    return out({ proximo: 'agenda', status: 200, op: 'callback', usuario_id: r.usuario_id, redirect_uri: r.redirect_uri, code: codigo });\n  }\n  case 'sair':\n    return responder(200, { ok: true }, COOKIE('', 0));\n}\nreturn responder(400, { ok: false, erro: 'acao_invalida' });",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
+      "id": "d0965f10-849a-4e69-84b7-cfe4af3666f2",
+      "name": "Próximo passo",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1200,
+        200
+      ],
       "parameters": {
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "responder"
+        },
         "rules": {
           "values": [
             {
@@ -127,12 +147,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "loose",
-                  "version": 1
+                  "typeValidation": "loose"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "whatsapp"
+              "outputKey": "whatsapp",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -150,12 +169,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "loose",
-                  "version": 1
+                  "typeValidation": "loose"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "asaas_get"
+              "outputKey": "asaas_get",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -173,12 +191,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "loose",
-                  "version": 1
+                  "typeValidation": "loose"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "asaas_put"
+              "outputKey": "asaas_put",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -196,12 +213,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "loose",
-                  "version": 1
+                  "typeValidation": "loose"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "asaas_delete"
+              "outputKey": "asaas_delete",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -219,12 +235,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "loose",
-                  "version": 1
+                  "typeValidation": "loose"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "dados"
+              "outputKey": "dados",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -242,12 +257,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "loose",
-                  "version": 1
+                  "typeValidation": "loose"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "rpc2"
+              "outputKey": "rpc2",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -265,12 +279,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "loose",
-                  "version": 1
+                  "typeValidation": "loose"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "extrato"
+              "outputKey": "extrato",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -288,12 +301,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "loose",
-                  "version": 1
+                  "typeValidation": "loose"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "arquivo"
+              "outputKey": "arquivo",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -311,99 +323,96 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "loose",
-                  "version": 1
+                  "typeValidation": "loose"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "zip"
+              "outputKey": "zip",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.proximo }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "agenda"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              },
+              "outputKey": "agenda",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.proximo }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "edicao"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              },
+              "outputKey": "edicao",
+              "renameOutput": true
             }
           ]
-        },
-        "options": {
-          "fallbackOutput": "extra",
-          "renameFallbackOutput": "responder"
         }
-      },
-      "id": "d0965f10-849a-4e69-84b7-cfe4af3666f2",
-      "name": "Próximo passo",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
-      "position": [
-        1200,
-        208
-      ]
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "81b589e3-a6ec-4b02-bcff-4f48ecdb742f",
       "name": "Enviar código (Dyno)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1504,
-        -96
+        1500,
+        -100
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno"
       },
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": {
-        "url": "={{ \"https://api.asaas.com/v3\" + $json.caminho }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "User-Agent",
-              "value": "Dyno-Site"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "94ff579b-141d-4329-93c7-bd3b2a255638",
       "name": "Asaas: faturas",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1504,
-        48
+        1500,
+        40
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l3GO5H4hRL8ca2k3",
-          "name": "asaas-prod"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
       "parameters": {
-        "method": "PUT",
-        "url": "={{ \"https://api.asaas.com/v3\" + $json.caminho }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
@@ -412,36 +421,29 @@
             }
           ]
         },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "method": "GET",
         "options": {
           "timeout": 20000
-        }
+        },
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "url": "={{ \"https://api.asaas.com/v3\" + $json.caminho }}"
       },
+      "onError": "continueRegularOutput"
+    },
+    {
       "id": "57be0ea1-7689-4cb6-a73a-df73f66e52fd",
       "name": "Asaas: trocar plano",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1504,
-        192
+        1500,
+        180
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l3GO5H4hRL8ca2k3",
-          "name": "asaas-prod"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
       "parameters": {
-        "method": "DELETE",
-        "url": "={{ \"https://api.asaas.com/v3\" + $json.caminho }}",
         "authentication": "genericCredentialType",
+        "contentType": "json",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
@@ -450,40 +452,73 @@
             }
           ]
         },
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "method": "PUT",
         "options": {
           "timeout": 20000
-        }
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "specifyHeaders": "keypair",
+        "url": "={{ \"https://api.asaas.com/v3\" + $json.caminho }}"
       },
+      "onError": "continueRegularOutput"
+    },
+    {
       "id": "fd205261-bb95-4537-a90a-c1bd5582ad68",
       "name": "Asaas: cancelar assinatura",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1504,
+        1500,
         320
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l3GO5H4hRL8ca2k3",
-          "name": "asaas-prod"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Dyno-Site"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "url": "={{ \"https://api.asaas.com/v3\" + $json.caminho }}"
       },
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": {
-        "jsCode": "const d = $('Decidir').first().json;\nconst a = $input.first().json || {};\nconst ok = d.proximo === 'asaas_delete' ? a.deleted === true : (!!a.id && !a.errors && !a.error);\nif (!ok) return [{ json: { proximo: 'responder', acao: d.acao, status: 502, resposta: { ok: false, erro: 'cobranca' } } }];\nreturn [{ json: Object.assign({}, d.confirmar, { proximo: 'rpc2', acao: d.acao, status: 200, resposta: d.resposta, nome: d.nome }) }];"
-      },
       "id": "2254e3e3-fa2d-4eb8-8009-29cb48f18065",
       "name": "Depois do Asaas",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1744,
-        256
-      ]
+        1740,
+        250
+      ],
+      "parameters": {
+        "jsCode": "const d = $('Decidir').first().json;\nconst a = $input.first().json || {};\nconst ok = d.proximo === 'asaas_delete' ? a.deleted === true : (!!a.id && !a.errors && !a.error);\nif (!ok) return [{ json: { proximo: 'responder', acao: d.acao, status: 502, resposta: { ok: false, erro: 'cobranca' } } }];\nreturn [{ json: Object.assign({}, d.confirmar, { proximo: 'rpc2', acao: d.acao, status: 200, resposta: d.resposta, nome: d.nome }) }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
+      "id": "6881589b-a967-45fb-9918-7082a356727e",
+      "name": "Confirmar no banco?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1980,
+        250
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -500,51 +535,44 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "6881589b-a967-45fb-9918-7082a356727e",
-      "name": "Confirmar no banco?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1984,
-        256
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ \"https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/\" + $json.rpc }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.args) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "1bba489c-95d0-4de2-a31c-65a2abb84941",
       "name": "Supabase: confirmar",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        2224,
+        2220,
         400
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qgXgW9Cfnyoli06W",
-          "name": "Supabase_Dyno"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify($json.args) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "={{ \"https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/\" + $json.rpc }}"
       },
       "onError": "continueRegularOutput"
     },
     {
+      "id": "b4660217-625b-48c6-8c67-5e6127b5e2ea",
+      "name": "Foi cancelamento?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2460,
+        560
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -561,248 +589,75 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "b4660217-625b-48c6-8c67-5e6127b5e2ea",
-      "name": "Foi cancelamento?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        2464,
-        560
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: '5511930851325', text: String.fromCharCode(8203) + '*Dyno (site):* ' + ($('Decidir').first().json.nome || 'um cliente') + ' cancelou a assinatura pela área do cliente.', delay: 300 }) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "2fde810f-964a-4d1f-a492-d9a46412f4cc",
       "name": "Avisar Daniel (cancelamento)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        2704,
+        2700,
         560
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: '5511930851325', text: String.fromCharCode(8203) + '*Dyno (site):* ' + ($('Decidir').first().json.nome || 'um cliente') + ' cancelou a assinatura pela área do cliente.', delay: 300 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno"
       },
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_transacoes",
-          "mode": "id",
-          "value": "czjKVg7HFjMKNpAq"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "autor",
-              "keyValue": "={{ $('Decidir').first().json.autor }}"
-            },
-            {
-              "keyName": "data",
-              "condition": "gte",
-              "keyValue": "={{ $now.minus({ months: 7 }).startOf(\"month\").toISO() }}"
-            }
-          ]
-        },
-        "returnAll": true
-      },
-      "id": "168510fb-06cc-422c-b918-a2fc9e46e98a",
-      "name": "Dados: transações",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1504,
-        528
-      ],
-      "alwaysOutputData": true,
-      "executeOnce": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_tarefas",
-          "mode": "id",
-          "value": "LnRebLLXT3hHXXVT"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "autor",
-              "keyValue": "={{ $('Decidir').first().json.autor }}"
-            }
-          ]
-        },
-        "returnAll": true
-      },
-      "id": "441cdf98-b35a-42cd-bfde-fbc74e34982d",
-      "name": "Dados: tarefas",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1712,
-        528
-      ],
-      "alwaysOutputData": true,
-      "executeOnce": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_lembretes",
-          "mode": "id",
-          "value": "bYVBca9uT849KhYP"
-        },
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "autor",
-              "keyValue": "={{ $('Decidir').first().json.autor }}"
-            },
-            {
-              "keyName": "telefone",
-              "keyValue": "={{ $('Decidir').first().json.telefone }}"
-            }
-          ]
-        },
-        "returnAll": true
-      },
-      "id": "90fc7afc-ada1-4527-a89f-8b9a2b009ead",
-      "name": "Dados: lembretes",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1904,
-        528
-      ],
-      "alwaysOutputData": true,
-      "executeOnce": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_contas",
-          "mode": "id",
-          "value": "EMXP62JHcMJtClgT"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "autor",
-              "keyValue": "={{ $('Decidir').first().json.autor }}"
-            }
-          ]
-        },
-        "returnAll": true
-      },
-      "id": "9704f672-8805-4c3e-8116-f2f0ff75a635",
-      "name": "Dados: contas",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        2112,
-        528
-      ],
-      "alwaysOutputData": true,
-      "executeOnce": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_assinaturas",
-          "mode": "id",
-          "value": "BhTS13DGVIPZ39LS"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "autor",
-              "keyValue": "={{ $('Decidir').first().json.autor }}"
-            }
-          ]
-        },
-        "returnAll": true
-      },
-      "id": "064e18c7-ce1c-457b-85d4-ec128c27bbd1",
-      "name": "Dados: assinaturas",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        2304,
-        528
-      ],
-      "alwaysOutputData": true,
-      "executeOnce": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst d = $('Decidir').first().json;\nconst linhas = (n) => { try { return $(n).all().map((i) => i.json).filter((r) => r && r.id !== undefined && r.id !== null); } catch (e) { return []; } };\nconst agora = DateTime.now().setZone(TZ);\nconst ini = agora.startOf('month');\nconst dt = (v) => { const x = DateTime.fromISO(String(v || '')); return x.isValid ? x.setZone(TZ) : null; };\nconst num = (v) => Number(v) || 0;\nconst BONITO = { alimentacao: 'Alimentação', educacao: 'Educação', saude: 'Saúde', vestuario: 'Vestuário', servicos: 'Serviços' };\nconst cat = (c) => { const k = String(c || 'outros').toLowerCase().trim(); return BONITO[k] || (k.charAt(0).toUpperCase() + k.slice(1)); };\nconst tx = linhas('Dados: transações').map((t) => ({ t, quando: dt(t.data || t.createdAt), v: num(t.valor) })).filter((x) => x.quando);\nconst doMes = tx.filter((x) => x.quando >= ini);\nconst gastos = doMes.filter((x) => x.t.tipo !== 'receita').reduce((s, x) => s + x.v, 0);\nconst receitas = doMes.filter((x) => x.t.tipo === 'receita').reduce((s, x) => s + x.v, 0);\nconst porCat = {};\ndoMes.filter((x) => x.t.tipo !== 'receita').forEach((x) => { const k = cat(x.t.categoria); porCat[k] = (porCat[k] || 0) + x.v; });\n// Limites (orçamentos) só aparecem onde a própria pessoa definiu pelo WhatsApp; ninguém é cobrado a ter limite.\nconst semAc = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();\nconst limites = {};\nlinhas('Dados: orçamentos').filter((o) => o.pessoa === d.autor && o.ativo !== false && num(o.limite) > 0).forEach((o) => { limites[semAc(cat(o.categoria))] = num(o.limite); });\nObject.keys(limites).forEach((k) => { if (!Object.keys(porCat).some((n) => semAc(n) === k)) { const nome = cat(k); porCat[nome] = porCat[nome] || 0; } });\nlet categorias = Object.entries(porCat).sort((a, b) => b[1] - a[1]).map(([nome, valor]) => { const l = limites[semAc(nome)]; return Object.assign({ nome, valor: Math.round(valor * 100) / 100 }, l ? { limite: Math.round(l * 100) / 100 } : {}); });\nif (categorias.length > 7) { const fixas = categorias.filter((c, i) => i < 6 || c.limite); const resto = categorias.filter((c, i) => !(i < 6 || c.limite)).reduce((s, c) => s + c.valor, 0); categorias = resto > 0 ? fixas.concat([{ nome: 'Outras', valor: Math.round(resto * 100) / 100 }]) : fixas; }\nconst meses = [];\nfor (let i = 5; i >= 0; i--) {\n  const m = agora.minus({ months: i }).startOf('month');\n  const f = m.endOf('month');\n  const g = tx.filter((x) => x.t.tipo !== 'receita' && x.quando >= m && x.quando <= f).reduce((s, x) => s + x.v, 0);\n  meses.push({ mes: m.setLocale('pt-BR').toFormat('LLL'), ano: m.year, gastos: Math.round(g * 100) / 100 });\n}\nconst ultimos = tx.slice().sort((a, b) => b.quando - a.quando).slice(0, 12).map((x) => ({ data: x.quando.toISODate(), descricao: String(x.t.descricao || '').slice(0, 80), categoria: cat(x.t.categoria), valor: x.v, tipo: x.t.tipo === 'receita' ? 'receita' : 'despesa', forma: String(x.t.forma_pagamento || '').slice(0, 30) }));\nconst feita = (s) => /conclu|feit|done|ok|finaliz|cancel/i.test(String(s || ''));\nconst tarefas = linhas('Dados: tarefas').filter((t) => !feita(t.status)).map((t) => ({ titulo: String(t.titulo || '').slice(0, 120), prazo: t.prazo ? String(t.prazo).slice(0, 10) : null, prioridade: String(t.prioridade || ''), projeto: String(t.projeto || '') }))\n  .sort((a, b) => String(a.prazo || '9999').localeCompare(String(b.prazo || '9999'))).slice(0, 15);\nconst lembretes = linhas('Dados: lembretes').filter((l) => !/conclu|feit|cancel|ok|pago/i.test(String(l.status || ''))).map((l) => ({ texto: String(l.texto || '').slice(0, 140), quando: String(l.proxima || l.quando || ''), recorrencia: String(l.recorrencia || '') }))\n  .filter((l) => l.quando && l.quando >= agora.minus({ hours: 1 }).toUTC().toISO()).sort((a, b) => a.quando.localeCompare(b.quando)).filter((l, i, arr) => arr.findIndex((x) => x.texto === l.texto) === i).slice(0, 12);\nconst contas = linhas('Dados: contas').filter((c) => !/pag/i.test(String(c.status || ''))).map((c) => ({ descricao: String(c.descricao || c.beneficiario || 'Conta').slice(0, 80), valor: num(c.valor), vencimento: c.vencimento ? String(c.vencimento).slice(0, 10) : null }))\n  .sort((a, b) => String(a.vencimento || '9999').localeCompare(String(b.vencimento || '9999'))).slice(0, 12);\nconst assin = linhas('Dados: assinaturas').filter((s) => s.ativo !== false).map((s) => ({ nome: String(s.nome || 'Assinatura').slice(0, 60), valor: num(s.valor), ciclo: String(s.ciclo || 'mensal'), proxima: s.proxima_cobranca ? String(s.proxima_cobranca).slice(0, 10) : null }));\nconst assinMensal = assin.reduce((s, a) => s + (a.ciclo === 'anual' ? a.valor / 12 : a.valor), 0);\nconst resposta = { ok: true, nome: d.nome, mes: agora.setLocale('pt-BR').toFormat('LLLL yyyy'),\n  resumo: { gastos: Math.round(gastos * 100) / 100, receitas: Math.round(receitas * 100) / 100, saldo: Math.round((receitas - gastos) * 100) / 100, lancamentos: doMes.length, assinaturas_mes: Math.round(assinMensal * 100) / 100 },\n  categorias, meses, ultimos, tarefas, lembretes, contas, assinaturas: assin.slice(0, 12),\n  vazio: !tx.length && !tarefas.length && !lembretes.length && !contas.length };\nreturn [{ json: { proximo: 'responder', acao: 'painel', status: 200, resposta } }];"
-      },
       "id": "19def900-5e12-48f6-9c28-9ce04027e61e",
       "name": "Montar painel",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2512,
-        528
-      ]
+        2500,
+        520
+      ],
+      "parameters": {
+        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst d = $('Decidir').first().json;\nconst linhas = (n) => { try { return $(n).all().map((i) => i.json).filter((r) => r && r.id !== undefined && r.id !== null); } catch (e) { return []; } };\nconst agora = DateTime.now().setZone(TZ);\nconst ini = agora.startOf('month');\nconst dt = (v) => { const x = DateTime.fromISO(String(v || '')); return x.isValid ? x.setZone(TZ) : null; };\nconst num = (v) => Number(v) || 0;\nconst BONITO = { alimentacao: 'Alimentação', educacao: 'Educação', saude: 'Saúde', vestuario: 'Vestuário', servicos: 'Serviços' };\nconst cat = (c) => { const k = String(c || 'outros').toLowerCase().trim(); return BONITO[k] || (k.charAt(0).toUpperCase() + k.slice(1)); };\nconst tx = linhas('Dados: transações').map((t) => ({ t, quando: dt(t.data || t.createdAt), v: num(t.valor) })).filter((x) => x.quando);\nconst doMes = tx.filter((x) => x.quando >= ini);\nconst gastos = doMes.filter((x) => x.t.tipo !== 'receita').reduce((s, x) => s + x.v, 0);\nconst receitas = doMes.filter((x) => x.t.tipo === 'receita').reduce((s, x) => s + x.v, 0);\nconst porCat = {};\ndoMes.filter((x) => x.t.tipo !== 'receita').forEach((x) => { const k = cat(x.t.categoria); porCat[k] = (porCat[k] || 0) + x.v; });\n// Limites (orçamentos) só aparecem onde a própria pessoa definiu pelo WhatsApp; ninguém é cobrado a ter limite.\nconst semAc = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();\nconst limites = {};\nlinhas('Dados: orçamentos').filter((o) => o.pessoa === d.autor && o.ativo !== false && num(o.limite) > 0).forEach((o) => { limites[semAc(cat(o.categoria))] = num(o.limite); });\nObject.keys(limites).forEach((k) => { if (!Object.keys(porCat).some((n) => semAc(n) === k)) { const nome = cat(k); porCat[nome] = porCat[nome] || 0; } });\nlet categorias = Object.entries(porCat).sort((a, b) => b[1] - a[1]).map(([nome, valor]) => { const l = limites[semAc(nome)]; return Object.assign({ nome, valor: Math.round(valor * 100) / 100 }, l ? { limite: Math.round(l * 100) / 100 } : {}); });\nif (categorias.length > 7) { const fixas = categorias.filter((c, i) => i < 6 || c.limite); const resto = categorias.filter((c, i) => !(i < 6 || c.limite)).reduce((s, c) => s + c.valor, 0); categorias = resto > 0 ? fixas.concat([{ nome: 'Outras', valor: Math.round(resto * 100) / 100 }]) : fixas; }\nconst meses = [];\nfor (let i = 5; i >= 0; i--) {\n  const m = agora.minus({ months: i }).startOf('month');\n  const f = m.endOf('month');\n  const g = tx.filter((x) => x.t.tipo !== 'receita' && x.quando >= m && x.quando <= f).reduce((s, x) => s + x.v, 0);\n  const rc = tx.filter((x) => x.t.tipo === 'receita' && x.quando >= m && x.quando <= f).reduce((s, x) => s + x.v, 0);\n  meses.push({ mes: m.setLocale('pt-BR').toFormat('LLL'), ano: m.year, gastos: Math.round(g * 100) / 100, receitas: Math.round(rc * 100) / 100 });\n}\nconst dias = [];\nfor (let i = 29; i >= 0; i--) {\n  const a = agora.minus({ days: i }).startOf('day');\n  const b = a.endOf('day');\n  const g = tx.filter((x) => x.t.tipo !== 'receita' && x.quando >= a && x.quando <= b).reduce((s, x) => s + x.v, 0);\n  dias.push({ d: a.toISODate(), v: Math.round(g * 100) / 100 });\n}\nconst ultimos = tx.slice().sort((a, b) => b.quando - a.quando).slice(0, 12).map((x) => ({ data: x.quando.toISODate(), descricao: String(x.t.descricao || '').slice(0, 80), categoria: cat(x.t.categoria), valor: x.v, tipo: x.t.tipo === 'receita' ? 'receita' : 'despesa', forma: String(x.t.forma_pagamento || '').slice(0, 30) }));\nconst feita = (s) => /conclu|feit|done|ok|finaliz|cancel/i.test(String(s || ''));\nconst tarefas = linhas('Dados: tarefas').filter((t) => !feita(t.status)).map((t) => ({ titulo: String(t.titulo || '').slice(0, 120), prazo: t.prazo ? String(t.prazo).slice(0, 10) : null, prioridade: String(t.prioridade || ''), projeto: String(t.projeto || '') }))\n  .sort((a, b) => String(a.prazo || '9999').localeCompare(String(b.prazo || '9999'))).slice(0, 15);\nconst lembretes = linhas('Dados: lembretes').filter((l) => !/conclu|feit|cancel|ok|pago/i.test(String(l.status || ''))).map((l) => ({ texto: String(l.texto || '').slice(0, 140), quando: String(l.proxima || l.quando || ''), recorrencia: String(l.recorrencia || '') }))\n  .filter((l) => l.quando && l.quando >= agora.minus({ hours: 1 }).toUTC().toISO()).sort((a, b) => a.quando.localeCompare(b.quando)).filter((l, i, arr) => arr.findIndex((x) => x.texto === l.texto) === i).slice(0, 12);\nconst contas = linhas('Dados: contas').filter((c) => !/pag/i.test(String(c.status || ''))).map((c) => ({ descricao: String(c.descricao || c.beneficiario || 'Conta').slice(0, 80), valor: num(c.valor), vencimento: c.vencimento ? String(c.vencimento).slice(0, 10) : null }))\n  .sort((a, b) => String(a.vencimento || '9999').localeCompare(String(b.vencimento || '9999'))).slice(0, 12);\nconst assin = linhas('Dados: assinaturas').filter((s) => s.ativo !== false).map((s) => ({ nome: String(s.nome || 'Assinatura').slice(0, 60), valor: num(s.valor), ciclo: String(s.ciclo || 'mensal'), proxima: s.proxima_cobranca ? String(s.proxima_cobranca).slice(0, 10) : null }));\n// Listas e notas (guardadas pela Dina na data table assessor_extras)\nconst listas = linhas('Dados: listas').filter((r) => (r.autor || 'Daniel') === d.autor && (r.tipo === 'nota' || r.tipo === 'ideia') && r.status !== 'apagada').map((r) => {\n  let dd = {}; try { dd = JSON.parse(r.dados || '{}') || {}; } catch (e) { dd = {}; }\n  return { id: r.id, tipo: r.tipo, titulo: String(r.titulo || 'Lista').slice(0, 80), itens: Array.isArray(dd.itens) ? dd.itens.slice(0, 150).map((x) => String(x).slice(0, 160)) : [], marcados: Array.isArray(dd.marcados) ? dd.marcados.map(String) : [], categorias: (dd.categorias && typeof dd.categorias === 'object') ? dd.categorias : {}, texto: String(r.texto || '').slice(0, 1500), atualizado: String(r.updatedAt || r.createdAt || '') };\n}).sort((a, b) => b.atualizado.localeCompare(a.atualizado)).slice(0, 30);\n// Agenda do site (aba Agenda): compromissos, lembretes, tarefas com prazo e contas, de ~2 meses atrás a ~6 meses à frente.\nconst agenda = [];\n{\n  const A0 = agora.minus({ days: 62 }).startOf('day'), A1 = agora.plus({ days: 190 }).endOf('day');\n  const dentro = (x) => x && x >= A0 && x <= A1;\n  const iso = (x) => x.toUTC().toISO();\n  const comps = linhas('Dados: compromissos').filter((k) => !/cancel/i.test(String(k.status || '')));\n  const lembDeComp = new Set(comps.map((k) => Number(k.lembrete_id)).filter(Boolean));\n  comps.forEach((k) => { const i = dt(k.inicio); if (dentro(i)) agenda.push({ t: 'compromisso', id: Number(k.id) || null, titulo: String(k.titulo || 'Compromisso').slice(0, 120), ini: iso(i), fim: k.fim ? iso(dt(k.fim)) : null, local: String(k.local || '').slice(0, 80) }); });\n  const passo = { diaria: { days: 1 }, semanal: { weeks: 1 }, mensal: { months: 1 } };\n  linhas('Dados: lembretes').filter((l) => !l.conta_id && !lembDeComp.has(Number(l.id)) && !/cancel|expirad/i.test(String(l.status || ''))).forEach((l) => {\n    let q = dt(l.proxima || l.quando); if (!q) return;\n    const feito = /conclu|feit|enviado/i.test(String(l.status || ''));\n    const p = passo[l.recorrencia];\n    const base = { t: 'lembrete', id: Number(l.id) || null, titulo: String(l.texto || 'Lembrete').split('\\n')[0].slice(0, 120), rec: p ? String(l.recorrencia) : '', feito: feito && !p };\n    if (!p) { if (dentro(q)) agenda.push(Object.assign({ ini: iso(q) }, base)); return; }\n    let n = 0; while (q < A0 && n < 400) { q = q.plus(p); n++; }\n    let k = 0; while (q <= A1 && k < 120) { agenda.push(Object.assign({ ini: iso(q) }, base)); q = q.plus(p); k++; }\n  });\n  linhas('Dados: tarefas').filter((t) => t.prazo && !/cancel/i.test(String(t.status || ''))).forEach((t) => { const p = dt(t.prazo); if (dentro(p)) agenda.push({ t: 'tarefa', id: Number(t.id) || null, titulo: String(t.titulo || 'Tarefa').slice(0, 120), ini: iso(p), feito: feita(t.status), projeto: String(t.projeto || '') }); });\n  linhas('Dados: contas').filter((c) => c.vencimento && !/cancel/i.test(String(c.status || ''))).forEach((c) => { const v = dt(c.vencimento); if (dentro(v)) agenda.push({ t: 'conta', titulo: String(c.descricao || c.beneficiario || 'Conta').slice(0, 120), ini: iso(v.set({ hour: 9 })), valor: num(c.valor), feito: /pag/i.test(String(c.status || '')), diaInteiro: true }); });\n  agenda.sort((x, y) => x.ini.localeCompare(y.ini));\n  if (agenda.length > 700) agenda.length = 700;\n}\nconst assinMensal = assin.reduce((s, a) => s + (a.ciclo === 'anual' ? a.valor / 12 : a.valor), 0);\nconst resposta = { ok: true, nome: d.nome, mes: agora.setLocale('pt-BR').toFormat('LLLL yyyy'),\n  resumo: { gastos: Math.round(gastos * 100) / 100, receitas: Math.round(receitas * 100) / 100, saldo: Math.round((receitas - gastos) * 100) / 100, lancamentos: doMes.length, assinaturas_mes: Math.round(assinMensal * 100) / 100, gastos_ant: (meses[4] || {}).gastos || 0, receitas_ant: (meses[4] || {}).receitas || 0 },\n  categorias, meses, dias, ultimos, tarefas, lembretes, contas, assinaturas: assin.slice(0, 12), listas, agenda,\n  vazio: !tx.length && !tarefas.length && !lembretes.length && !contas.length && !listas.length && !agenda.length };\nreturn [{ json: { proximo: 'responder', acao: 'painel', status: 200, resposta } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "const pega = (n) => { try { return $(n).first().json; } catch (e) { return null; } };\nlet d = pega('Juntar arquivos') || pega('Arquivo: preparar') || pega('Montar extrato') || pega('Montar painel') || pega('Depois do Asaas') || pega('Decidir') || pega('Preparar') || {};\nif (d.proximo === 'arquivo' || d.proximo === 'zip_arquivos') d = { status: 404, resposta: { ok: false, erro: 'arquivo' } };\nlet status = d.status || 200;\nlet resposta = Object.assign({}, d.resposta || { ok: true });\nlet cookie = d.cookie || '';\nconst fat = pega('Asaas: faturas');\nif (d.proximo === 'asaas_get' && fat) {\n  resposta.faturas = (fat.data || []).map((x) => ({ valor: x.value, status: x.status, vencimento: x.dueDate, link: x.invoiceUrl }));\n}\nconst conf = pega('Supabase: confirmar');\nif (conf && (conf.ok === false || conf.code)) { status = 500; resposta = { ok: false, erro: 'indisponivel' }; }\nif (d.proximo === 'whatsapp' && d.acao !== 'beta') { const w = pega('Enviar código (Dyno)') || {}; if (w.error) { status = 503; resposta = { ok: false, erro: 'whatsapp' }; } }\nif (!cookie) cookie = 'dyno_v=1; Path=/; Max-Age=31536000; Secure; SameSite=Lax';\nreturn [{ json: { status, corpo: resposta, cookie } }];"
-      },
       "id": "9de7ef56-7866-4ac4-941f-7c1eb5c6d72d",
       "name": "Montar resposta",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2768,
-        208
-      ]
+        2760,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const pega = (n) => { try { return $(n).first().json; } catch (e) { return null; } };\nlet d = pega('Bits: resposta') || pega('Avaliação: resposta') || pega('Edição: resultado') || pega('Agenda: resultado') || pega('Juntar arquivos') || pega('Arquivo: preparar') || pega('Montar extrato') || pega('Montar painel') || pega('Depois do Asaas') || pega('Decidir') || pega('Preparar') || {};\nif (d.proximo === 'arquivo' || d.proximo === 'zip_arquivos') d = { status: 404, resposta: { ok: false, erro: 'arquivo' } };\nlet status = d.status || 200;\nlet resposta = Object.assign({}, d.resposta || { ok: true });\nlet cookie = d.cookie || '';\nconst fat = pega('Asaas: faturas');\nif (d.proximo === 'asaas_get' && fat) {\n  resposta.faturas = (fat.data || []).map((x) => ({ valor: x.value, status: x.status, vencimento: x.dueDate, link: x.invoiceUrl }));\n}\nconst conf = pega('Supabase: confirmar');\nif (conf && (conf.ok === false || conf.code)) { status = 500; resposta = { ok: false, erro: 'indisponivel' }; }\nif (d.proximo === 'whatsapp' && d.acao !== 'beta') { const w = pega('Enviar código (Dyno)') || {}; if (w.error) { status = 503; resposta = { ok: false, erro: 'whatsapp' }; } }\nif (!cookie) cookie = 'dyno_v=1; Path=/; Max-Age=31536000; Secure; SameSite=Lax';\nreturn [{ json: { status, corpo: resposta, cookie } }];\n",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
+      "id": "9af8d67c-b2b1-4ffe-921c-9b6d160a9e95",
+      "name": "Responder ao site",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3000,
+        200
+      ],
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json.corpo) }}",
         "options": {
           "responseCode": "={{ $json.status }}",
           "responseHeaders": {
@@ -817,73 +672,34 @@
               }
             ]
           }
-        }
-      },
-      "id": "9af8d67c-b2b1-4ffe-921c-9b6d160a9e95",
-      "name": "Responder ao site",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [
-        3008,
-        208
-      ]
+        },
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.corpo) }}"
+      }
     },
     {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_transacoes",
-          "mode": "id",
-          "value": "czjKVg7HFjMKNpAq"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "autor",
-              "keyValue": "={{ $('Decidir').first().json.autor }}"
-            },
-            {
-              "keyName": "data",
-              "condition": "gte",
-              "keyValue": "={{ $('Decidir').first().json.de_iso }}"
-            },
-            {
-              "keyName": "data",
-              "condition": "lte",
-              "keyValue": "={{ $('Decidir').first().json.ate_iso }}"
-            }
-          ]
-        },
-        "returnAll": true
-      },
-      "id": "2f7f1077-b382-4113-bf89-d4e1eaf717ec",
-      "name": "Dados: extrato",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1504,
-        768
-      ],
-      "alwaysOutputData": true,
-      "executeOnce": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst d = $('Decidir').first().json;\nconst rows = $input.all().map((i) => i.json).filter((r) => r && r.id !== undefined && r.id !== null && r.autor === d.autor);\nconst ini = DateTime.fromISO(d.ini_iso), fim = DateTime.fromISO(d.fim_iso);\nconst dt = (v) => { if (!v) return null; let x = DateTime.fromISO(String(v)); if (!x.isValid) x = DateTime.fromSQL(String(v)); return x.isValid ? x.setZone(TZ) : null; };\nconst BONITO = { alimentacao: 'Alimentação', educacao: 'Educação', saude: 'Saúde', vestuario: 'Vestuário', servicos: 'Serviços', transporte: 'Transporte', moradia: 'Moradia', lazer: 'Lazer', mercado: 'Mercado', assinaturas: 'Assinaturas' };\nconst cat = (c) => { const k = String(c || 'outros').toLowerCase().trim(); return BONITO[k] || (k.charAt(0).toUpperCase() + k.slice(1)); };\nconst forma = (f) => { const s = String(f || '').trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; };\nconst driveId = (u) => { const s = String(u || ''); const m = s.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/); return m ? m[1] : null; };\nconst lista = rows.map((t) => ({ t, q: dt(t.data || t.createdAt) })).filter((x) => x.q && x.q >= ini && x.q <= fim).sort((a, b) => b.q - a.q || b.t.id - a.t.id);\nif (d.acao === 'zip') {\n  const quer = new Set(d.ids || []);\n  const sel = lista.filter((x) => quer.has(Number(x.t.id)) && driveId(x.t.comprovante_url)).slice(0, 40);\n  if (!sel.length) return [{ json: { proximo: 'responder', status: 404, resposta: { ok: false, erro: 'sem_comprovantes' } } }];\n  const limpa = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'comprovante';\n  return sel.map((x) => ({ json: { proximo: 'zip_arquivos', fileId: driveId(x.t.comprovante_url), nome: x.q.toFormat('yyyy-LL-dd') + '_' + limpa(x.t.descricao || x.t.categoria) + '_' + x.t.id } }));\n}\nconst r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;\nconst itens = lista.slice(0, 1000).map((x) => ({ id: x.t.id, data: x.q.toISODate(), hora: x.q.toFormat('HH:mm'), descricao: String(x.t.descricao || '').slice(0, 120), categoria: cat(x.t.categoria), forma: forma(x.t.forma_pagamento).slice(0, 40), tipo: x.t.tipo === 'receita' ? 'receita' : 'despesa', valor: r2(x.t.valor), comprovante: !!driveId(x.t.comprovante_url) }));\nconst resposta = { ok: true, de: d.de, ate: d.ate, itens, cortado: lista.length > 1000 };\nreturn [{ json: { proximo: 'responder', acao: d.acao, status: 200, resposta } }];\n"
-      },
       "id": "b1aa09df-6679-4d9b-aa37-1127a3f0cb2d",
       "name": "Montar extrato",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1744,
-        768
-      ]
+        1740,
+        760
+      ],
+      "parameters": {
+        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst d = $('Decidir').first().json;\nconst rows = $input.all().map((i) => i.json).filter((r) => r && r.id !== undefined && r.id !== null && r.autor === d.autor);\nconst ini = DateTime.fromISO(d.ini_iso), fim = DateTime.fromISO(d.fim_iso);\nconst dt = (v) => { if (!v) return null; let x = DateTime.fromISO(String(v)); if (!x.isValid) x = DateTime.fromSQL(String(v)); return x.isValid ? x.setZone(TZ) : null; };\nconst BONITO = { alimentacao: 'Alimentação', educacao: 'Educação', saude: 'Saúde', vestuario: 'Vestuário', servicos: 'Serviços', transporte: 'Transporte', moradia: 'Moradia', lazer: 'Lazer', mercado: 'Mercado', assinaturas: 'Assinaturas' };\nconst cat = (c) => { const k = String(c || 'outros').toLowerCase().trim(); return BONITO[k] || (k.charAt(0).toUpperCase() + k.slice(1)); };\nconst forma = (f) => { const s = String(f || '').trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; };\n// 07/10/2026: comprovantes no Supabase Storage (sb://comprovantes/<cliente>/<AAAA>/<MM>/<arquivo>).\nconst driveId = (u) => { const s = String(u || ''); return s.indexOf('sb://comprovantes/') === 0 ? s.slice(18) : null; };\nconst lista = rows.map((t) => ({ t, q: dt(t.data || t.createdAt) })).filter((x) => x.q && x.q >= ini && x.q <= fim).sort((a, b) => b.q - a.q || b.t.id - a.t.id);\nif (d.acao === 'zip') {\n  const quer = new Set(d.ids || []);\n  const sel = lista.filter((x) => quer.has(Number(x.t.id)) && driveId(x.t.comprovante_url)).slice(0, 40);\n  if (!sel.length) return [{ json: { proximo: 'responder', status: 404, resposta: { ok: false, erro: 'sem_comprovantes' } } }];\n  const limpa = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'comprovante';\n  return sel.map((x) => ({ json: { proximo: 'zip_arquivos', caminho: driveId(x.t.comprovante_url), nome: x.q.toFormat('yyyy-LL-dd') + '_' + limpa(x.t.descricao || x.t.categoria) + '_' + x.t.id } }));\n}\nconst r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;\nconst itens = lista.slice(0, 1000).map((x) => ({ id: x.t.id, data: x.q.toISODate(), hora: x.q.toFormat('HH:mm'), descricao: String(x.t.descricao || '').slice(0, 120), categoria: cat(x.t.categoria), forma: forma(x.t.forma_pagamento).slice(0, 40), tipo: x.t.tipo === 'receita' ? 'receita' : 'despesa', valor: r2(x.t.valor), comprovante: !!driveId(x.t.comprovante_url) }));\nconst resposta = { ok: true, de: d.de, ate: d.ate, itens, cortado: lista.length > 1000 };\nreturn [{ json: { proximo: 'responder', acao: d.acao, status: 200, resposta } }];\n",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
+      "id": "62e385eb-76ec-4d29-bbc0-4a437437329c",
+      "name": "É zip?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1960,
+        760
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -901,63 +717,34 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "62e385eb-76ec-4d29-bbc0-4a437437329c",
-      "name": "É zip?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1968,
-        768
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "operation": "download",
-        "fileId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "={{ $json.fileId }}"
-        },
-        "options": {
-          "binaryPropertyName": "data"
-        }
-      },
-      "id": "70d97268-58df-476a-9dfb-737d2334cafa",
-      "name": "Drive: baixar vários",
-      "type": "n8n-nodes-base.googleDrive",
-      "typeVersion": 3,
-      "position": [
-        2192,
-        704
-      ],
-      "credentials": {
-        "googleDriveOAuth2Api": {
-          "id": "9lKkvyZZfTlxviZX",
-          "name": "Google Drive account"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const itens = $input.all();\nconst metas = $('Montar extrato').all();\nconst binary = {};\nconst campos = [];\nconst usados = {};\nitens.forEach((it, i) => {\n  const b = it.binary && it.binary.data;\n  if (!b) return;\n  const meta = (metas[i] && metas[i].json) || {};\n  let ext = String(b.fileExtension || '').toLowerCase();\n  if (!ext) ext = /pdf/.test(String(b.mimeType)) ? 'pdf' : /png/.test(String(b.mimeType)) ? 'png' : 'jpg';\n  let nome = (meta.nome || ('comprovante_' + i)) + '.' + ext;\n  if (usados[nome]) nome = nome.replace('.' + ext, '_' + i + '.' + ext);\n  usados[nome] = 1;\n  const campo = 'f' + campos.length;\n  binary[campo] = Object.assign({}, b, { fileName: nome });\n  campos.push(campo);\n});\nconst d = $('Decidir').first().json;\nif (!campos.length) return [{ json: { proximo: 'responder', tem: false, status: 404, resposta: { ok: false, erro: 'arquivo' } } }];\nreturn [{ json: { proximo: 'zip', tem: true, campos: campos.join(','), nome_zip: 'comprovantes_' + d.de + '_a_' + d.ate + '.zip' }, binary }];\n"
-      },
       "id": "fb29c615-8a9c-43a9-9a74-df841d088b70",
       "name": "Juntar arquivos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         2400,
-        704
-      ]
+        700
+      ],
+      "parameters": {
+        "jsCode": "const itens = $input.all();\nconst metas = $('Montar extrato').all();\nconst binary = {};\nconst campos = [];\nconst usados = {};\nitens.forEach((it, i) => {\n  const b = it.binary && it.binary.data;\n  if (!b) return;\n  const meta = (metas[i] && metas[i].json) || {};\n  let ext = String(b.fileExtension || '').toLowerCase();\n  if (!ext) ext = /pdf/.test(String(b.mimeType)) ? 'pdf' : /png/.test(String(b.mimeType)) ? 'png' : 'jpg';\n  let nome = (meta.nome || ('comprovante_' + i)) + '.' + ext;\n  if (usados[nome]) nome = nome.replace('.' + ext, '_' + i + '.' + ext);\n  usados[nome] = 1;\n  const campo = 'f' + campos.length;\n  binary[campo] = Object.assign({}, b, { fileName: nome });\n  campos.push(campo);\n});\nconst d = $('Decidir').first().json;\nif (!campos.length) return [{ json: { proximo: 'responder', tem: false, status: 404, resposta: { ok: false, erro: 'arquivo' } } }];\nreturn [{ json: { proximo: 'zip', tem: true, campos: campos.join(','), nome_zip: 'comprovantes_' + d.de + '_a_' + d.ate + '.zip' }, binary }];\n",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
+      "id": "e8e25680-fd72-49e7-99b0-6bc5d66e31d0",
+      "name": "Tem arquivos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2600,
+        700
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -975,27 +762,12 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "e8e25680-fd72-49e7-99b0-6bc5d66e31d0",
-      "name": "Tem arquivos?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        2608,
-        704
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "operation": "compress",
-        "binaryPropertyName": "={{ $json.campos }}",
-        "fileName": "={{ $json.nome_zip }}"
-      },
       "id": "0ddef4c9-5468-4b43-b1e4-d34a41fdb828",
       "name": "Compactar (zip)",
       "type": "n8n-nodes-base.compression",
@@ -1003,57 +775,38 @@
       "position": [
         2800,
         640
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_transacoes",
-          "mode": "id",
-          "value": "czjKVg7HFjMKNpAq"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "autor",
-              "keyValue": "={{ $('Decidir').first().json.autor }}"
-            },
-            {
-              "keyValue": "={{ $('Decidir').first().json.id }}"
-            }
-          ]
-        },
-        "returnAll": true
-      },
-      "id": "6fac794a-1abe-4682-802c-6b50fb7d5d01",
-      "name": "Dados: comprovante",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1504,
-        992
       ],
-      "alwaysOutputData": true,
-      "executeOnce": true,
-      "onError": "continueRegularOutput"
+      "parameters": {
+        "binaryPropertyName": "={{ $json.campos }}",
+        "binaryPropertyOutput": "data",
+        "fileName": "={{ $json.nome_zip }}",
+        "operation": "compress",
+        "outputFormat": "zip"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "const d = $('Decidir').first().json;\nconst r = $input.all().map((i) => i.json).find((x) => x && Number(x.id) === Number(d.id) && x.autor === d.autor);\nconst s = r ? String(r.comprovante_url || '') : '';\nconst m = s.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\nif (!m) return [{ json: { proximo: 'responder', tem: false, status: 404, resposta: { ok: false, erro: 'sem_comprovante' } } }];\nreturn [{ json: { proximo: 'arquivo', tem: true, fileId: m[1] } }];\n"
-      },
       "id": "37aecb90-0785-4122-8f60-843cfe38e021",
       "name": "Arquivo: preparar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1744,
-        992
-      ]
+        1740,
+        980
+      ],
+      "parameters": {
+        "jsCode": "// 07/10/2026: comprovante vem do Supabase Storage.\nconst d = $('Decidir').first().json;\nconst r = $input.all().map((i) => i.json).find((x) => x && Number(x.id) === Number(d.id) && x.autor === d.autor);\nconst s = r ? String(r.comprovante_url || '') : '';\nif (s.indexOf('sb://comprovantes/') !== 0) return [{ json: { proximo: 'responder', tem: false, status: 404, resposta: { ok: false, erro: 'sem_comprovante' } } }];\nreturn [{ json: { proximo: 'arquivo', tem: true, caminho: s.slice(18) } }];\n",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
+      "id": "12c62a2f-aed2-4921-9a8b-7267edfc4cca",
+      "name": "Tem comprovante?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1960,
+        980
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -1071,53 +824,22 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "12c62a2f-aed2-4921-9a8b-7267edfc4cca",
-      "name": "Tem comprovante?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1968,
-        992
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "operation": "download",
-        "fileId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "={{ $json.fileId }}"
-        },
-        "options": {
-          "binaryPropertyName": "data"
-        }
-      },
-      "id": "f5835e6b-4fd7-4440-bcdd-865ccf821f27",
-      "name": "Drive: baixar comprovante",
-      "type": "n8n-nodes-base.googleDrive",
-      "typeVersion": 3,
+      "id": "b22c9f85-4ebc-44f1-963f-13dab07d9515",
+      "name": "Responder arquivo",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
       "position": [
-        2192,
-        944
+        3000,
+        800
       ],
-      "credentials": {
-        "googleDriveOAuth2Api": {
-          "id": "9lKkvyZZfTlxviZX",
-          "name": "Google Drive account"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
       "parameters": {
-        "respondWith": "binary",
-        "responseDataSource": "set",
+        "inputFieldName": "data",
         "options": {
           "responseCode": 200,
           "responseHeaders": {
@@ -1136,61 +858,801 @@
               }
             ]
           }
-        }
-      },
-      "id": "b22c9f85-4ebc-44f1-963f-13dab07d9515",
-      "name": "Responder arquivo",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [
-        3008,
-        800
-      ]
+        },
+        "respondWith": "binary",
+        "responseDataSource": "set"
+      }
     },
     {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_orcamentos",
-          "mode": "id",
-          "value": "4jXoLKiJqLZnCJxI"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "pessoa",
-              "keyValue": "={{ $('Decidir').first().json.autor }}"
-            }
-          ]
-        },
-        "returnAll": true
-      },
-      "id": "9de7dff7-c981-49de-890f-5883d05b170c",
-      "name": "Dados: orçamentos",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        2400,
-        640
-      ],
-      "alwaysOutputData": true,
-      "executeOnce": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Só depois da checagem do cabeçalho do site (status 400 = ação desconhecida, não 403).\nconst j = $input.first().json || {};\nif (j.acao === 'vagas' && j.proximo === 'responder' && j.status === 400) {\n  return [{ json: { proximo: 'rpc', acao: 'vagas', rpc: 'dyno_vagas', args: {}, token: '', ip: '' } }];\n}\nreturn [{ json: j }];"
-      },
       "id": "0151c96d-226a-4de6-b49a-6c2408a4651b",
       "name": "Ação pública (vagas)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        368,
+        360,
         480
-      ]
+      ],
+      "parameters": {
+        "jsCode": "// Só depois da checagem do cabeçalho do site (status 400 = ação desconhecida, não 403).\nconst j = $input.first().json || {};\nif (j.acao === 'vagas' && j.proximo === 'responder' && j.status === 400) {\n  return [{ json: { proximo: 'rpc', acao: 'vagas', rpc: 'dyno_vagas', args: {}, token: '', ip: '' } }];\n}\n// 08/10/2026: Dyno Business (business.dynoapp.com.br): quero ser piloto (Essencial) e contato (Plano Business).\nif (j.acao === 'biz_lead' && j.proximo === 'responder' && j.status === 400) {\n  let b = {}, h = {};\n  try { const r = $('Site: requisição').first().json; b = r.body || {}; h = r.headers || {}; } catch (e) {}\n  if (String(b.site || '') !== '') return [{ json: { proximo: 'responder', acao: j.acao, status: 200, resposta: { ok: true, situacao: 'recebido' } } }];\n  const ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || '').trim().slice(0, 64);\n  const s = (v, n) => String(v || '').slice(0, n);\n  const p = { plano: b.plano === 'business' ? 'business' : 'essencial', nome: s(b.nome, 90), whatsapp: s(b.whatsapp, 30), negocio: s(b.negocio, 90), nicho: s(b.nicho, 70), funcionarios: s(b.funcionarios, 20), mensagem: s(b.mensagem, 600), aceite: b.aceite === true };\n  return [{ json: { proximo: 'rpc', acao: 'biz_lead', rpc: 'dyno_biz_lead', args: { p, p_ip: ip }, token: '', ip } }];\n}\n// 08/10/2026: Dyno Business — página pública do orçamento (dynoapp.com.br/o?t=TOKEN): ver e aprovar/recusar.\nif ((j.acao === 'biz_orc_ver' || j.acao === 'biz_orc_decidir') && j.proximo === 'responder' && j.status === 400) {\n  let b = {}, h = {};\n  try { const r = $('Site: requisição').first().json; b = r.body || {}; h = r.headers || {}; } catch (e) {}\n  const ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || '').trim().slice(0, 64);\n  const t = String(b.t || '').toLowerCase().replace(/[^a-f0-9]/g, '').slice(0, 32);\n  if (j.acao === 'biz_orc_ver') return [{ json: { proximo: 'rpc', acao: j.acao, rpc: 'biz_orc_ver', args: { p_t: t, p_ip: ip }, token: '', ip } }];\n  return [{ json: { proximo: 'rpc', acao: j.acao, rpc: 'biz_orc_decidir', args: { p_t: t, p_decisao: String(b.decisao || '').slice(0, 10), p_motivo: String(b.motivo || '').slice(0, 300), p_ip: ip }, token: '', ip } }];\n}\nreturn [{ json: j }];"
+      }
+    },
+    {
+      "id": "22999ef2-856e-400b-8451-555921c77077",
+      "name": "Dados: transações",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1500,
+        520
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_transacoes?' + 'order=data.desc&limit=5000&cliente=eq.' + encodeURIComponent($('Decidir').first().json.telefone) + '&data=gte.' + encodeURIComponent($now.minus({ months: 7 }).startOf('month').toISO()) }}"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "e9cc0df9-7412-4a2c-9d5f-1485e2f3ada7",
+      "name": "Dados: extrato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1500,
+        760
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_transacoes?' + 'order=data.desc&limit=5000&autor=eq.' + encodeURIComponent($('Decidir').first().json.autor) + '&data=gte.' + encodeURIComponent($('Decidir').first().json.de_iso) + '&data=lte.' + encodeURIComponent($('Decidir').first().json.ate_iso) }}"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "c91ee119-803c-4176-9dec-e3909fb2986a",
+      "name": "Dados: comprovante",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1500,
+        980
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_transacoes?' + 'autor=eq.' + encodeURIComponent($('Decidir').first().json.autor) + '&id=eq.' + encodeURIComponent(String($('Decidir').first().json.id)) }}"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "2a9f6507-e88d-4447-ba6a-43dddcba90e0",
+      "name": "Dados: tarefas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1700,
+        520
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_tarefas?' + 'order=id&limit=5000' + '&' + 'cliente=eq.' + encodeURIComponent(String($('Decidir').first().json.telefone)) }}"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "02fa914e-dbae-41db-aabe-4db2c42da228",
+      "name": "Dados: lembretes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1900,
+        520
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_lembretes?' + 'order=id&limit=5000' + '&' + 'or=' + encodeURIComponent('(' + ['cliente.eq.\"' + String($('Decidir').first().json.telefone) + '\"', 'telefone.eq.\"' + String(($('Decidir').first().json.telefone)) + '\"'].filter((x, i, a) => a.indexOf(x) === i).join(',') + ')') }}"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "6d350fd0-8fa2-4465-bb87-f2888e1ac74a",
+      "name": "Dados: contas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2100,
+        520
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_contas?' + 'order=id&limit=5000' + '&' + 'cliente=eq.' + encodeURIComponent(String($('Decidir').first().json.telefone)) }}"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "6cb1bf5c-0519-4390-8718-c566c72b37b4",
+      "name": "Dados: assinaturas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2300,
+        520
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_assinaturas?' + 'order=id&limit=5000' + '&' + 'cliente=eq.' + encodeURIComponent(String($('Decidir').first().json.telefone)) }}"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "95ab4f07-e485-4ea0-9fa5-08effae20e03",
+      "name": "Dados: orçamentos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2400,
+        640
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_orcamentos?' + 'order=id&limit=5000' + '&' + 'cliente=eq.' + encodeURIComponent(String($('Decidir').first().json.telefone)) }}"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "0a4a8fe0-7168-40d0-970d-25cbc4ee7eeb",
+      "name": "Dados: listas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2450,
+        760
+      ],
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_extras",
+          "mode": "id",
+          "value": "mJnt4Rop3vW3pcGI"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "eq",
+              "keyName": "autor",
+              "keyValue": "={{ $('Decidir').first().json.autor }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "get",
+        "resource": "row",
+        "returnAll": true
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "188f5e4d-b3fa-4af1-ab1a-bccf248fa8da",
+      "name": "Dados: compromissos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2450,
+        900
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_compromissos?order=inicio&limit=2000&cliente=eq.' + encodeURIComponent(String($('Decidir').first().json.telefone)) }}"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "93bc4c4f-baf1-4bb5-a2c9-a44523e1e1bb",
+      "name": "Ação família",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        560
+      ],
+      "parameters": {
+        "jsCode": "// Modo família (Premium): listar, adicionar e remover pessoas do grupo.\n// Só depois da checagem do cabeçalho do site (status 400 = ação desconhecida, não 403).\n// Sem cookie, segue com token vazio: o banco responde 'sessao' e o Decidir devolve 401.\nconst j = $input.first().json || {};\nconst acoes = ['familia', 'familia_add', 'familia_del'];\nif (acoes.includes(j.acao) && j.proximo === 'responder' && j.status === 400) {\n  let req = {};\n  try { req = $('Site: requisição').first().json || {}; } catch (e) { req = {}; }\n  const h = req.headers || {};\n  const b = req.body || {};\n  const m = String(h.cookie || '').match(/(?:^|;\\s*)dyno_sess=([a-f0-9]{64})/);\n  const token = m ? m[1] : '';\n  let args;\n  if (j.acao === 'familia') args = { p_token: token, p_acao: 'listar' };\n  else if (j.acao === 'familia_add') args = { p_token: token, p_acao: 'adicionar', p_nome: String(b.nome || '').slice(0, 60), p_whatsapp: String(b.whatsapp || '').slice(0, 30) };\n  else args = { p_token: token, p_acao: 'remover', p_id: /^[0-9a-f-]{36}$/i.test(String(b.id || '')) ? String(b.id) : null };\n  return [{ json: { proximo: 'rpc', acao: j.acao, rpc: 'dyno_site_familia', args, token, ip: '' } }];\n}\nreturn [{ json: j }];\n",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "4884ae94-2108-4140-a5aa-ef64d3989241",
+      "name": "Ação agenda",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        720
+      ],
+      "parameters": {
+        "jsCode": "const j = $input.first().json || {};\nconst acoes = ['agenda_iniciar', 'agenda_callback'];\nconst edicao = ['agenda_google', 'agenda_salvar', 'agenda_remover', 'agenda_concluir', 'lista'];\nif (j.proximo === 'responder' && j.status === 400) {\n  let b = {}, token = '';\n  try { const r = $('Site: requisição').first().json; b = r.body || {}; const h = r.headers || {}; const m = String(h.cookie || '').match(/(?:^|;\\s*)dyno_sess=([a-f0-9]{64})/); token = m ? m[1] : ''; } catch (e) {}\n  if (acoes.includes(j.acao)) {\n    const s = String(b.s || '');\n    if (!/^[0-9a-f]{48}$/.test(s)) return [{ json: { proximo: 'responder', acao: j.acao, status: 400, resposta: { ok: false, erro: 'invalido' } } }];\n    return [{ json: { proximo: 'rpc', acao: j.acao, rpc: j.acao === 'agenda_iniciar' ? 'dyno_agenda_iniciar' : 'dyno_agenda_estado_usar', args: { p_state: s }, token: '', ip: '' } }];\n  }\n  if (edicao.includes(j.acao)) {\n    if (!token) return [{ json: { proximo: 'responder', acao: j.acao, status: 401, resposta: { ok: false, erro: 'sessao' } } }];\n    return [{ json: { proximo: 'edicao', acao: j.acao, token, body: b } }];\n  }\n  // 07/10/2026: avaliação de 1 a 5 estrelas na área do cliente\n  if (j.acao === 'avaliar' || j.acao === 'avaliacao') {\n    if (!token) return [{ json: { proximo: 'responder', acao: j.acao, status: 401, resposta: { ok: false, erro: 'sessao' } } }];\n    if (j.acao === 'avaliacao') return [{ json: { proximo: 'rpc', acao: j.acao, rpc: 'dyno_site_avaliacao_ultima', args: { p_token: token }, token, ip: '' } }];\n    const n = Math.round(Number(b.estrelas));\n    if (!(n >= 1 && n <= 5)) return [{ json: { proximo: 'responder', acao: j.acao, status: 400, resposta: { ok: false, erro: 'estrelas' } } }];\n    return [{ json: { proximo: 'rpc', acao: j.acao, rpc: 'dyno_site_avaliar', args: { p_token: token, p_estrelas: n, p_comentario: String(b.comentario || '').slice(0, 500) }, token, ip: '' } }];\n  }\n  // 08/10/2026: página /admin (só o número admin; o banco confere a sessão)\n  if (['admin_lista', 'admin_cliente', 'admin_acao', 'admin_rede', 'admin_obs', 'admin_logs', 'admin_bits', 'admin_ia', 'admin_monitores', 'admin_mon_salvar', 'admin_mon_excluir', 'admin_mon_silenciar', 'admin_mon_ativo', 'admin_mon_testar', 'admin_ep_salvar', 'admin_ep_ativo', 'admin_traces', 'admin_trace', 'admin_central', 'admin_pedidos', 'admin_pedido', 'admin_funil'].includes(j.acao)) {\n    if (!token) return [{ json: { proximo: 'responder', acao: j.acao, status: 401, resposta: { ok: false, erro: 'sessao' } } }];\n    const p = {};\n    if (/^[0-9a-f-]{36}$/i.test(String(b.id || '')) || /^\\d{1,9}$/.test(String(b.id || ''))) p.id = String(b.id);\n    if (b.op) p.op = String(b.op).slice(0, 20);\n    if (b.valor) p.valor = String(b.valor).slice(0, 20);\n    if (b.dias) p.dias = Math.floor(Number(b.dias)) || 0;\n    if (b.janela) p.janela = String(b.janela).slice(0, 4);\n    const ISO = /^\\d{4}-\\d{2}-\\d{2}(T[0-9:.]+(Z|[+-]\\d{2}:?\\d{2})?)?$/;\n    if (ISO.test(String(b.de || ''))) p.de = String(b.de);\n    if (ISO.test(String(b.ate || ''))) p.ate = String(b.ate);\n    if (b.minutos !== undefined) p.minutos = Math.floor(Number(b.minutos)) || 0;\n    const limpa = (o, campos) => { const r = {}; if (!o || typeof o !== 'object') return r; for (const k of campos) { const v = o[k]; if (v === undefined || v === null) continue; r[k] = typeof v === 'boolean' ? v : (typeof v === 'number' ? v : String(v).slice(0, 300)); } return r; };\n    if (b.mon) p.mon = limpa(b.mon, ['id', 'nome', 'metrica', 'alvo', 'operador', 'aviso', 'critico', 'janela_min', 'renotificar_min', 'mensagem', 'ativo']);\n    if (b.ep) p.ep = limpa(b.ep, ['id', 'nome', 'grupo', 'url', 'metodo', 'esperado', 'intervalo_s', 'ativo']);\n    if (b.q) p.q = String(b.q).slice(0, 120);\n    if (b.wf) p.wf = String(b.wf).slice(0, 40);\n    if (b.fonte) p.fonte = String(b.fonte).slice(0, 120);\n    if (Array.isArray(b.niveis)) p.niveis = b.niveis.slice(0, 5).map((x) => String(x).slice(0, 10));\n    if (Array.isArray(b.tipos)) p.tipos = b.tipos.slice(0, 5).map((x) => String(x).slice(0, 10));\n    if (b.limite) p.limite = Math.floor(Number(b.limite)) || 200;\n    return [{ json: { proximo: 'rpc', acao: j.acao, rpc: 'dyno_site_admin', args: { p_token: token, p_acao: j.acao.slice(6), p }, token, ip: '' } }];\n  }\n  // 10/10/2026: aba Categorias (gastos por categoria, regras e limites). O banco confere a sessão e o plano.\n  if (j.acao === 'categorias') {\n    if (!token) return [{ json: { proximo: 'responder', acao: j.acao, status: 401, resposta: { ok: false, erro: 'sessao' } } }];\n    const OPS = ['ver', 'regra_salvar', 'regra_apagar', 'limite_salvar', 'limite_apagar', 'transacao_categoria'];\n    const op = OPS.includes(String(b.op)) ? String(b.op) : 'ver';\n    const p = { op, periodo: ['mes', 'mes_passado', '3meses'].includes(String(b.periodo)) ? String(b.periodo) : 'mes' };\n    if (/^\\d{1,12}$/.test(String(b.id || ''))) p.id = String(b.id);\n    if (b.categoria) p.categoria = String(b.categoria).slice(0, 40);\n    if (b.padrao) p.padrao = String(b.padrao).slice(0, 60);\n    if (b.limite !== undefined && b.limite !== null) p.limite = String(b.limite).slice(0, 20);\n    if (b.total === true) p.total = 'true';\n    if (b.regra === true) p.regra = 'true';\n    return [{ json: { proximo: 'rpc', acao: j.acao, rpc: 'dyno_site_categorias', args: { p_token: token, p }, token, ip: '' } }];\n  }\n  // 08/10/2026: conversa com o Dyno/Dina dentro do painel (mesmo cérebro do WhatsApp)\n  if (j.acao === 'chat_enviar' || j.acao === 'chat_ler' || j.acao === 'chat_visual') {\n    if (!token) return [{ json: { proximo: 'responder', acao: j.acao, status: 401, resposta: { ok: false, erro: 'sessao' } } }];\n    if (j.acao === 'chat_enviar') return [{ json: { proximo: 'rpc', acao: j.acao, rpc: 'dyno_site_chat_enviar', args: { p_token: token, p_texto: String(b.texto || '').slice(0, 1500) }, token, ip: '' } }];\n    if (j.acao === 'chat_visual') {\n      const TIPOS = ['gastos_categoria', 'gastos_dia', 'fluxo_meses', 'maiores_gastos', 'contas', 'assinaturas', 'limites'];\n      if (!TIPOS.includes(String(b.tipo))) return [{ json: { proximo: 'responder', acao: j.acao, status: 400, resposta: { ok: false, erro: 'visual' } } }];\n      return [{ json: { proximo: 'rpc', acao: j.acao, rpc: 'dyno_site_chat_visual', args: { p_token: token, p_tipo: String(b.tipo), p_periodo: ['mes', 'mes_passado', '30d'].includes(String(b.periodo)) ? String(b.periodo) : 'mes' }, token, ip: '' } }];\n    }\n    const desde = Math.max(0, Math.floor(Number(b.desde) || 0));\n    return [{ json: { proximo: 'rpc', acao: j.acao, rpc: 'dyno_site_chat_ler', args: { p_token: token, p_desde: desde }, token, ip: '' } }];\n  }\n}\nreturn [{ json: j }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "f1878082-12f8-4e43-bdaf-df47820ad570",
+      "name": "Agenda: conectar (Google)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1500,
+        1500
+      ],
+      "parameters": {
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "3iZpB1Sku6OVZUB1"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "ca597c6e-32aa-46c1-bb30-1a67ec78f93a",
+      "name": "Agenda: resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1740,
+        1500
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json || {};\nif (r.ok === true) return [{ json: { proximo: 'responder', status: 200, resposta: { ok: true, nome: r.nome || '', email: r.email || '' } } }];\nreturn [{ json: { proximo: 'responder', status: 400, resposta: { ok: false, erro: r.erro || 'google' } } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "550c8fc6-0960-41e6-85be-4cab9530f916",
+      "name": "Edição: site (agenda e listas)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3000,
+        2200
+      ],
+      "parameters": {
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "g3LNovUOFKNt2IoC"
+        }
+      }
+    },
+    {
+      "id": "4373ab56-02f9-4e4d-9a56-375fd5c8b014",
+      "name": "Edição: resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3220,
+        2200
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json || {};\nif (r.resposta && r.status) return [{ json: { proximo: 'responder', status: r.status, resposta: r.resposta } }];\nreturn [{ json: { proximo: 'responder', status: 503, resposta: { ok: false, erro: 'indisponivel' } } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "8216968c-7dbc-49ef-9814-d6ca31e1572d",
+      "name": "É edição?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2780,
+        2200
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "e1",
+              "leftValue": "={{ $json.proximo }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "edicao"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "21639fd1-4537-48da-8171-05ab96fc926a",
+      "name": "Storage: baixar comprovante",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2180,
+        940
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "GET",
+        "options": {
+          "response": {
+            "response": {
+              "outputPropertyName": "data",
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 30000
+        },
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/storage/v1/object/comprovantes/' + $json.caminho }}"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "2e044211-f13c-4b5e-8d52-9c3b92bb8fa1",
+      "name": "Storage: baixar vários",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2180,
+        700
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "GET",
+        "options": {
+          "response": {
+            "response": {
+              "outputPropertyName": "data",
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 30000
+        },
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/storage/v1/object/comprovantes/' + $json.caminho }}"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "df4a96fa-dfc9-4c58-bafd-5f9c2be3f6b6",
+      "name": "É avaliação?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "a1",
+              "leftValue": "={{ ['avaliar','avaliacao','categorias','chat_enviar','chat_ler','chat_visual','biz_lead','biz_orc_ver','biz_orc_decidir','admin_lista','admin_cliente','admin_acao','admin_rede','admin_obs','admin_logs','admin_ia','admin_monitores','admin_mon_salvar','admin_mon_excluir','admin_mon_silenciar','admin_mon_ativo','admin_mon_testar','admin_ep_salvar','admin_ep_ativo','admin_traces','admin_trace','admin_central','admin_pedidos','admin_pedido','admin_funil'].includes($('Preparar').first().json.acao) || ['avaliar','avaliacao','categorias','chat_enviar','chat_ler','chat_visual','biz_lead','biz_orc_ver','biz_orc_decidir','admin_lista','admin_cliente','admin_acao','admin_rede','admin_obs','admin_logs','admin_ia','admin_monitores','admin_mon_salvar','admin_mon_excluir','admin_mon_silenciar','admin_mon_ativo','admin_mon_testar','admin_ep_salvar','admin_ep_ativo','admin_traces','admin_trace','admin_central','admin_pedidos','admin_pedido','admin_funil'].includes(String(($('Ação agenda').first().json || {}).acao || '')) }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4df9678e-75cf-4660-879f-bcd897ff4cc3",
+      "name": "Avaliação: resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        380
+      ],
+      "parameters": {
+        "jsCode": "// 07/10/2026: resultado da avaliação (estrelas) vindo do Supabase. 08/10: também chat, business e /admin.\nconst r = $input.first().json || {};\nif (r.error || (r.code && r.message)) return [{ json: { proximo: 'responder', status: 500, resposta: { ok: false, erro: 'indisponivel' } } }];\nif (r.ok === false) return [{ json: { proximo: 'responder', status: r.erro === 'sessao' ? 401 : (r.erro === 'proibido' ? 403 : 400), resposta: r } }];\nreturn [{ json: { proximo: 'responder', status: 200, resposta: Object.assign({ ok: true }, r) } }];\n",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "93427eae-1f67-4544-a960-668af1627e27",
+      "name": "É Bits?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        40
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "b1",
+              "leftValue": "={{ String(($('Ação agenda').first().json || {}).acao || '') === 'admin_bits' }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b630996c-f3f0-426e-824a-9a858aa2e139",
+      "name": "Bits: prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        -160
+      ],
+      "parameters": {
+        "jsCode": "// 09/10/2026: Dyno AI (antes Bits) — assistente de observabilidade da Central de comando (/admin).\nconst r = $input.first().json || {};\nlet b = {};\ntry { b = $('Site: requisição').first().json.body || {}; } catch (e) { b = {}; }\nif (r.error || (r.code && r.message)) return [{ json: { ok: false, status: 500, resposta: { ok: false, erro: 'indisponivel' } } }];\nif (!r.ok) return [{ json: { ok: false, status: r.erro === 'sessao' ? 401 : (r.erro === 'proibido' ? 403 : 400), resposta: r } }];\nconst pergunta = String(b.pergunta || '').slice(0, 800).trim();\nif (!pergunta) return [{ json: { ok: false, status: 400, resposta: { ok: false, erro: 'pergunta' } } }];\nconst hist = Array.isArray(b.historico) ? b.historico.slice(-6).filter((m) => m && (m.r === 'u' || m.r === 'a')).map((m) => ({ role: m.r === 'u' ? 'user' : 'assistant', content: String(m.t || '').slice(0, 600) })) : [];\nconst sys = [\n  'Você é o Dyno AI, o assistente de observabilidade da Central de comando do Dyno (dynoapp.com.br/admin), parecido com o Bits AI do Datadog.',\n  'O Dyno é um assistente pessoal pelo WhatsApp (Dyno para dinheiro, Dina para agenda) e o Dyno Business. Quem pergunta é o Daniel, dono e administrador.',\n  'Arquitetura: VPS Hostinger (KVM 4) com Docker. Containers: dyno-evo-api / dyno-evo-postgres / dyno-evo-redis = WhatsApp do Dyno (Evolution API); n8n-n8n-1 = n8n, que roda todos os fluxos (workflows); n8n-traefik-1 = proxy HTTPS; dyno-site = site e painel (nginx); dyno-render = Gotenberg (PDF e imagens); dyno-obs = agente que coleta estas métricas a cada 60 s. Os containers evolution-*, chatwoot-* e os workflows \"Dynamo | ...\" são da Dynamo Wear, outro negócio no mesmo servidor: comente só se afetarem o Dyno.',\n  'Banco: Supabase (Postgres). IA: OpenAI (gpt-6-luna na conversa), Claude para documentos, Jev em modo sombra. Cobrança: Asaas. Monitores externos checam o site, o n8n e o WhatsApp a cada 5 min; além disso, o agente faz checagens sintéticas de 14 endpoints (site, API, Business, n8n, WhatsApp, containers internos, Supabase, OpenAI, Asaas) com DNS/TCP/TLS/TTFB, e há monitores com limites (aviso/crítico) que avisam o Daniel no WhatsApp.',\n  'Você recebe um JSON com os dados de observabilidade gerados agora (host, containers, workflows com p50/p95 e erros, IA, health checks, eventos de erro, mensagens, capacidade de clientes com o gargalo, estado dos monitores, saúde dos endpoints nas últimas 24 h e previsão de custo de IA do mês). Use só esses dados: cite números concretos e o nome do workflow, container ou componente. Se o dado não existir no JSON, diga que não há dado e onde procurar. Nunca invente.',\n  'Responda em português do Brasil, direto, como um SRE experiente explicando para o dono: primeiro a conclusão, depois a evidência, depois o próximo passo. Use markdown simples: **negrito**, listas com \"- \", `código`. No máximo uns 12 itens, a menos que peçam detalhe.',\n  'Quando fizer sentido, aponte a aba do painel: Visão geral, Infra (inclui capacidade de clientes), Endpoints, APM (workflows), IA · custos, Logs ou Monitores. O limite mensal do projeto OpenAI está no JSON (ia_previsao_mes.orcamento, hoje US$ 75); a capacidade de clientes é o menor valor entre CPU, memória, orçamento OpenAI, envios no WhatsApp e execuções do n8n. Para p95 alto, explique se é normal (o cérebro chama IA e leva ~5-20 s; agendamentos curtos devem ficar abaixo de 2 s).',\n  'Você só analisa: não executa ações, não reinicia nada e não envia mensagens. Nunca mostre tokens, chaves ou números de telefone completos. Horários estão em UTC no JSON: converta para o horário de Brasília (UTC-3) ao responder.'\n].join('\\n');\nconst payload = {\n  model: 'gpt-6-luna',\n  reasoning_effort: 'low',\n  messages: [\n    { role: 'system', content: sys },\n    { role: 'system', content: 'DADOS DE OBSERVABILIDADE (JSON, gerados agora):\\n' + JSON.stringify(r.contexto || {}) },\n    ...hist,\n    { role: 'user', content: pergunta }\n  ]\n};\nreturn [{ json: { ok: true, payload, _t0: Date.now() } }];\n"
+      }
+    },
+    {
+      "id": "82504e88-1063-4f5d-9b7b-e708d5095775",
+      "name": "Bits ok?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1220,
+        -160
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "b2",
+              "leftValue": "={{ $json.ok === true }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4e373902-130b-402f-9cd3-6eb3fe344b35",
+      "name": "Bits: OpenAI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1440,
+        -240
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 50000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://api.openai.com/v1/chat/completions"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "a6497d19-6b14-4986-9ab5-743555bbdd72",
+      "name": "Bits: resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1660,
+        -160
+      ],
+      "parameters": {
+        "jsCode": "let p = {};\ntry { p = $('Bits: prompt').first().json || {}; } catch (e) { p = {}; }\nif (!p.ok) return [{ json: { proximo: 'responder', registrar: false, status: p.status || 400, resposta: p.resposta || { ok: false, erro: 'indisponivel' } } }];\nlet o = {};\ntry { o = $('Bits: OpenAI').first().json || {}; } catch (e) { o = {}; }\nconst txt = o && o.choices && o.choices[0] && o.choices[0].message ? String(o.choices[0].message.content || '').trim() : '';\nif (!txt) return [{ json: { proximo: 'responder', registrar: false, status: 502, resposta: { ok: false, erro: 'ia' } } }];\nconst u = o.usage || {};\nlet ms = null; try { ms = Date.now() - Number(p._t0); if (!(ms > 0 && ms < 600000)) ms = null; } catch (e) { ms = null; }\nreturn [{ json: { proximo: 'responder', registrar: true, ms, modelo: o.model || 'gpt-6-luna', t_in: u.prompt_tokens || 0, t_out: u.completion_tokens || 0, status: 200, resposta: { ok: true, resposta: txt, modelo: o.model || '', tokens: u.total_tokens || 0 } } }];\n"
+      }
+    },
+    {
+      "id": "54a1fe75-0012-4537-a4d7-87cbb4c75ade",
+      "name": "Registrar uso (Bits)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1880,
+        -160
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "b3",
+              "leftValue": "={{ $json.registrar === true }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "83808987-510a-4f7f-af1f-d7567d523fbc",
+      "name": "Uso IA (Bits)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2100,
+        -240
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p: { autor: 'Daniel', origem: 'bits', tarefa: 'observabilidade', provedor: 'openai', modelo: $json.modelo, uso: { input_tokens: $json.t_in, output_tokens: $json.t_out }, ms: $json.ms || null } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 8000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_ia_registrar"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "97b9d579-7f08-492d-b01a-6063d1d0d9da",
+      "name": "Dados: documentos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2450,
+        1060
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_documentos?select=id,autor,documento,descricao,vencimento,status&status=eq.ativo&order=vencimento&limit=60&autor=eq.' + encodeURIComponent(String($('Decidir').first().json.autor || '-')) }}"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "8d609679-7a97-4da7-b0cb-057e6748d15e",
+      "name": "Dados: rastreios",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2450,
+        1220
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_rastreios?select=id,cliente,telefone,codigo,apelido,status_17,ultimo_evento,ultimo_local,ultimo_evento_em,atualizado_em,criado_em,entregue_em&order=id.desc&limit=40&cliente=eq.' + encodeURIComponent(String($('Decidir').first().json.telefone)) }}"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "865927d9-c89c-4c55-99b0-a7e809d39b83",
+      "name": "Painel: novidades",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2620,
+        700
+      ],
+      "parameters": {
+        "jsCode": "// Novidades 08-09/10: documentos com vencimento (sem número), encomendas rastreadas e orçamento do mês.\nconst TZ = 'America/Sao_Paulo';\nconst out = $input.first().json;\nconst r = out && out.resposta;\nif (!r || !r.ok) return [{ json: out }];\nconst d = $('Decidir').first().json;\nconst linhas = (n) => { try { return $(n).all().map((i) => i.json).filter((x) => x && x.id !== undefined && x.id !== null); } catch (e) { return []; } };\nconst num = (v) => Number(v) || 0;\nconst semAc = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();\nconst ehTotal = (c) => /^(total|geral|mes|mensal|todos)$/.test(semAc(c));\nconst hoje0 = DateTime.now().setZone(TZ).startOf('day');\nconst ROT = { cnh: 'CNH', rg: 'RG', passaporte: 'Passaporte', visto: 'Visto', seguro: 'Seguro', contrato: 'Contrato', garantia: 'Garantia', certificado: 'Certificado', outro: 'Documento' };\nr.documentos = linhas('Dados: documentos').filter((x) => x.autor === d.autor && String(x.status || 'ativo') === 'ativo' && x.vencimento).map((x) => {\n  const v = DateTime.fromISO(String(x.vencimento).slice(0, 10), { zone: TZ });\n  return { tipo: ROT[String(x.documento || 'outro')] || 'Documento', descricao: String(x.descricao || '').replace(/[0-9][0-9.\\-\\/ ]{4,}[0-9]/g, '•••').slice(0, 80), vencimento: String(x.vencimento).slice(0, 10), dias: v.isValid ? Math.round(v.diff(hoje0, 'days').days) : null };\n}).sort((a, b) => a.vencimento.localeCompare(b.vencimento)).slice(0, 30);\nconst EST = { NotFound: 'Aguardando a primeira atualização', InfoReceived: 'Postagem registrada', InTransit: 'Em trânsito', Expired: 'Sem atualização há muito tempo', AvailableForPickup: 'Disponível para retirada', OutForDelivery: 'Saiu para entrega', DeliveryFailure: 'Tentativa de entrega sem sucesso', Delivered: 'Entregue', Exception: 'Problema na entrega' };\nr.encomendas = linhas('Dados: rastreios').filter((x) => String(x.cliente || x.telefone || '') === String(d.telefone)).map((x) => ({\n  codigo: String(x.codigo || '').slice(0, 40), apelido: String(x.apelido || '').slice(0, 60),\n  status: x.entregue_em ? 'Entregue' : (EST[String(x.status_17 || '')] || 'Acompanhando'), entregue: !!x.entregue_em,\n  ultimo: String(x.ultimo_evento || '').slice(0, 160), local: String(x.ultimo_local || '').slice(0, 80), quando: String(x.ultimo_evento_em || x.atualizado_em || x.criado_em || '')\n})).sort((a, b) => (a.entregue - b.entregue) || b.quando.localeCompare(a.quando)).slice(0, 30);\nconst tot = linhas('Dados: orçamentos').find((o) => o.pessoa === d.autor && o.ativo !== false && num(o.limite) > 0 && ehTotal(o.categoria));\nconst usado = num(r.resumo && r.resumo.gastos);\nr.orcamento_mes = tot ? { limite: Math.round(num(tot.limite) * 100) / 100, usado, pct: Math.round(usado / num(tot.limite) * 100) } : null;\n// o orçamento geral não é uma categoria: tira a barra \"Total\" vazia que o limite criaria\nif (Array.isArray(r.categorias)) r.categorias = r.categorias.filter((c) => !(ehTotal(c.nome) && !num(c.valor)));\nif (r.vazio && (r.documentos.length || r.encomendas.length)) r.vazio = false;\nreturn [{ json: out }];\n"
+      }
     }
   ],
   "connections": {
@@ -1216,18 +1678,7 @@
         ],
         [
           {
-            "node": "Montar resposta",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Supabase: RPC": {
-      "main": [
-        [
-          {
-            "node": "Decidir",
+            "node": "É edição?",
             "type": "main",
             "index": 0
           }
@@ -1306,6 +1757,20 @@
         [
           {
             "node": "Dados: extrato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agenda: conectar (Google)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edição: site (agenda e listas)",
             "type": "main",
             "index": 0
           }
@@ -1419,77 +1884,11 @@
         ]
       ]
     },
-    "Dados: transações": {
-      "main": [
-        [
-          {
-            "node": "Dados: tarefas",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Dados: tarefas": {
-      "main": [
-        [
-          {
-            "node": "Dados: lembretes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Dados: lembretes": {
-      "main": [
-        [
-          {
-            "node": "Dados: contas",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Dados: contas": {
-      "main": [
-        [
-          {
-            "node": "Dados: assinaturas",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Montar painel": {
-      "main": [
-        [
-          {
-            "node": "Montar resposta",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Montar resposta": {
       "main": [
         [
           {
             "node": "Responder ao site",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Dados: extrato": {
-      "main": [
-        [
-          {
-            "node": "Montar extrato",
             "type": "main",
             "index": 0
           }
@@ -1511,7 +1910,7 @@
       "main": [
         [
           {
-            "node": "Drive: baixar vários",
+            "node": "Storage: baixar vários",
             "type": "main",
             "index": 0
           }
@@ -1519,17 +1918,6 @@
         [
           {
             "node": "Montar resposta",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Drive: baixar vários": {
-      "main": [
-        [
-          {
-            "node": "Juntar arquivos",
             "type": "main",
             "index": 0
           }
@@ -1576,17 +1964,6 @@
         ]
       ]
     },
-    "Dados: comprovante": {
-      "main": [
-        [
-          {
-            "node": "Arquivo: preparar",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Arquivo: preparar": {
       "main": [
         [
@@ -1602,7 +1979,7 @@
       "main": [
         [
           {
-            "node": "Drive: baixar comprovante",
+            "node": "Storage: baixar comprovante",
             "type": "main",
             "index": 0
           }
@@ -1616,18 +1993,77 @@
         ]
       ]
     },
-    "Drive: baixar comprovante": {
+    "Preparar": {
       "main": [
         [
           {
-            "node": "Responder arquivo",
+            "node": "Ação pública (vagas)",
             "type": "main",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Dados: extrato": {
+      "main": [
         [
           {
-            "node": "Montar resposta",
+            "node": "Montar extrato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados: comprovante": {
+      "main": [
+        [
+          {
+            "node": "Arquivo: preparar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados: transações": {
+      "main": [
+        [
+          {
+            "node": "Dados: tarefas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados: tarefas": {
+      "main": [
+        [
+          {
+            "node": "Dados: lembretes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados: lembretes": {
+      "main": [
+        [
+          {
+            "node": "Dados: contas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados: contas": {
+      "main": [
+        [
+          {
+            "node": "Dados: assinaturas",
             "type": "main",
             "index": 0
           }
@@ -1649,18 +2085,18 @@
       "main": [
         [
           {
-            "node": "Montar painel",
+            "node": "Dados: listas",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Preparar": {
+    "Dados: listas": {
       "main": [
         [
           {
-            "node": "Ação pública (vagas)",
+            "node": "Dados: compromissos",
             "type": "main",
             "index": 0
           }
@@ -1671,30 +2107,318 @@
       "main": [
         [
           {
+            "node": "Ação família",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ação família": {
+      "main": [
+        [
+          {
+            "node": "Ação agenda",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ação agenda": {
+      "main": [
+        [
+          {
             "node": "Precisa do banco?",
             "type": "main",
             "index": 0
           }
         ]
       ]
+    },
+    "Agenda: conectar (Google)": {
+      "main": [
+        [
+          {
+            "node": "Agenda: resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agenda: resultado": {
+      "main": [
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edição: site (agenda e listas)": {
+      "main": [
+        [
+          {
+            "node": "Edição: resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edição: resultado": {
+      "main": [
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É edição?": {
+      "main": [
+        [
+          {
+            "node": "Edição: site (agenda e listas)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage: baixar comprovante": {
+      "main": [
+        [
+          {
+            "node": "Responder arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage: baixar vários": {
+      "main": [
+        [
+          {
+            "node": "Juntar arquivos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É avaliação?": {
+      "main": [
+        [
+          {
+            "node": "Avaliação: resposta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Decidir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avaliação: resposta": {
+      "main": [
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: RPC": {
+      "main": [
+        [
+          {
+            "node": "É Bits?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É Bits?": {
+      "main": [
+        [
+          {
+            "node": "Bits: prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "É avaliação?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bits: prompt": {
+      "main": [
+        [
+          {
+            "node": "Bits ok?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bits ok?": {
+      "main": [
+        [
+          {
+            "node": "Bits: OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Bits: resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bits: OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Bits: resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bits: resposta": {
+      "main": [
+        [
+          {
+            "node": "Registrar uso (Bits)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar uso (Bits)?": {
+      "main": [
+        [
+          {
+            "node": "Uso IA (Bits)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Uso IA (Bits)": {
+      "main": [
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados: compromissos": {
+      "main": [
+        [
+          {
+            "node": "Dados: documentos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados: documentos": {
+      "main": [
+        [
+          {
+            "node": "Dados: rastreios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados: rastreios": {
+      "main": [
+        [
+          {
+            "node": "Montar painel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar painel": {
+      "main": [
+        [
+          {
+            "node": "Painel: novidades",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Painel: novidades": {
+      "main": [
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
-  },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": true,
-    "errorWorkflow": "5UUmuzItIYDsd3AG",
-    "saveDataErrorExecution": "none",
-    "saveDataSuccessExecution": "none"
-  },
-  "versionId": "ad21480d-5d9d-457a-80aa-cb1653c9c827",
-  "meta": {
-    "aiBuilderAssisted": true,
-    "builderVariant": "mcp",
-    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
-  },
-  "nodeGroups": [],
-  "id": "nslhB7FRnKuAOPuf",
-  "tags": []
+  }
 }

@@ -1,0 +1,71 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-800-normal.woff2") format("woff2"); font-weight: 800; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-600-normal.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; }
+[data-composition-id="01-hook"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Figtree", sans-serif; color: #E9EEF7; }
+.bg01 { position: absolute; inset: 0; background: #060A13; }
+.dots01 { position: absolute; inset: -40px; background-image: radial-gradient(circle, rgba(47,212,126,.55) 2px, transparent 2.6px); background-size: 34px 34px; -webkit-mask-image: radial-gradient(ellipse 60% 45% at 50% 55%, #000 0%, transparent 70%); mask-image: radial-gradient(ellipse 60% 45% at 50% 55%, #000 0%, transparent 70%); opacity: .55; }
+.glow01 { position: absolute; inset: 0; background: radial-gradient(ellipse 70% 40% at 50% 55%, rgba(47,212,126,.16), transparent 70%); }
+.h01 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; letter-spacing: -0.04em; line-height: 0.98; color: #E9EEF7; }
+.g01 { color: #2FD47E; }
+.eb01 { font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 30px; letter-spacing: .14em; text-transform: uppercase; color: #8C9AB3; }
+.mut01 { color: #8C9AB3; }
+.pill01 { display: inline-flex; align-items: center; gap: 14px; border: 2px solid rgba(160,185,225,.22); background: rgba(15,24,40,.7); border-radius: 999px; padding: 14px 28px; font-size: 32px; font-weight: 600; color: #A9B4CA; }
+.dot01 { width: 16px; height: 16px; border-radius: 50%; background: #2FD47E; box-shadow: 0 0 0 6px rgba(47,212,126,.18); flex: none; }
+.btn01 { display: flex; align-items: center; justify-content: center; background: #2FD47E; color: #04210F; border-radius: 999px; padding: 34px 44px; font-size: 46px; font-weight: 700; }
+.card01 { background: #0B1220; border: 2px solid rgba(160,185,225,.14); border-radius: 44px; }
+.logo01 { border-radius: 50%; background: #2FD47E; color: #0A1A33; display: flex; align-items: center; justify-content: center; font-family: Georgia, "Times New Roman", serif; font-weight: 700; line-height: 1; flex: none; }
+.av01 { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: Georgia, serif; font-weight: 700; font-size: 30px; color: #0A1A33; flex: none; }
+.avdy01 { background: #2FD47E; } .avdi01 { background: #F2B544; }
+.phone01 { position: absolute; background: #070C16; border-radius: 80px; box-shadow: 0 60px 140px rgba(0,0,0,.6), inset 0 0 0 3px rgba(255,255,255,.07); border: 14px solid #141C2C; overflow: hidden; }
+.ph-head01 { display: flex; align-items: center; gap: 22px; padding: 34px 40px 26px; border-bottom: 2px solid rgba(160,185,225,.12); }
+.ph-head01 b { display: block; font-size: 38px; } .ph-head01 small { display: block; font-size: 26px; color: #8C9AB3; }
+.b01 { position: absolute; max-width: 76%; padding: 24px 30px 18px; border-radius: 34px; font-size: 38px; line-height: 1.28; font-weight: 600; }
+.me01 { right: 34px; background: #0E3B27; border: 2px solid rgba(47,212,126,.25); border-bottom-right-radius: 10px; }
+.bot01 { left: 34px; background: #0F1828; border: 2px solid rgba(160,185,225,.14); border-bottom-left-radius: 10px; }
+.who01 { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+.who01 .av01 { width: 38px; height: 38px; font-size: 22px; }
+.who01 em { font-style: normal; font-weight: 600; color: #8C9AB3; font-size: 22px; }
+.tm01 { display: block; text-align: right; font-family: "JetBrains Mono", monospace; font-size: 20px; color: #A9B4CA; margin-top: 6px; }
+
+.brand01 { position:absolute; left:90px; top:300px; display:flex; align-items:center; gap:22px; font-family:"Bricolage Grotesque"; font-weight:800; font-size:64px; letter-spacing:-.03em; }
+.eb01 { position:absolute; left:90px; top:520px; }
+.t01 { position:absolute; left:90px; right:90px; top:580px; font-size:140px; }
+.ico01 { position:absolute; right:110px; top:280px; width:170px; border-radius:30px; overflow:hidden; background:#F6F4EF; box-shadow:0 30px 80px rgba(0,0,0,.5); text-align:center; font-family:"Bricolage Grotesque"; }
+.ico01 i { display:block; font-style:normal; background:#2FD47E; color:#06261A; font-weight:800; font-size:34px; letter-spacing:.12em; padding:10px 0 6px; }
+.ico01 b { display:block; color:#0D1424; font-weight:800; font-size:96px; line-height:1; padding:12px 0 18px; }
+.tags01 { position:absolute; left:90px; right:90px; top:1180px; display:flex; flex-direction:column; align-items:flex-start; gap:22px; }
+.tg01 { font-size:40px; padding:20px 34px; }
+.tg01.on { background:#2FD47E; color:#04210F; border-color:#2FD47E; }
+
+</style>
+<div id="root" data-composition-id="01-hook" data-width="1080" data-height="1920" data-duration="3.4">
+  <div id="f01-bg" class="clip" data-start="0" data-duration="3.4" data-track-index="0" style="position:absolute;inset:0">
+    <div class="bg01"></div><div class="glow01"></div><div class="dots01"></div>
+  </div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="brand01"><div class="logo01" style="width:96px;height:96px;font-size:54px">D</div>Dyno</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="ico01"><i>OUT</i><b>15</b></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="eb01">Novo no Dyno</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h01 t01">Marcou a reunião? <span class="g01">O link já vem junto.</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="tags01"><span class="pill01 tg01">🗓️ Direto no seu Google Agenda</span><span class="pill01 tg01">🎥 Sala do Google Meet criada</span><span class="pill01 tg01 on">✉️ Convite por e-mail ou WhatsApp</span></div>
+</div>
+<script>
+(function () {
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="01-hook"] ' + s);
+  const all = (s) => Array.from(document.querySelectorAll('[data-composition-id="01-hook"] ' + s));
+  tl.fromTo(one('.brand01'), { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: 'power2.out' }, 0.05);
+  tl.fromTo(one('.ico01'), { y: -200, rotation: -20, opacity: 0 }, { y: 0, rotation: 0, opacity: 1, duration: 0.7, ease: 'bounce.out' }, 0.2);
+  tl.fromTo(one('.eb01'), { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4 }, 0.3);
+  tl.fromTo(one('.t01'), { y: 70, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }, 0.45);
+  tl.fromTo(all('.tg01'), { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.8)', stagger: 0.25 }, 1.3);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["01-hook"] = tl;
+})();
+</script>
+</template>

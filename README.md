@@ -2,7 +2,7 @@
 
 Dyno (💰 dinheiro) e Dina (⏰ agenda e rotina) atendem pelo WhatsApp **+55 11 93949-7178**. Site: https://dynoapp.com.br
 
-**Comece por [`docs/PASSAGEM-DE-BASTAO.md`](docs/PASSAGEM-DE-BASTAO.md)** — estado do projeto, onde está cada peça, regras e pendências.
+**Comece por [`docs/PASSAGEM-DE-BASTAO.md`](docs/PASSAGEM-DE-BASTAO.md)** — estado do projeto, onde está cada peça, regras e pendências. As mudanças mais recentes estão em [`docs/ATUALIZACAO-2026-10-10.md`](docs/ATUALIZACAO-2026-10-10.md).
 Detalhe completo em [`docs/DOCUMENTACAO-TECNICA.md`](docs/DOCUMENTACAO-TECNICA.md).
 
 ## Arquitetura
@@ -15,11 +15,11 @@ A lógica vive nos workflows do n8n (ver [`n8n/`](n8n/README.md)). Este reposit�
 
 | Pasta | Conteúdo |
 |---|---|
-| `docs/` | Passagem de bastão, documentação técnica e notas de funções (ex.: `ALERTA-DE-CAMBIO.md`) |
-| `site/` | Site estático: `build.py` gera `www/`; `templates/` (nginx), `deploy/` (compose), `n8n/` (gerador do workflow da API do site) |
+| `docs/` | Passagem de bastão, atualização de 10/10, documentação técnica, notas de funções e `notas/` |
+| `site/` | Site estático. `www/` e `templates/` espelham a produção (ver `site/NOTA-PRODUCAO.md`); `build.py` está atrás, não rode sobre `www/`. `deploy/` (compose), `n8n/` (gerador do workflow da API do site) |
 | `card-semanal/` | Card "Sua semana" (HTML → PNG via Gotenberg `dyno-render`) e código do nó do n8n |
 | `videos/` | Projetos HyperFrames dos vídeos de divulgação (sem áudio `.wav` e sem renders) |
-| `n8n/` | Lugar para os exports dos workflows |
+| `n8n/` | Exports dos workflows (sem segredos) e `limpar_export.py` |
 
 ## Publicar o site
 

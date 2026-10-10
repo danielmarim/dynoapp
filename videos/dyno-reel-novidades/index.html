@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/js/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #060A13; }
+      #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #060A13; }
+      .scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="29.0" data-width="1080" data-height="1920">
+      <div id="el-01-hook" class="scene" data-composition-id="01-hook" data-composition-src="compositions/frames/01-hook.html" data-start="0" data-duration="3.6" data-track-index="0"></div>
+      <div id="el-02-remedio" class="scene" data-composition-id="02-remedio" data-composition-src="compositions/frames/02-remedio.html" data-start="3.4" data-duration="5.8" data-track-index="1"></div>
+      <div id="el-03-fatura" class="scene" data-composition-id="03-fatura" data-composition-src="compositions/frames/03-fatura.html" data-start="9.0" data-duration="5.6" data-track-index="0"></div>
+      <div id="el-04-gasto" class="scene" data-composition-id="04-gasto" data-composition-src="compositions/frames/04-gasto.html" data-start="14.4" data-duration="4.8" data-track-index="1"></div>
+      <div id="el-05-persona" class="scene" data-composition-id="05-persona" data-composition-src="compositions/frames/05-persona.html" data-start="19.0" data-duration="5.6" data-track-index="0"></div>
+      <div id="el-06-cta" class="scene" data-composition-id="06-cta" data-composition-src="compositions/frames/06-cta.html" data-start="24.4" data-duration="4.6" data-track-index="1"></div>
+      <audio id="el-bgm" src="assets/audio/bgm.wav" data-start="0" data-duration="29.0" data-track-index="11" data-volume="0.75"></audio>
+      <audio id="el-sfx" src="assets/sfx/sfx-mix.wav" data-start="0" data-duration="29.0" data-track-index="12" data-volume="1"></audio>
+    </div>
+    <script>
+      (function () {
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#el-02-remedio", { clipPath: "inset(0% 0% 0% 100%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.4, ease: "power3.inOut" }, 3.4);
+        tl.fromTo("#el-03-fatura", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.4, ease: "power3.inOut" }, 9.0);
+        tl.to("#el-02-remedio", { y: -180, duration: 0.4, ease: "power3.inOut" }, 9.0);
+        tl.fromTo("#el-04-gasto", { clipPath: "inset(0% 0% 0% 100%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.4, ease: "power3.inOut" }, 14.4);
+        tl.fromTo("#el-05-persona", { clipPath: "circle(0% at 50% 50%)" }, { clipPath: "circle(90% at 50% 50%)", duration: 0.45, ease: "power3.inOut" }, 19.0);
+        tl.fromTo("#el-06-cta", { clipPath: "inset(0% 0% 100% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.4, ease: "power3.inOut" }, 24.4);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

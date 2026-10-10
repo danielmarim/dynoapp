@@ -11,7 +11,7 @@ O que faz:
 - troca p_token fixo (enviado às RPCs do Supabase) por "__P_TOKEN__";
 - remove pinData e staticData (podem trazer dados de clientes de execuções de teste);
 - procura valores com cara de chave/token e telefones; mostra só onde estão, nunca o valor.
-Só aceita workflows cujo nome começa com "Dyno |" (o n8n também tem os da Dynamo Wear e outros);
+Só aceita workflows cujo nome começa com "Dyno" (inclui "Dyno Plataforma |" e "Dyno Business |"; Dynamo Wear fica de fora) (o n8n também tem os da Dynamo Wear e outros);
 use --todos para gravar todos.
 Sai com código 1 se achar suspeita de segredo (use --permitir para gravar mesmo assim).
 """
@@ -119,7 +119,7 @@ def main(argv):
                 print(f"? {origem}: não parece um workflow, ignorado")
                 continue
             nome = wf.get("name", "sem nome")
-            if not todos and not nome.startswith("Dyno |"):
+            if not todos and not nome.startswith("Dyno"):
                 print(f"- {nome}: não é do Dyno, ignorado")
                 continue
             trocas = limpar(wf)

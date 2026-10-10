@@ -22,3 +22,13 @@ mesmos nomes, ter a `N8N_ENCRYPTION_KEY` guardada num cofre de senhas e repor os
 
 Os 4 workflows desligados (Setup Evolution, TEMP limpeza de testes, TESTE Google Places, TESTE IA em camadas)
 não estão no backup: são de setup ou teste.
+
+## Atualização de 10/10/2026
+
+Só `dyno-api-do-site-area-do-cliente__nslhB7FRnKuAOPuf.json` (58 nós) e `dyno-whatsapp-cerebro__YFgP2bYqeHbQc5t1.json`
+(164 nós) foram reexportados; os demais seguem como em 08/10. Faltam os renomeados "Dyno Plataforma | …",
+"Dyno Business | …" e os 7 do WhatsApp oficial (Meta). O `limpar_export.py` agora aceita qualquer nome que comece com "Dyno".
+
+**Atenção:** esses dois vieram da leitura pela API, **sem a referência das credenciais** dos nós. Antes de importar
+num n8n novo, reexporte-os pela interface (passos acima) ou religue as credenciais à mão. A versão de 08/10, com as
+credenciais, continua no histórico do git.

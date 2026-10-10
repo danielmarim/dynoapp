@@ -1,0 +1,72 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-800-normal.woff2") format("woff2"); font-weight: 800; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-600-normal.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; }
+[data-composition-id="07-resumo"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Figtree", sans-serif; color: #E9EEF7; }
+.bg07 { position: absolute; inset: 0; background: #060A13; }
+.dots07 { position: absolute; inset: -40px; background-image: radial-gradient(circle, rgba(47,212,126,.55) 2px, transparent 2.6px); background-size: 34px 34px; -webkit-mask-image: radial-gradient(ellipse 60% 45% at 50% 40%, #000 0%, transparent 70%); mask-image: radial-gradient(ellipse 60% 45% at 50% 40%, #000 0%, transparent 70%); opacity: .55; }
+.glow07 { position: absolute; inset: 0; background: radial-gradient(ellipse 70% 40% at 50% 40%, rgba(47,212,126,.16), transparent 70%); }
+.h07 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; letter-spacing: -0.04em; line-height: 0.98; color: #E9EEF7; }
+.g07 { color: #2FD47E; }
+.eb07 { font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 30px; letter-spacing: .14em; text-transform: uppercase; color: #8C9AB3; }
+.mut07 { color: #8C9AB3; }
+.pill07 { display: inline-flex; align-items: center; gap: 14px; border: 2px solid rgba(160,185,225,.22); background: rgba(15,24,40,.7); border-radius: 999px; padding: 14px 28px; font-size: 32px; font-weight: 600; color: #A9B4CA; }
+.dot07 { width: 16px; height: 16px; border-radius: 50%; background: #2FD47E; box-shadow: 0 0 0 6px rgba(47,212,126,.18); flex: none; }
+.btn07 { display: flex; align-items: center; justify-content: center; background: #2FD47E; color: #04210F; border-radius: 999px; padding: 34px 44px; font-size: 46px; font-weight: 700; }
+.card07 { background: #0B1220; border: 2px solid rgba(160,185,225,.14); border-radius: 44px; }
+.logo07 { border-radius: 50%; background: #2FD47E; color: #0A1A33; display: flex; align-items: center; justify-content: center; font-family: Georgia, "Times New Roman", serif; font-weight: 700; line-height: 1; flex: none; }
+.av07 { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: Georgia, serif; font-weight: 700; font-size: 30px; color: #0A1A33; flex: none; }
+.avdy07 { background: #2FD47E; } .avdi07 { background: #F2B544; }
+.phone07 { position: absolute; background: #070C16; border-radius: 80px; box-shadow: 0 60px 140px rgba(0,0,0,.6), inset 0 0 0 3px rgba(255,255,255,.07); border: 14px solid #141C2C; overflow: hidden; }
+.ph-head07 { display: flex; align-items: center; gap: 22px; padding: 34px 40px 26px; border-bottom: 2px solid rgba(160,185,225,.12); }
+.ph-head07 b { display: block; font-size: 38px; } .ph-head07 small { display: block; font-size: 26px; color: #8C9AB3; }
+.b07 { position: absolute; max-width: 76%; padding: 24px 30px 18px; border-radius: 34px; font-size: 38px; line-height: 1.28; font-weight: 600; }
+.me07 { right: 34px; background: #0E3B27; border: 2px solid rgba(47,212,126,.25); border-bottom-right-radius: 10px; }
+.bot07 { left: 34px; background: #0F1828; border: 2px solid rgba(160,185,225,.14); border-bottom-left-radius: 10px; }
+.who07 { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+.who07 .av07 { width: 38px; height: 38px; font-size: 22px; }
+.who07 em { font-style: normal; font-weight: 600; color: #8C9AB3; font-size: 22px; }
+.tm07 { display: block; text-align: right; font-family: "JetBrains Mono", monospace; font-size: 20px; color: #A9B4CA; margin-top: 6px; }
+
+.brand07 { position:absolute; left:90px; top:200px; display:flex; align-items:center; gap:26px; font-family:"Bricolage Grotesque"; font-weight:800; font-size:76px; letter-spacing:-.03em; }
+.t07 { position:absolute; left:90px; right:90px; top:390px; font-size:110px; }
+.list07 { position:absolute; left:80px; right:80px; top:680px; display:flex; flex-direction:column; gap:22px; }
+.rs07 { display:flex; align-items:center; gap:28px; padding:30px 34px; border-radius:32px; font-size:44px; font-weight:700; }
+.n07 { width:76px; height:76px; border-radius:50%; background:#2FD47E; color:#04210F; display:flex; align-items:center; justify-content:center; font-family:"Bricolage Grotesque"; font-weight:800; font-size:42px; flex:none; }
+.num07 { position:absolute; left:0; right:0; top:1460px; text-align:center; font-family:"JetBrains Mono"; font-size:40px; color:#2FD47E; }
+.q07 { position:absolute; left:0; right:0; top:1540px; text-align:center; font-size:36px; color:#A9B4CA; }
+
+</style>
+<div id="root" data-composition-id="07-resumo" data-width="1080" data-height="1920" data-duration="5.6">
+  <div id="f07-bg" class="clip" data-start="0" data-duration="5.6" data-track-index="0" style="position:absolute;inset:0">
+    <div class="bg07"></div><div class="glow07"></div><div class="dots07"></div>
+  </div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="brand07"><div class="logo07" style="width:116px;height:116px;font-size:66px">D</div>Dyno</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h07 t07">Resumindo:</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="list07">
+    <div data-layout-allow-overlap data-layout-allow-overflow class="card07 rs07"><span class="n07">0</span>Responda EU QUERO</div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="card07 rs07"><span class="n07">1</span>Crie o grupo da família</div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="card07 rs07"><span class="n07">2</span>Adicione o Dyno</div>
+    <div data-layout-allow-overlap data-layout-allow-overflow class="card07 rs07"><span class="n07">3</span>Mande “oi Dyno” no grupo</div>
+  </div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="num07">Dyno: +55 11 93949-7178</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="q07">Ficou com dúvida? É só perguntar ao Dyno. 💚</div>
+</div>
+<script>
+(function () {
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="07-resumo"] ' + s);
+  const all = (s) => Array.from(document.querySelectorAll('[data-composition-id="07-resumo"] ' + s));
+  tl.fromTo([one('.brand07'), one('.t07')], { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out', stagger: 0.1 }, 0.1);
+  tl.fromTo(all('.rs07'), { x: -140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'power3.out', stagger: 0.25 }, 0.6);
+  tl.fromTo([one('.num07'), one('.q07')], { opacity: 0 }, { opacity: 1, duration: 0.4, stagger: 0.2 }, 1.9);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["07-resumo"] = tl;
+})();
+</script>
+</template>

@@ -1,0 +1,83 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-800-normal.woff2") format("woff2"); font-weight: 800; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-600-normal.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; }
+[data-composition-id="04-gasto"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Figtree", sans-serif; color: #E9EEF7; }
+.bg04 { position: absolute; inset: 0; background: #060A13; }
+.dots04 { position: absolute; inset: -40px; background-image: radial-gradient(circle, rgba(47,212,126,.55) 2px, transparent 2.6px); background-size: 34px 34px; -webkit-mask-image: radial-gradient(ellipse 60% 45% at 50% 45%, #000 0%, transparent 70%); mask-image: radial-gradient(ellipse 60% 45% at 50% 45%, #000 0%, transparent 70%); opacity: .55; }
+.glow04 { position: absolute; inset: 0; background: radial-gradient(ellipse 70% 40% at 50% 45%, rgba(47,212,126,.16), transparent 70%); }
+.h04 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; letter-spacing: -0.04em; line-height: 0.98; color: #E9EEF7; }
+.g04 { color: #2FD47E; }
+.eb04 { font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 30px; letter-spacing: .14em; text-transform: uppercase; color: #8C9AB3; }
+.mut04 { color: #8C9AB3; }
+.pill04 { display: inline-flex; align-items: center; gap: 14px; border: 2px solid rgba(160,185,225,.22); background: rgba(15,24,40,.7); border-radius: 999px; padding: 14px 28px; font-size: 32px; font-weight: 600; color: #A9B4CA; }
+.dot04 { width: 16px; height: 16px; border-radius: 50%; background: #2FD47E; box-shadow: 0 0 0 6px rgba(47,212,126,.18); flex: none; }
+.btn04 { display: flex; align-items: center; justify-content: center; background: #2FD47E; color: #04210F; border-radius: 999px; padding: 34px 44px; font-size: 46px; font-weight: 700; }
+.card04 { background: #0B1220; border: 2px solid rgba(160,185,225,.14); border-radius: 44px; }
+.logo04 { border-radius: 50%; background: #2FD47E; color: #0A1A33; display: flex; align-items: center; justify-content: center; font-family: Georgia, "Times New Roman", serif; font-weight: 700; line-height: 1; flex: none; }
+.av04 { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: Georgia, serif; font-weight: 700; font-size: 30px; color: #0A1A33; flex: none; }
+.avdy04 { background: #2FD47E; } .avdi04 { background: #F2B544; }
+.phone04 { position: absolute; background: #070C16; border-radius: 80px; box-shadow: 0 60px 140px rgba(0,0,0,.6), inset 0 0 0 3px rgba(255,255,255,.07); border: 14px solid #141C2C; overflow: hidden; }
+.ph-head04 { display: flex; align-items: center; gap: 22px; padding: 34px 40px 26px; border-bottom: 2px solid rgba(160,185,225,.12); }
+.ph-head04 b { display: block; font-size: 38px; } .ph-head04 small { display: block; font-size: 26px; color: #8C9AB3; }
+.b04 { position: absolute; max-width: 76%; padding: 24px 30px 18px; border-radius: 34px; font-size: 38px; line-height: 1.28; font-weight: 600; }
+.me04 { right: 34px; background: #0E3B27; border: 2px solid rgba(47,212,126,.25); border-bottom-right-radius: 10px; }
+.bot04 { left: 34px; background: #0F1828; border: 2px solid rgba(160,185,225,.14); border-bottom-left-radius: 10px; }
+.who04 { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+.who04 .av04 { width: 38px; height: 38px; font-size: 22px; }
+.who04 em { font-style: normal; font-weight: 600; color: #8C9AB3; font-size: 22px; }
+.tm04 { display: block; text-align: right; font-family: "JetBrains Mono", monospace; font-size: 20px; color: #A9B4CA; margin-top: 6px; }
+
+.eb04 { position:absolute; left:90px; top:170px; }
+.t04 { position:absolute; left:90px; right:90px; top:220px; font-size:96px; }
+.card04 { position:absolute; left:90px; right:90px; top:560px; padding:44px 48px; }
+.lbl04 { display:flex; justify-content:space-between; font-size:34px; color:#A9B4CA; margin-bottom:14px; }
+.lbl04 b { color:#E9EEF7; }
+.bar04 { height:54px; border-radius:16px; background:rgba(160,185,225,.14); overflow:hidden; margin-bottom:30px; }
+.bar04 i { display:block; height:100%; width:0; border-radius:16px; }
+.bar04.n i { background:#8C9AB3; }
+.bar04.h i { background:#F2B544; }
+.msg04 { position:absolute; left:90px; right:90px; top:1010px; max-width:none; font-size:36px; }
+.msg04.bot04 { left:90px; right:220px; }
+.rep04 { position:absolute; right:90px; top:1420px; max-width:none; font-size:36px; }
+.ok04 { position:absolute; left:90px; right:220px; top:1570px; max-width:none; font-size:36px; }
+
+</style>
+<div id="root" data-composition-id="04-gasto" data-width="1080" data-height="1920" data-duration="4.8">
+  <div id="f04-bg" class="clip" data-start="0" data-duration="4.8" data-track-index="0" style="position:absolute;inset:0">
+    <div class="bg04"></div><div class="glow04"></div><div class="dots04"></div>
+  </div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="eb04">Novo · 3 de 5</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h04 t04">Aviso quando o gasto <span class="g04">foge do normal.</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="card04">
+    <div class="lbl04"><span>Delivery · seu normal</span><b>R$ 260</b></div>
+    <div class="bar04 n"><i class="b104"></i></div>
+    <div class="lbl04"><span>Delivery · este mês</span><b style="color:#F2B544">R$ 420</b></div>
+    <div class="bar04 h"><i class="b204"></i></div>
+  </div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="b04 bot04 msg04"><div class="who04"><span class="av04 avdy04">D</span>Dyno <em>finanças</em></div>🔎 Ana, delivery este mês já deu <b>R$ 420</b>, 60% acima do seu normal. Quer um limite de <b class="g04">R$ 300</b>?</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="b04 me04 rep04">Quero 👍</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="b04 bot04 ok04"><div class="who04"><span class="av04 avdy04">D</span>Dyno</div>Limite de R$ 300 definido. Eu aviso quando chegar perto. ✅</div>
+</div>
+<script>
+(function () {
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="04-gasto"] ' + s);
+  const all = (s) => Array.from(document.querySelectorAll('[data-composition-id="04-gasto"] ' + s));
+  tl.fromTo([one('.eb04'), one('.t04')], { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out', stagger: 0.1 }, 0.15);
+  tl.fromTo(one('.card04'), { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'power3.out' }, 0.5);
+  tl.to(one('.b104'), { width: '62%', duration: 0.7, ease: 'power2.out' }, 1.0);
+  tl.to(one('.b204'), { width: '100%', duration: 0.9, ease: 'power2.out' }, 1.2);
+  tl.fromTo(one('.msg04'), { x: -140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.4)' }, 2.2);
+  tl.fromTo(one('.rep04'), { x: 140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'back.out(1.5)' }, 3.4);
+  tl.fromTo(one('.ok04'), { x: -140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'back.out(1.5)' }, 4.0);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["04-gasto"] = tl;
+})();
+</script>
+</template>

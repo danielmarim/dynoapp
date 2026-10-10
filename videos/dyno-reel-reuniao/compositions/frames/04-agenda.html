@@ -1,0 +1,80 @@
+<template>
+<script src="assets/js/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-800-normal.woff2") format("woff2"); font-weight: 800; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-600-normal.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Figtree"; src: url("assets/fonts/figtree-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; }
+[data-composition-id="04-agenda"]#root, #root { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; font-family: "Figtree", sans-serif; color: #E9EEF7; }
+.bg04 { position: absolute; inset: 0; background: #060A13; }
+.dots04 { position: absolute; inset: -40px; background-image: radial-gradient(circle, rgba(47,212,126,.55) 2px, transparent 2.6px); background-size: 34px 34px; -webkit-mask-image: radial-gradient(ellipse 60% 45% at 50% 55%, #000 0%, transparent 70%); mask-image: radial-gradient(ellipse 60% 45% at 50% 55%, #000 0%, transparent 70%); opacity: .55; }
+.glow04 { position: absolute; inset: 0; background: radial-gradient(ellipse 70% 40% at 50% 55%, rgba(47,212,126,.16), transparent 70%); }
+.h04 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; letter-spacing: -0.04em; line-height: 0.98; color: #E9EEF7; }
+.g04 { color: #2FD47E; }
+.eb04 { font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 30px; letter-spacing: .14em; text-transform: uppercase; color: #8C9AB3; }
+.mut04 { color: #8C9AB3; }
+.pill04 { display: inline-flex; align-items: center; gap: 14px; border: 2px solid rgba(160,185,225,.22); background: rgba(15,24,40,.7); border-radius: 999px; padding: 14px 28px; font-size: 32px; font-weight: 600; color: #A9B4CA; }
+.dot04 { width: 16px; height: 16px; border-radius: 50%; background: #2FD47E; box-shadow: 0 0 0 6px rgba(47,212,126,.18); flex: none; }
+.btn04 { display: flex; align-items: center; justify-content: center; background: #2FD47E; color: #04210F; border-radius: 999px; padding: 34px 44px; font-size: 46px; font-weight: 700; }
+.card04 { background: #0B1220; border: 2px solid rgba(160,185,225,.14); border-radius: 44px; }
+.logo04 { border-radius: 50%; background: #2FD47E; color: #0A1A33; display: flex; align-items: center; justify-content: center; font-family: Georgia, "Times New Roman", serif; font-weight: 700; line-height: 1; flex: none; }
+.av04 { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: Georgia, serif; font-weight: 700; font-size: 30px; color: #0A1A33; flex: none; }
+.avdy04 { background: #2FD47E; } .avdi04 { background: #F2B544; }
+.phone04 { position: absolute; background: #070C16; border-radius: 80px; box-shadow: 0 60px 140px rgba(0,0,0,.6), inset 0 0 0 3px rgba(255,255,255,.07); border: 14px solid #141C2C; overflow: hidden; }
+.ph-head04 { display: flex; align-items: center; gap: 22px; padding: 34px 40px 26px; border-bottom: 2px solid rgba(160,185,225,.12); }
+.ph-head04 b { display: block; font-size: 38px; } .ph-head04 small { display: block; font-size: 26px; color: #8C9AB3; }
+.b04 { position: absolute; max-width: 76%; padding: 24px 30px 18px; border-radius: 34px; font-size: 38px; line-height: 1.28; font-weight: 600; }
+.me04 { right: 34px; background: #0E3B27; border: 2px solid rgba(47,212,126,.25); border-bottom-right-radius: 10px; }
+.bot04 { left: 34px; background: #0F1828; border: 2px solid rgba(160,185,225,.14); border-bottom-left-radius: 10px; }
+.who04 { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+.who04 .av04 { width: 38px; height: 38px; font-size: 22px; }
+.who04 em { font-style: normal; font-weight: 600; color: #8C9AB3; font-size: 22px; }
+.tm04 { display: block; text-align: right; font-family: "JetBrains Mono", monospace; font-size: 20px; color: #A9B4CA; margin-top: 6px; }
+
+.eb04 { position:absolute; left:90px; top:170px; }
+.t04 { position:absolute; left:90px; right:90px; top:220px; font-size:96px; }
+.cal04 { position:absolute; left:90px; right:90px; top:470px; padding:40px 40px 50px 40px; }
+.dia04 { display:flex; align-items:baseline; gap:18px; margin-bottom:34px; }
+.dia04 b { font-family:"Bricolage Grotesque"; font-weight:800; font-size:64px; }
+.dia04 span { font-size:32px; color:#8C9AB3; font-weight:600; }
+.grade04 { position:relative; height:830px; margin-top:20px; }
+.hr04 { position:absolute; left:0; right:0; border-top:2px solid rgba(160,185,225,.12); }
+.hr04 span { position:absolute; left:0; top:-18px; font-family:"JetBrains Mono"; font-size:24px; color:#8C9AB3; background:#0B1220; padding-right:12px; }
+.ev04 { position:absolute; left:130px; right:10px; top:406px; height:186px; border-radius:26px; background:#0E2A20; border:2px solid rgba(47,212,126,.55); border-left:12px solid #2FD47E; padding:20px 26px; }
+.ev04 b { display:block; font-size:38px; }
+.ev04 small { display:block; font-size:28px; color:#A9B4CA; margin-top:6px; }
+.pp04 { position:absolute; left:130px; right:10px; top:636px; display:flex; gap:16px; flex-wrap:wrap; }
+.pp04 .pill04 { font-size:28px; padding:12px 22px; }
+.av204 { width:40px; height:40px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#0A1A33; }
+
+</style>
+<div id="root" data-composition-id="04-agenda" data-width="1080" data-height="1920" data-duration="4.6">
+  <div id="f04-bg" class="clip" data-start="0" data-duration="4.6" data-track-index="0" style="position:absolute;inset:0">
+    <div class="bg04"></div><div class="glow04"></div><div class="dots04"></div>
+  </div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="eb04">Tudo no lugar</div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="h04 t04">Já está na <span class="g04">sua agenda.</span></div>
+  <div data-layout-allow-overlap data-layout-allow-overflow class="card04 cal04">
+    <div class="dia04"><b>Quinta, 15</b><span>outubro</span></div>
+    <div class="grade04"><div class="hr04" style="top:0px"><span>13:00</span></div><div class="hr04" style="top:200px"><span>14:00</span></div><div class="hr04" style="top:400px"><span>15:00</span></div><div class="hr04" style="top:600px"><span>16:00</span></div><div class="hr04" style="top:800px"><span>17:00</span></div>
+      <div data-layout-allow-overlap data-layout-allow-overflow class="ev04"><b>Orçamento 2027</b><small>15:00–16:00 · 🎥 Google Meet</small></div>
+      <div data-layout-allow-overlap data-layout-allow-overflow class="pp04"><span class="pill04"><span class="av204" style="background:#F2B544">A</span>Ana ✓ vai</span><span class="pill04"><span class="av204" style="background:#7FB2FF">B</span>Bruno ✓ vai</span></div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  const tl = gsap.timeline({ paused: true });
+  const one = (s) => document.querySelector('[data-composition-id="04-agenda"] ' + s);
+  const all = (s) => Array.from(document.querySelectorAll('[data-composition-id="04-agenda"] ' + s));
+  tl.fromTo([one('.eb04'), one('.t04')], { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out', stagger: 0.1 }, 0.15);
+  tl.fromTo(one('.cal04'), { y: 260, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }, 0.25);
+  tl.fromTo(one('.ev04'), { scaleY: 0, transformOrigin: '50% 0%', opacity: 0 }, { scaleY: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.6)' }, 1.0);
+  tl.fromTo(all('.pp04 .pill04'), { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, stagger: 0.35, ease: 'back.out(1.8)' }, 1.9);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["04-agenda"] = tl;
+})();
+</script>
+</template>
