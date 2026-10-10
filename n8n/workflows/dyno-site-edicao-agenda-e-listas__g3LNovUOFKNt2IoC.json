@@ -1,0 +1,698 @@
+{
+  "id": "g3LNovUOFKNt2IoC",
+  "name": "Dyno | Site: edição (agenda e listas)",
+  "description": "Chamado pela API do site: inclui/edita/remove itens da agenda (Dyno e Google Agenda) e das listas, sempre validando a sessão do cliente.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "id": "743caa2e-ed0a-4869-8949-784dfcde35c3",
+      "name": "Pedido do site",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "4a791e14-777a-4f3c-bd8c-490e2f03870d",
+      "name": "Pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Edição pelo site (06/10/2026): agenda (Dyno e Google) e listas. Entrada vem do workflow da API do site.\nconst j = $input.first().json || {};\nconst b = (j.body && typeof j.body === 'object') ? j.body : {};\nreturn [{ json: { acao: String(j.acao || ''), token: /^[a-f0-9]{64}$/.test(String(j.token || '')) ? String(j.token) : '', b } }];\n"
+      }
+    },
+    {
+      "id": "efc1e23e-cb17-48b5-a12a-bcd15c132aa8",
+      "name": "Sessão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_site_conta",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_token: $json.token }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "9f3d941c-526e-4380-a622-69a95f546b7f",
+      "name": "Rotear",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const P = $('Pedido').first().json;\nconst s = $input.first().json || {};\nconst b = P.b || {};\nconst fim = (status, resposta) => [{ json: { rota: 'fim', status, resposta } }];\nif (!s.ok || !s.interno) return fim(401, { ok: false, erro: 'sessao' });\nconst autor = String(s.interno.autor || ''), numero = String(s.interno.whatsapp || '');\nif (!autor) return fim(400, { ok: false, erro: 'sem_autor' });\nconst tipo = String(b.tipo || '');\nconst dt = (v) => /^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2})?$/.test(String(v || '').slice(0, 16)) ? String(v).slice(0, 16) : null;\nif (P.acao === 'agenda_google') {\n  const de = /^\\d{4}-\\d{2}-\\d{2}$/.test(String(b.de || '')) ? b.de : null, ate = /^\\d{4}-\\d{2}-\\d{2}$/.test(String(b.ate || '')) ? b.ate : null;\n  return [{ json: { rota: 'google', autor, g: { op: 'listar', numero, de, ate, dias: 45, max: 250 } } }];\n}\nif ((P.acao === 'agenda_salvar' || P.acao === 'agenda_remover') && tipo === 'google') {\n  const id = String(b.id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 200);\n  if (P.acao === 'agenda_remover') { if (!id) return fim(400, { ok: false, erro: 'dados' }); return [{ json: { rota: 'google', autor, g: { op: 'remover', numero, event_id: id } } }]; }\n  const titulo = String(b.titulo || '').trim().slice(0, 200), inicio = dt(b.inicio), fimDt = dt(b.fim);\n  if (!titulo || !inicio) return fim(400, { ok: false, erro: 'dados' });\n  return [{ json: { rota: 'google', autor, g: { op: id ? 'editar' : 'criar', numero, event_id: id, titulo, inicio, fim: fimDt, local: String(b.local || '').slice(0, 300), dia_inteiro: b.dia_inteiro === true } } }];\n}\nif (['agenda_salvar', 'agenda_remover', 'agenda_concluir'].includes(P.acao)) {\n  if (!['compromisso', 'lembrete', 'tarefa'].includes(tipo)) return fim(400, { ok: false, erro: 'dados' });\n  const p = { op: P.acao === 'agenda_salvar' ? 'salvar' : (P.acao === 'agenda_remover' ? 'remover' : 'concluir'), tipo, id: b.id ? String(b.id).replace(/\\D/g, '') : '', titulo: String(b.titulo || '').slice(0, 150), inicio: dt(b.inicio) || '', fim: dt(b.fim) || '', local: String(b.local || '').slice(0, 120), recorrencia: String(b.recorrencia || 'nenhuma'), feito: b.feito === false ? 'false' : 'true' };\n  return [{ json: { rota: 'banco', autor, args: { p_token: P.token, p } } }];\n}\nif (P.acao === 'lista') return [{ json: { rota: 'lista', autor, l: b } }];\nreturn fim(400, { ok: false, erro: 'acao_invalida' });\n"
+      }
+    },
+    {
+      "id": "d31bb56b-0d18-474d-a006-3d2c28b9035c",
+      "name": "Rota",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "banco",
+              "renameOutput": true,
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "banco"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "google",
+              "renameOutput": true,
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "google"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "lista",
+              "renameOutput": true,
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "lista"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "fim"
+        }
+      }
+    },
+    {
+      "id": "40807ae7-9ceb-4d0c-ae92-2718ecb4cb3a",
+      "name": "Banco: agenda",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_site_agenda",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.args) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "829eb40b-3f95-47e6-a9a3-31c3f9e56f0a",
+      "name": "Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const R = $('Rotear').first().json;\nconst r = $input.first().json || {};\nif (R.rota === 'fim') return [{ json: { status: R.status || 400, resposta: R.resposta || { ok: false } } }];\nif (R.rota === 'banco') {\n  if (r.ok) return [{ json: { status: 200, resposta: { ok: true, id: r.id || null } } }];\n  return [{ json: { status: r.erro === 'sessao' ? 401 : 400, resposta: { ok: false, erro: r.erro || 'indisponivel' } } }];\n}\nif (R.rota === 'google') {\n  if (r.conectado === false) return [{ json: { status: 200, resposta: { ok: true, conectado: false, eventos: [] } } }];\n  if (r.ok === false || r.error) return [{ json: { status: 400, resposta: { ok: false, conectado: true, erro: r.erro || 'google' } } }];\n  return [{ json: { status: 200, resposta: { ok: true, conectado: true, eventos: Array.isArray(r.eventos) ? r.eventos.map(e => ({ id: e.id, titulo: e.titulo, inicio: e.inicio, fim: e.fim, dia_inteiro: e.dia_inteiro, local: e.local, link: e.link, recorrente: e.recorrente })) : undefined, id: r.id || undefined } } }];\n}\nif (R.rota === 'lista') {\n  const a = $('Aplicar na lista').first().json;\n  if (a.modo === 'erro') return [{ json: { status: 400, resposta: { ok: false, erro: a.erro } } }];\n  const lista = Object.assign({}, a.lista);\n  if (!lista.id && r && r.id != null) lista.id = r.id;\n  return [{ json: { status: 200, resposta: { ok: true, lista, apagada: a.apagada === true } } }];\n}\nreturn [{ json: { status: 400, resposta: { ok: false } } }];\n"
+      }
+    },
+    {
+      "id": "954e23b0-de3b-466a-9162-9f892b11c7b1",
+      "name": "Preparar Google",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "return [{ json: $input.first().json.g }];"
+      }
+    },
+    {
+      "id": "f25c0496-abce-424c-8fde-d835d08ac579",
+      "name": "Google Agenda",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1320,
+        300
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "3iZpB1Sku6OVZUB1"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "682595da-771f-495c-9da9-75aebcc0d779",
+      "name": "Listas: carregar",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        520
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mJnt4Rop3vW3pcGI",
+          "cachedResultName": "assessor_extras"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "autor",
+              "condition": "eq",
+              "keyValue": "={{ $('Rotear').first().json.autor }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "f3681b8f-b479-4e85-b8cd-3f2a259b7795",
+      "name": "Aplicar na lista",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        520
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Aplica uma operação numa lista (data table assessor_extras), preservando os campos que o WhatsApp usa.\nconst R = $('Rotear').first().json;\nconst l = R.l || {};\nconst autor = R.autor;\nconst rows = $input.all().map(i => i.json).filter(r => r && r.id != null && (r.autor || 'Daniel') === autor && (r.tipo === 'nota' || r.tipo === 'ideia') && r.status !== 'apagada');\nconst op = String(l.op || '');\nconst lim = (s, n) => String(s == null ? '' : s).replace(/\\s+/g, ' ').trim().slice(0, n);\nconst cat = (c) => { const x = lim(c, 40); return x ? x : ''; };\nconst erro = (e) => [{ json: { modo: 'erro', erro: e } }];\nconst dados = (r) => { try { const d = JSON.parse(r.dados || '{}') || {}; return (d && typeof d === 'object') ? d : {}; } catch (e) { return {}; } };\nconst saida = (r, d, extra) => {\n  const its = Array.isArray(d.itens) ? d.itens.map(String) : [];\n  d.itens = its;\n  d.marcados = (Array.isArray(d.marcados) ? d.marcados.map(String) : []).filter((x, i, a) => its.includes(x) && a.indexOf(x) === i);\n  const c0 = (d.categorias && typeof d.categorias === 'object') ? d.categorias : {}; const c1 = {};\n  its.forEach(x => { if (c0[x]) c1[x] = String(c0[x]).slice(0, 40); }); d.categorias = c1;\n  return [{ json: Object.assign({ modo: 'upd', id: r.id, titulo: r.titulo, texto: r.texto || '', dados: JSON.stringify(d), valor: r.valor === undefined ? null : r.valor, data: r.data || null, status: r.status || 'ativa', lista: { id: r.id, titulo: r.titulo, tipo: r.tipo, itens: d.itens, marcados: d.marcados, categorias: d.categorias, texto: r.texto || '' } }, extra || {}) }];\n};\nif (op === 'criar') {\n  const titulo = lim(l.titulo, 80); if (!titulo) return erro('titulo');\n  if (rows.length >= 60) return erro('limite');\n  const itens = (Array.isArray(l.itens) ? l.itens : []).map(x => lim(x, 160)).filter(Boolean).slice(0, 150);\n  const d = { itens, marcados: [], categorias: {} };\n  return [{ json: { modo: 'ins', autor, tipo: 'nota', titulo, texto: '', dados: JSON.stringify(d), valor: null, data: null, status: 'ativa', lista: { id: null, titulo, tipo: 'nota', itens, marcados: [], categorias: {}, texto: '' } } }];\n}\nconst r = rows.find(x => Number(x.id) === Number(l.id));\nif (!r) return erro('nao_encontrada');\nconst d = dados(r);\nconst its = Array.isArray(d.itens) ? d.itens.map(String) : [];\nd.itens = its;\nd.marcados = Array.isArray(d.marcados) ? d.marcados.map(String) : [];\nd.categorias = (d.categorias && typeof d.categorias === 'object') ? d.categorias : {};\nconst achar = () => { const a = String(l.antigo == null ? '' : l.antigo); let i = its.indexOf(a); if (i < 0 && Number.isInteger(l.idx) && its[l.idx] !== undefined && lim(its[l.idx], 160) === lim(a, 160)) i = l.idx; return i; };\nif (op === 'titulo') { const t = lim(l.titulo, 80); if (!t) return erro('titulo'); r.titulo = t; return saida(r, d); }\nif (op === 'apagar') { r.status = 'apagada'; return saida(r, d, { apagada: true }); }\nif (op === 'limpar_marcados') { d.itens = its.filter(x => !d.marcados.includes(x)); d.marcados = []; return saida(r, d); }\nif (op === 'item_add') {\n  const t = lim(l.texto, 160); if (!t) return erro('texto');\n  if (its.length >= 150) return erro('limite');\n  if (!its.some(x => x.toLowerCase() === t.toLowerCase())) its.push(t);\n  if (cat(l.categoria)) d.categorias[t] = cat(l.categoria);\n  return saida(r, d);\n}\nconst i = achar(); if (i < 0) return erro('item');\nconst velho = its[i];\nif (op === 'item_remover') { its.splice(i, 1); return saida(r, d); }\nif (op === 'item_marcar') { d.marcados = d.marcados.filter(x => x !== velho); if (l.marcado !== false) d.marcados.push(velho); return saida(r, d); }\nif (op === 'item_editar') {\n  const t = l.texto != null ? lim(l.texto, 160) : velho; if (!t) return erro('texto');\n  its[i] = t;\n  if (t !== velho) { d.marcados = d.marcados.map(x => x === velho ? t : x); if (d.categorias[velho]) { d.categorias[t] = d.categorias[velho]; delete d.categorias[velho]; } }\n  if (l.categoria !== undefined) { const c = cat(l.categoria); if (c) d.categorias[t] = c; else delete d.categorias[t]; }\n  return saida(r, d);\n}\nreturn erro('op');\n"
+      }
+    },
+    {
+      "id": "cb3cc60a-b686-41ef-a4c1-01eb26c6280c",
+      "name": "Modo",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1540,
+        520
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "ins",
+              "renameOutput": true,
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.modo }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "ins"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "upd",
+              "renameOutput": true,
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.modo }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "upd"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "erro"
+        }
+      }
+    },
+    {
+      "id": "fd293356-1a96-4a82-aab1-effde399f0e0",
+      "name": "Listas: inserir",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        440
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mJnt4Rop3vW3pcGI",
+          "cachedResultName": "assessor_extras"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "autor": "={{ $json.autor }}",
+            "tipo": "={{ $json.tipo }}",
+            "titulo": "={{ $json.titulo }}",
+            "texto": "={{ $json.texto }}",
+            "dados": "={{ $json.dados }}",
+            "status": "={{ $json.status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "autor",
+              "displayName": "autor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo",
+              "displayName": "tipo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "titulo",
+              "displayName": "titulo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "texto",
+              "displayName": "texto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dados",
+              "displayName": "dados",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "a752d3e3-e429-4af4-8057-58c045c85ef1",
+      "name": "Listas: atualizar",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        600
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mJnt4Rop3vW3pcGI",
+          "cachedResultName": "assessor_extras"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "titulo": "={{ $json.titulo }}",
+            "dados": "={{ $json.dados }}",
+            "status": "={{ $json.status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "titulo",
+              "displayName": "titulo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dados",
+              "displayName": "dados",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Pedido do site": {
+      "main": [
+        [
+          {
+            "node": "Pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pedido": {
+      "main": [
+        [
+          {
+            "node": "Sessão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sessão": {
+      "main": [
+        [
+          {
+            "node": "Rotear",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rotear": {
+      "main": [
+        [
+          {
+            "node": "Rota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rota": {
+      "main": [
+        [
+          {
+            "node": "Banco: agenda",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Google",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Listas: carregar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Banco: agenda": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Google": {
+      "main": [
+        [
+          {
+            "node": "Google Agenda",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Agenda": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listas: carregar": {
+      "main": [
+        [
+          {
+            "node": "Aplicar na lista",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aplicar na lista": {
+      "main": [
+        [
+          {
+            "node": "Modo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modo": {
+      "main": [
+        [
+          {
+            "node": "Listas: inserir",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Listas: atualizar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listas: inserir": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listas: atualizar": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "c7a23e52-4086-41a5-97fe-ff28fe29d808"
+}

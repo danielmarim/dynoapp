@@ -1,0 +1,216 @@
+{
+  "id": "IyoOvCdatYNhN4mR",
+  "name": "Dyno Business | Gerar imagem OG (Gotenberg → overlay)",
+  "description": "Renderiza business.dynoapp.com.br/og.html no Gotenberg (1200x630) e grava o PNG em base64 no overlay do site (dyno_site_files). Reiniciar dyno-site depois.",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "nodes": [
+    {
+      "id": "30616ae4-dabb-4352-a33c-b28194e1296b",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "ffb37f5e-8e55-42d6-a4fb-485bbdcda4b0",
+      "name": "Baixar og.html",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://business.dynoapp.com.br/og.html",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "f5615661-8906-4ad2-8dc0-6338c1fc7fb2",
+      "name": "Preparar HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const html = String($input.first().json.data || '');\nconst bin = await this.helpers.prepareBinaryData(Buffer.from(html, 'utf8'), 'index.html', 'text/html');\nreturn [{ json: { tamanho: html.length }, binary: { index: bin } }];"
+      }
+    },
+    {
+      "id": "dd09ce89-126c-40a4-b009-90e14b5d74fc",
+      "name": "Gotenberg: screenshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://dyno-render:3000/forms/chromium/screenshot/html",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "index"
+            },
+            {
+              "name": "width",
+              "value": "1200"
+            },
+            {
+              "name": "height",
+              "value": "630"
+            },
+            {
+              "name": "format",
+              "value": "png"
+            },
+            {
+              "name": "waitDelay",
+              "value": "2s"
+            },
+            {
+              "name": "optimizeForSpeed",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "png"
+            }
+          },
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "id": "ba7b118c-9f8e-405e-87cd-3b11e5253040",
+      "name": "Partes em base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const buf = await this.helpers.getBinaryDataBuffer(0, 'png');\nconst b64 = buf.toString('base64');\nconst base = 'business/og-dyno-business.png.b64';\nconst out = [];\nlet n = 0;\nfor (let i = 0; i < b64.length; i += 4000) { n++; out.push({ json: { path: base + '#' + String(n).padStart(2, '0'), conteudo: b64.slice(i, i + 4000) } }); }\nfor (let k = n + 1; k <= 12; k++) out.push({ json: { path: base + '#' + String(k).padStart(2, '0'), conteudo: '' } });\nreturn out.map((o) => ({ json: Object.assign(o.json, { bytes: buf.length, partes: n }) }));"
+      }
+    },
+    {
+      "id": "7bfe2187-6e6f-4fb6-ba4f-47dad07c4ac9",
+      "name": "Supabase: gravar parte",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_site_files",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ path: $json.path, conteudo: $json.conteudo }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Baixar og.html",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar og.html": {
+      "main": [
+        [
+          {
+            "node": "Preparar HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar HTML": {
+      "main": [
+        [
+          {
+            "node": "Gotenberg: screenshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gotenberg: screenshot": {
+      "main": [
+        [
+          {
+            "node": "Partes em base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Partes em base64": {
+      "main": [
+        [
+          {
+            "node": "Supabase: gravar parte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "52392edc-8a89-4b8b-9a0c-edeed2ee98de"
+}

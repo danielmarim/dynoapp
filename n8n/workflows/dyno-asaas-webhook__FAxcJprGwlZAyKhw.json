@@ -1,14 +1,18 @@
 {
+  "id": "FAxcJprGwlZAyKhw",
   "name": "Dyno | Asaas webhook",
+  "description": "Recebe os avisos de pagamento do Asaas (token verificado), registra o evento uma única vez e atualiza o status do cliente e os pagamentos no Supabase.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
   "nodes": [
     {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "dyno-asaas",
-        "authentication": "headerAuth",
-        "responseMode": "responseNode",
-        "options": {}
-      },
       "id": "a4f91d4d-ff26-4d69-855c-b2602df7e8e1",
       "name": "Recebe aviso do Asaas",
       "type": "n8n-nodes-base.webhook",
@@ -17,27 +21,15 @@
         0,
         0
       ],
-      "webhookId": "8bb1ad2f-95bf-4442-9c5a-7fd050657b5d",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "a9Mthp01Mx0O4YPV",
-          "name": "asaas-access-token"
-        }
-      }
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-asaas",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth"
+      },
+      "webhookId": "8bb1ad2f-95bf-4442-9c5a-7fd050657b5d"
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_evento_asaas",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ p_token: \"__P_TOKEN__\", p: $json.body }) }}",
-        "options": {
-          "timeout": 15000
-        }
-      },
       "id": "fd6c2383-97d5-4571-be2e-a7f2600ee12e",
       "name": "Supabase: processar evento",
       "type": "n8n-nodes-base.httpRequest",
@@ -46,22 +38,22 @@
         224,
         0
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qgXgW9Cfnyoli06W",
-          "name": "Supabase_Dyno"
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_evento_asaas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_token: \"__P_TOKEN__\", p: $json.body }) }}",
+        "options": {
+          "timeout": 15000
         }
       },
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { ok: $json.ok === true } }}",
-        "options": {
-          "responseCode": "={{ $json.ok === true ? 200 : ($json.erro === \"token_invalido\" ? 401 : 500) }}"
-        }
-      },
       "id": "b32696af-8d02-498d-ac09-9447f5d90282",
       "name": "Responder ao Asaas",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -69,7 +61,14 @@
       "position": [
         448,
         0
-      ]
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: $json.ok === true } }}",
+        "options": {
+          "responseCode": "={{ $json.ok === true ? 200 : ($json.erro === \"token_invalido\" ? 401 : 500) }}"
+        }
+      }
     }
   ],
   "connections": {
@@ -96,23 +95,6 @@
       ]
     }
   },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": true,
-    "errorWorkflow": "5UUmuzItIYDsd3AG",
-    "saveManualExecutions": false,
-    "saveDataErrorExecution": "none",
-    "saveDataSuccessExecution": "none"
-  },
-  "versionId": "9682a86c-0384-46bf-920c-8cc2ca2c8d64",
-  "meta": {
-    "aiBuilderAssisted": true,
-    "builderVariant": "mcp",
-    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
-  },
-  "nodeGroups": [],
-  "id": "FAxcJprGwlZAyKhw",
-  "tags": []
+  "tags": [],
+  "versionId": "9682a86c-0384-46bf-920c-8cc2ca2c8d64"
 }

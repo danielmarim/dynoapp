@@ -1,0 +1,466 @@
+{
+  "id": "DaTCVC5YGV6fpVqK",
+  "name": "Dyno | Rastreio de encomendas (17TRACK)",
+  "description": "A cada 10 min registra no 17TRACK as encomendas novas; a cada 2h (8h-20h) consulta as acompanhadas e a Dina avisa no WhatsApp quando o status muda.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo"
+  },
+  "nodes": [
+    {
+      "id": "8b5aaff3-a907-44db-89e4-06bc2bd9b12c",
+      "name": "A cada 10 min (registrar)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "e3a83c5b-3a5a-4429-8c9a-0ed1b88e0cbf",
+      "name": "Supabase: para registrar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_rastreios?estado=eq.registrar&order=id&limit=40&select=id,codigo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "31ebb5ee-1692-4990-b640-f059ad53933d",
+      "name": "Montar lote (registro)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const cods = [...new Set($input.all().map(i => i.json && i.json.codigo).filter(Boolean))];\nif (!cods.length) return [];\nreturn [{ json: { corpo: cods.slice(0, 40).map(c => ({ number: c })) } }];"
+      }
+    },
+    {
+      "id": "9559106b-bb73-48e8-a051-9558de9eb26f",
+      "name": "17TRACK: registrar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.17track.net/track/v2.4/register",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "7a2b995c-3478-453b-87f6-3e221634764a",
+      "name": "Supabase: registrado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_rastreio_registrado",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: { aceitos: ($json.data && $json.data.accepted) || [], recusados: ($json.data && $json.data.rejected) || [] } }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "9e2dbcef-e217-4155-9f73-e3fc43bbe85d",
+      "name": "A cada 2h (8h às 20h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        224
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "15 8-20/2 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "851747b7-f3a8-4017-88d5-d0bf604410fd",
+      "name": "Supabase: acompanhando",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        224
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_rastreios?estado=eq.acompanhando&order=id&limit=200&select=id,codigo,transportadora",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "fd2bfd51-b9ad-4fed-863b-cc1c135a3c60",
+      "name": "Montar lotes (consulta)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        224
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// gettrackinfo aceita até 40 números por chamada e não gasta cota.\nconst vistos = new Set(); const itens = [];\nfor (const i of $input.all()) { const r = i.json || {}; if (!r.codigo || vistos.has(r.codigo)) continue; vistos.add(r.codigo); itens.push(r.transportadora ? { number: r.codigo, carrier: Number(r.transportadora) } : { number: r.codigo }); }\nconst out = [];\nfor (let k = 0; k < itens.length; k += 40) out.push({ json: { corpo: itens.slice(k, k + 40) } });\nreturn out;"
+      }
+    },
+    {
+      "id": "6dd0893f-005d-4162-86db-b53c90fe8cd2",
+      "name": "17TRACK: consultar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        224
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.17track.net/track/v2.4/gettrackinfo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1500
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "c87a5b6e-a4c3-458b-b9cb-c8883374f7a0",
+      "name": "Normalizar respostas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        224
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const itens = [];\nfor (const i of $input.all()) {\n  for (const a of ((i.json.data || {}).accepted || [])) {\n    const ti = a.track_info || {}; const ls = ti.latest_status || {}; const le = ti.latest_event || {};\n    itens.push({ codigo: a.number, status: ls.status || null, evento: le.description || null, local: le.location || null, quando: le.time_iso || le.time_utc || null });\n  }\n}\nif (!itens.length) return [];\nreturn [{ json: { p: { itens } } }];"
+      }
+    },
+    {
+      "id": "8f58d189-8c50-4897-af2c-978b98c8a60f",
+      "name": "Supabase: atualizar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1120,
+        224
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_rastreio_atualizar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: $json.p }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "b54911a7-7dae-421b-b308-9fd7c2f11e12",
+      "name": "Montar avisos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        224
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const NL = String.fromCharCode(10);\nconst ST = { InfoReceived: '📝 Postagem informada', InTransit: '🚚 Em trânsito', OutForDelivery: '🛵 Saiu para entrega', AvailableForPickup: '🏤 Aguardando retirada', DeliveryFailure: '⚠️ Tentativa de entrega sem sucesso', Exception: '⚠️ Problema na entrega', Expired: '⌛ Sem atualização há muito tempo', Delivered: '✅ Entregue!', NotFound: '🔎 Ainda sem informação' };\nconst out = [];\nfor (const a of (($input.first().json || {}).avisos || [])) {\n  const nome = a.apelido ? a.apelido + ' · ' + a.codigo : a.codigo;\n  let quando = '';\n  try { if (a.quando) quando = DateTime.fromISO(String(a.quando)).setZone('America/Sao_Paulo').toFormat('dd/LL HH:mm'); } catch (e) { quando = ''; }\n  const linhas = ['📦 *Sua encomenda* (' + nome + ')', (ST[a.status] || '📦 Atualização') + (a.evento ? ' — ' + a.evento : '')];\n  const onde = [a.local, quando].filter(Boolean).join(' · ');\n  if (onde) linhas.push('📍 ' + onde);\n  if (a.status === 'Delivered') linhas.push('', 'Parei de acompanhar essa. Se tiver outra, é só me mandar o código.');\n  out.push({ json: { numero: a.telefone, autor: a.autor, texto: linhas.join(NL) } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "4bd4d673-1989-442d-9561-2b88d4df65c0",
+      "name": "Enviar aviso (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1568,
+        224
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: String.fromCharCode(8203) + '*⏰ Dina*' + String.fromCharCode(10) + $json.texto, delay: 1200 }) }}",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "a94809df-8e53-48e8-b4de-913d583b77b6",
+      "name": "Registrar na conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1792,
+        224
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_mensagens",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ telefone: String($('Montar avisos').item.json.numero), papel: 'assistente', texto: '*⏰ Dina*' + String.fromCharCode(10) + $('Montar avisos').item.json.texto, autor: 'Assessor:' + $('Montar avisos').item.json.autor }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b29f1bcf-9ea1-421f-9364-e45f4cf81bc2",
+      "name": "Supabase: novos sem status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        240,
+        600
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "GET",
+        "options": {
+          "timeout": 15000
+        },
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_rastreios?estado=eq.acompanhando&ultimo_evento=is.null&order=id&select=id,codigo,transportadora&limit=' + (($now.setZone('America/Sao_Paulo').hour >= 8 && $now.setZone('America/Sao_Paulo').hour < 21) ? 40 : 0) + '&criado_em=gte.' + encodeURIComponent($now.minus({ days: 3 }).toISO()) }}"
+      },
+      "notes": "08/10: primeiro status logo depois do cadastro (a cada 10 min, até aparecer o primeiro evento; até 3 dias)."
+    }
+  ],
+  "connections": {
+    "A cada 10 min (registrar)": {
+      "main": [
+        [
+          {
+            "node": "Supabase: para registrar",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supabase: novos sem status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: para registrar": {
+      "main": [
+        [
+          {
+            "node": "Montar lote (registro)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar lote (registro)": {
+      "main": [
+        [
+          {
+            "node": "17TRACK: registrar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17TRACK: registrar": {
+      "main": [
+        [
+          {
+            "node": "Supabase: registrado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A cada 2h (8h às 20h)": {
+      "main": [
+        [
+          {
+            "node": "Supabase: acompanhando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: acompanhando": {
+      "main": [
+        [
+          {
+            "node": "Montar lotes (consulta)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar lotes (consulta)": {
+      "main": [
+        [
+          {
+            "node": "17TRACK: consultar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17TRACK: consultar": {
+      "main": [
+        [
+          {
+            "node": "Normalizar respostas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar respostas": {
+      "main": [
+        [
+          {
+            "node": "Supabase: atualizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: atualizar": {
+      "main": [
+        [
+          {
+            "node": "Montar avisos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar avisos": {
+      "main": [
+        [
+          {
+            "node": "Enviar aviso (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar aviso (WhatsApp)": {
+      "main": [
+        [
+          {
+            "node": "Registrar na conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: novos sem status": {
+      "main": [
+        [
+          {
+            "node": "Montar lotes (consulta)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "1153cc4e-f947-444a-b49c-3753978b3b14"
+}

@@ -1,0 +1,167 @@
+{
+  "id": "kXMp63lC2Re8otOs",
+  "name": "Dyno | Envio do vídeo do rastreio (08/10)",
+  "description": "Envio único do Reel de rastreio: baixa o vídeo enviado pelo Daniel ao Dyno e manda com legenda (modo teste = só Daniel; todos = clientes).",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "nodes": [
+    {
+      "id": "74932e6f-8b16-40be-89df-916e5a539976",
+      "name": "Disparo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-envio-video-rastreio-0810",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "88d64fd0-5a7a-4af6-9501-3412ffd3dc0f"
+    },
+    {
+      "id": "8a7cbb7d-2b01-4ce0-bbe1-1bf74501aa1d",
+      "name": "Baixar vídeo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/chat/getBase64FromMediaMessage/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"message\":{\"key\":{\"id\":\"3AFCEF0D9D7AB1631D1E\",\"remoteJid\":\"5511930851325@s.whatsapp.net\",\"fromMe\":false}},\"convertToMp4\":false}",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "5576a6f5-e28d-465e-b769-fc487623f9e1",
+      "name": "Montar envios",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Monta um envio por destinatário. modo 'teste' = só o Daniel; 'todos' = clientes ativos (lista do dyno_assessor_destinos em 08/10).\nconst NL = String.fromCharCode(10);\nconst body = ($('Disparo').first().json.body) || {};\nconst modo = body.modo === 'todos' ? 'todos' : 'teste';\nconst b64 = $input.first().json.base64;\nif (!b64 || b64.length < 100000) throw new Error('Vídeo não baixado');\nconst CLIENTES = {\"Luiz\":\"5511998254930\",\"Jorge\":\"5511993684344\",\"Lucas\":\"554688128343\",\"Paulo\":\"5511984715429\",\"Felipe\":\"5511964542058\",\"Rafael\":\"5522974050629\",\"Leandro\":\"5511996286968\",\"Marcelo\":\"5511940055829\",\"Matheus\":\"554184488908\",\"Naianne\":\"5511966120784\",\"Tavarez\":\"5511975813035\",\"Anderson\":\"5511995176972\",\"Roselena\":\"5511975821390\",\"Marcos César\":\"5511951853133\",\"Márcia Ferraz\":\"5511995924148\"};\nconst lista = modo === 'todos' ? Object.entries(CLIENTES) : [['Daniel', '5511930851325']];\nconst legenda = nome => 'Oi, ' + nome.split(' ')[0] + '! 📦 *Novidade no Dyno: rastreio de encomendas*' + NL + NL +\n  'Recebeu um código dos Correios? É só me mandar aqui, por texto ou print do SMS/e-mail. Eu acompanho e te aviso a cada mudança: postado, em trânsito, saiu para entrega e entregue.' + NL + NL +\n  'E quando bater a curiosidade, é só perguntar: \"cadê minha encomenda?\" 😉';\nreturn lista.map(([nome, numero]) => ({ json: { nome, numero, modo, legenda: legenda(nome), media: b64 } }));\n"
+      }
+    },
+    {
+      "id": "36fb42b0-4626-4e30-b807-541dcca01a88",
+      "name": "Enviar vídeo (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendMedia/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, mediatype: \"video\", mimetype: \"video/mp4\", fileName: \"dyno-rastreio.mp4\", caption: $json.legenda, media: $json.media }) }}",
+        "options": {
+          "timeout": 120000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 8000
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "305043e6-4748-47fd-a80a-f5de605162f5",
+      "name": "Registrar no histórico",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_mensagens",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ telefone: $(\"Montar envios\").all()[$itemIndex].json.numero, cliente: $(\"Montar envios\").all()[$itemIndex].json.numero, papel: \"assistente\", autor: \"Assessor:\" + $(\"Montar envios\").all()[$itemIndex].json.nome, texto: \"[vídeo: novidade rastreio de encomendas] \" + $(\"Montar envios\").all()[$itemIndex].json.legenda }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Disparo": {
+      "main": [
+        [
+          {
+            "node": "Baixar vídeo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar vídeo": {
+      "main": [
+        [
+          {
+            "node": "Montar envios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar envios": {
+      "main": [
+        [
+          {
+            "node": "Enviar vídeo (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar vídeo (WhatsApp)": {
+      "main": [
+        [
+          {
+            "node": "Registrar no histórico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "9274df49-7307-461b-b674-3d2a2faa5691"
+}

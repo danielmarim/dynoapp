@@ -1,0 +1,491 @@
+{
+  "id": "V1i0rd4fPpfWPdfN",
+  "name": "Dyno Plataforma | WhatsApp oficial (Meta) — ponte de envio",
+  "description": "Imita a API da Evolution (sendText, getBase64FromMediaMessage, sendWhatsAppAudio, sendPresence) e envia pela API oficial do WhatsApp. Usada pelo cérebro quando a conversa veio do número oficial.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "id": "b05fccbf-0ff2-43eb-aa8c-f2fda3b37213",
+      "name": "sendText",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-meta-ponte/sendText",
+        "responseMode": "lastNode",
+        "options": {},
+        "authentication": "headerAuth"
+      },
+      "webhookId": "5a032d24-6f1b-430a-acb4-465989a0344d"
+    },
+    {
+      "id": "03d17d21-4c6c-42d4-82c0-84591d1e5acd",
+      "name": "Cloud: enviar texto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v26.0/1405532732623905/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: \"whatsapp\", recipient_type: \"individual\", to: String($json.body.number || \"\").replace(/\\D/g, \"\"), type: \"text\", text: { body: String($json.body.text || \"\").replace(/^\\u200B+/, \"\"), preview_url: $json.body.linkPreview === true } }) }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "95c64f57-ac09-4bf3-8d0d-24495b2a2613",
+      "name": "Resposta texto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json; const b = r.body || {}; const id = (b.messages && b.messages[0] && b.messages[0].id) || ''; if (r.statusCode >= 300) throw new Error('Cloud API ' + r.statusCode + ': ' + JSON.stringify(b.error || b).slice(0, 300)); return [{ json: { key: { id }, status: 'PENDING', canal: 'meta' } }];"
+      }
+    },
+    {
+      "id": "4cdb27d4-dfad-45b4-b8ed-fd19b699ba79",
+      "name": "getBase64FromMediaMessage",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        224
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-meta-ponte/getBase64FromMediaMessage",
+        "responseMode": "lastNode",
+        "options": {},
+        "authentication": "headerAuth"
+      },
+      "webhookId": "cefe6338-ba9e-4da2-955b-c397a40f1c7d"
+    },
+    {
+      "id": "a66ee4b8-9d33-4423-9ed3-77476abf333c",
+      "name": "Qual mídia",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        224
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_meta_wa_midia",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ p_wamid: String((($json.body.message || {}).key || {}).id || \"\") }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "5093bf56-2ca2-461f-8f3b-b0bd23cde1ab",
+      "name": "Cloud: URL da mídia",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        224
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ \"https://graph.facebook.com/v26.0/\" + $json.media_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "5d76403b-9fc0-4e7e-a233-ad0f509950fc",
+      "name": "Cloud: baixar mídia",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        224
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "13c388d3-1157-465e-8b65-01ac0e4d662b",
+      "name": "Resposta base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        224
+      ],
+      "parameters": {
+        "jsCode": "const info = $('Qual mídia').first().json || {};\nconst buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nreturn [{ json: { base64: buf.toString('base64'), mimetype: info.mimetype || '', fileName: info.fileName || '', canal: 'meta' } }];"
+      }
+    },
+    {
+      "id": "be16c9d6-e056-4d40-8ffa-1da2e7e311e6",
+      "name": "sendWhatsAppAudio",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        448
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-meta-ponte/sendWhatsAppAudio",
+        "responseMode": "lastNode",
+        "options": {},
+        "authentication": "headerAuth"
+      },
+      "webhookId": "0991eeab-c221-4962-a815-70641df1438b"
+    },
+    {
+      "id": "a59b2c57-864c-4e37-8b06-2a9622c8a212",
+      "name": "Áudio em arquivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        448
+      ],
+      "parameters": {
+        "jsCode": "const b = $input.first().json.body || {};\nlet s = String(b.audio || ''); const i = s.indexOf('base64,'); if (i >= 0) s = s.slice(i + 7);\nif (s.length < 200) throw new Error('áudio vazio');\nconst bin = await this.helpers.prepareBinaryData(Buffer.from(s, 'base64'), 'audio.ogg', 'audio/ogg');\nreturn [{ json: { numero: String(b.number || '').replace(/\\D/g, '') }, binary: { data: bin } }];"
+      }
+    },
+    {
+      "id": "f3b5da8d-94e6-48fe-afa4-a46ec4b3e774",
+      "name": "Cloud: subir áudio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        448
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v26.0/1405532732623905/media",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "parameterType": "formData",
+              "name": "messaging_product",
+              "value": "whatsapp"
+            },
+            {
+              "parameterType": "formData",
+              "name": "type",
+              "value": "audio/ogg"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "05436c9d-59bd-4721-872e-fed94daf0418",
+      "name": "Cloud: enviar áudio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        448
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v26.0/1405532732623905/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: \"whatsapp\", recipient_type: \"individual\", to: $(\"Áudio em arquivo\").first().json.numero, type: \"audio\", audio: { id: $json.id, voice: true } }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "cfa99209-d41f-42fe-972a-d13a46066581",
+      "name": "Resposta áudio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        448
+      ],
+      "parameters": {
+        "jsCode": "const b = $input.first().json || {}; return [{ json: { key: { id: (b.messages && b.messages[0] && b.messages[0].id) || '' }, canal: 'meta' } }];"
+      }
+    },
+    {
+      "id": "12fd1afb-4a87-4f02-a3f1-30ee14361b5b",
+      "name": "sendPresence",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        672
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-meta-ponte/sendPresence",
+        "responseMode": "onReceived",
+        "options": {},
+        "authentication": "headerAuth"
+      },
+      "webhookId": "47607410-2485-4f14-8247-f970fca2047d"
+    },
+    {
+      "id": "e91a6b57-09ac-46a3-9d85-9ca170929898",
+      "name": "Última mensagem",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        672
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_meta_wa_ultima",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ p_numero: String($json.body.number || \"\") }) }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "89d75a97-0dbf-414e-8f53-d1e0672de481",
+      "name": "Cloud: lido + digitando",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        672
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v26.0/1405532732623905/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: \"whatsapp\", status: \"read\", message_id: String($json.data || \"\").replace(/^\"|\"$/g, \"\"), typing_indicator: { type: \"text\" } }) }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "sendText": {
+      "main": [
+        [
+          {
+            "node": "Cloud: enviar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cloud: enviar texto": {
+      "main": [
+        [
+          {
+            "node": "Resposta texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "getBase64FromMediaMessage": {
+      "main": [
+        [
+          {
+            "node": "Qual mídia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qual mídia": {
+      "main": [
+        [
+          {
+            "node": "Cloud: URL da mídia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cloud: URL da mídia": {
+      "main": [
+        [
+          {
+            "node": "Cloud: baixar mídia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cloud: baixar mídia": {
+      "main": [
+        [
+          {
+            "node": "Resposta base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sendWhatsAppAudio": {
+      "main": [
+        [
+          {
+            "node": "Áudio em arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Áudio em arquivo": {
+      "main": [
+        [
+          {
+            "node": "Cloud: subir áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cloud: subir áudio": {
+      "main": [
+        [
+          {
+            "node": "Cloud: enviar áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cloud: enviar áudio": {
+      "main": [
+        [
+          {
+            "node": "Resposta áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sendPresence": {
+      "main": [
+        [
+          {
+            "node": "Última mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Última mensagem": {
+      "main": [
+        [
+          {
+            "node": "Cloud: lido + digitando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "ebf5ac35-0f62-4f2c-8aa8-cf9b8b36981c"
+}

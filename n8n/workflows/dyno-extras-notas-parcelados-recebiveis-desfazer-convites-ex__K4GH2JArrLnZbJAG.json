@@ -1,35 +1,54 @@
 {
+  "id": "K4GH2JArrLnZbJAG",
   "name": "Dyno | Extras (notas, parcelados, recebíveis, desfazer, convites, Excel)",
+  "description": "Executa ações extras do Dyno: notas e listas, parcelados/recorrentes, contas a receber, desfazer, convites, Excel e tarefas por projeto.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo"
+  },
   "nodes": [
     {
-      "parameters": {
-        "inputSource": "passthrough"
-      },
       "id": "9b291504-bc3c-450a-bd84-d0cdac7a394b",
       "name": "Receber ação",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
         0,
-        304
-      ]
+        300
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst GRUPO = '120363412854461070@g.us';\nconst NL = String.fromCharCode(10);\nconst agora = DateTime.now().setZone(TZ);\nconst hoje = agora.startOf('day');\nconst rows = n => { try { return $(n).all().map(i => i.json).filter(r => r && r.id != null); } catch (e) { return []; } };\nconst extras = rows('Carregar extras');\nconst txs = rows('Carregar transações');\nconst tarefas = rows('Carregar tarefas abertas');\nconst out = [];\nconst MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];\nconst norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9 ]/g, '').trim();\nconst cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;\nconst milhar = s => { let o = ''; for (let i = 0; i < s.length; i++) { if (i > 0 && (s.length - i) % 3 === 0) o += '.'; o += s[i]; } return o; };\nconst brl = v => { const n = Math.abs(Number(v || 0)).toFixed(2).split('.'); return (Number(v) < 0 ? '-' : '') + 'R$ ' + milhar(n[0]) + ',' + n[1]; };\nconst num = (v, d) => { if (v === null || v === undefined || v === '') return d; const n = Number(String(v).replace(',', '.')); return isNaN(n) ? d : n; };\nconst dados = r => { try { return JSON.parse(r.dados || '{}') || {}; } catch (e) { return {}; } };\nconst diaIso = v => { if (!v) return null; const d = DateTime.fromISO(String(v).slice(0, 10), { zone: TZ }); return d.isValid ? d.startOf('day') : null; };\nconst aut = r => r.autor || 'Daniel';\nconst msg = (numero, texto) => out.push({ json: { op: 'msg', numero, texto } });\nconst ins = (autor, tipo, titulo, texto, d, valor, data, status) => out.push({ json: { op: 'ins_extras', autor, tipo, titulo, texto: texto || '', dados: JSON.stringify(d || {}), valor: valor === undefined ? null : valor, data: data || null, status: status || 'ativa' } });\nconst upd = (r, ch) => { const base = { op: 'upd_extras', id: r.id, titulo: r.titulo, texto: r.texto || '', dados: r.dados || '{}', valor: r.valor === undefined ? null : r.valor, data: r.data || null, status: r.status || 'ativa' }; out.push({ json: Object.assign(base, ch) }); };\nconst dtx = v => DateTime.fromISO(String(v)).setZone(TZ);\n\nconst periodo = p0 => {\n  const p = String(p0 || 'mes').toLowerCase();\n  let ini, fim, rotulo;\n  if (p === 'mes_passado') { ini = agora.minus({ months: 1 }).startOf('month'); fim = agora.startOf('month').minus({ milliseconds: 1 }); rotulo = 'em ' + MESES[ini.month - 1] + ' de ' + ini.year; }\n  else if (p === 'semana') { ini = agora.startOf('week'); fim = agora.endOf('day'); rotulo = 'esta semana'; }\n  else if (p === 'ultimos_30' || p === '30d') { ini = agora.minus({ days: 29 }).startOf('day'); fim = agora.endOf('day'); rotulo = 'nos últimos 30 dias'; }\n  else if (p === 'ano') { ini = agora.startOf('year'); fim = agora.endOf('day'); rotulo = 'em ' + agora.year; }\n  else { ini = agora.startOf('month'); fim = agora.endOf('day'); rotulo = 'em ' + MESES[agora.month - 1] + ' de ' + agora.year; }\n  return { ini, fim, rotulo, chave: p };\n};\n\n// Lançamentos automáticos de parcelados e recorrentes\nconst rodar = r => {\n  const d = dados(r);\n  const lanc = [];\n  let prox = diaIso(r.data);\n  let guarda = 0;\n  while (prox && prox <= hoje && guarda < 24 && (d.total === null || d.total === undefined || (d.feitas || 0) < d.total)) {\n    d.feitas = (d.feitas || 0) + 1;\n    const rot = d.total ? ' (' + d.feitas + '/' + d.total + ')' : '';\n    out.push({ json: { op: 'ins_tx', movimento: d.movimento || 'despesa', valor: Number(r.valor), categoria: d.categoria || 'outros', descricao: r.titulo + rot, data: prox.set({ hour: 12 }).toUTC().toISO(), forma_pagamento: d.forma || '', autor: aut(r), comprovante_url: '' } });\n    lanc.push(r.titulo + rot + ' ' + brl(r.valor));\n    const nx = prox.plus({ months: 1 });\n    prox = nx.set({ day: Math.min(d.dia || prox.day, nx.daysInMonth) });\n    guarda++;\n  }\n  const fim = d.total !== null && d.total !== undefined && d.feitas >= d.total;\n  return { d, prox, lanc, fim };\n};\n\n// Tarefas em atraso\nconst diasAtraso = t => Math.round(hoje.diff(dtx(t.prazo).startOf('day'), 'days').days);\nconst atrasadasDe = (autor, projeto) => tarefas.filter(t => aut(t) === autor && t.prazo && diasAtraso(t) > 0 && (!projeto || norm(t.projeto) === norm(projeto)));\nconst textoAtrasadas = (lista, intro) => {\n  const ord = lista.slice().sort((a, b) => diasAtraso(b) - diasAtraso(a));\n  const n = ord.length;\n  let t = (intro || '') + n + (n === 1 ? ' tarefa em atraso' : ' tarefas em atraso') + ', a mais antiga há ' + diasAtraso(ord[0]) + (diasAtraso(ord[0]) === 1 ? ' dia.' : ' dias.');\n  for (const x of ord.slice(0, 6)) t += NL + '• ' + x.titulo + (x.projeto ? ' [' + x.projeto + ']' : '') + ' — há ' + diasAtraso(x) + 'd (' + dtx(x.prazo).toFormat('dd/LL') + ')';\n  if (n > 6) t += NL + '… e mais ' + (n - 6) + '.';\n  return t;\n};\n\nconst itens = [];\nfor (const it of $('Receber ação').all()) { if (it && it.json) itens.push(it.json); }\n\nfor (const it of itens) {\n  const numero = it.numero;\n  const autor = it.autor || 'Daniel';\n\n  // Rotina diária (09:30): parcelas/recorrentes vencidos e aviso de tarefas atrasadas\n  if (it.rotina) {\n    const porAutor = {};\n    for (const r of extras.filter(x => x.tipo === 'recorrente' && x.status === 'ativa')) {\n      const rr = rodar(r);\n      if (!rr.lanc.length) continue;\n      upd(r, { dados: JSON.stringify(rr.d), data: rr.prox ? rr.prox.toUTC().toISO() : r.data, status: rr.fim ? 'encerrada' : 'ativa' });\n      (porAutor[aut(r)] = porAutor[aut(r)] || []).push(...rr.lanc);\n    }\n    for (const [au, ls] of Object.entries(porAutor)) msg(GRUPO, au + ', lancei automaticamente hoje: ' + ls.join('; ') + '.');\n    const autores = Array.from(new Set(tarefas.map(aut)));\n    for (const au of autores) {\n      const l = atrasadasDe(au, null);\n      if (l.length) msg(GRUPO, textoAtrasadas(l, au + ', você tem '));\n    }\n    continue;\n  }\n\n  const a = it.a || {};\n  const t = String(a.tipo || '');\n\n  // ---------- Notas, listas e ideias ----------\n  if (t === 'nota') {\n    const op = String(a.op || 'ver');\n    const mine = extras.filter(r => aut(r) === autor && (r.tipo === 'nota' || r.tipo === 'ideia') && r.status !== 'apagada');\n    const nt = norm(a.titulo);\n    const achar = () => nt ? (mine.find(r => norm(r.titulo) === nt) || mine.find(r => norm(r.titulo).includes(nt) || nt.includes(norm(r.titulo)))) : null;\n    const lista = Array.isArray(a.itens) ? a.itens.map(x => String(x).trim()).filter(Boolean) : [];\n    const itensDe = r => Array.isArray(dados(r).itens) ? dados(r).itens : [];\n    const mostrar = r => {\n      const its = itensDe(r);\n      if (its.length) return '*' + r.titulo + '*' + NL + its.map(x => '• ' + x).join(NL);\n      return '*' + r.titulo + '*' + NL + (r.texto || '(vazia)');\n    };\n    if (op === 'criar' || op === 'adicionar') {\n      const r = achar();\n      if (r) {\n        const its = itensDe(r);\n        if (lista.length) {\n          const novos = lista.filter(x => !its.some(y => norm(y) === norm(x)));\n          const todos = its.concat(novos);\n          upd(r, { dados: JSON.stringify({ itens: todos }), status: 'ativa' });\n          msg(numero, 'Pronto. A lista *' + r.titulo + '* está com ' + todos.join(', ') + '.');\n        } else if (a.texto) {\n          upd(r, { texto: (r.texto ? r.texto + NL : '') + String(a.texto).slice(0, 2000), status: 'ativa' });\n          msg(numero, 'Anotei em *' + r.titulo + '*.');\n        } else msg(numero, 'O que você quer que eu adicione em *' + r.titulo + '*?');\n      } else if (lista.length) {\n        const titulo = String(a.titulo || 'Lista').slice(0, 80);\n        ins(autor, 'nota', titulo, '', { itens: lista }, null, null, 'ativa');\n        msg(numero, 'Anotei a lista *' + titulo + '*, com ' + lista.length + (lista.length === 1 ? ' item.' : ' itens.'));\n      } else if (a.texto) {\n        const titulo = String(a.titulo || String(a.texto).slice(0, 40)).slice(0, 80);\n        ins(autor, a.formato === 'nota' ? 'nota' : 'ideia', titulo, String(a.texto).slice(0, 2000), {}, null, null, 'ativa');\n        msg(numero, (a.formato === 'nota' ? 'Nota guardada: *' : 'Ideia guardada: *') + titulo + '*. Depois é só me perguntar sobre esse assunto.');\n      }\n    } else if (op === 'remover_item') {\n      const r = achar();\n      if (!r || !lista.length) { msg(numero, 'Não achei essa lista. Quer ver as suas?'); continue; }\n      const its = itensDe(r);\n      const resta = its.filter(x => !lista.some(y => norm(x).includes(norm(y)) && norm(y).length > 1));\n      upd(r, { dados: JSON.stringify({ itens: resta }) });\n      msg(numero, resta.length ? 'Tirei. A lista *' + r.titulo + '* ficou com ' + resta.join(', ') + '.' : 'Tirei. A lista *' + r.titulo + '* ficou vazia.');\n    } else if (op === 'apagar') {\n      const r = achar();\n      if (!r) { msg(numero, 'Não achei essa nota para apagar.'); continue; }\n      upd(r, { status: 'apagada' });\n      msg(numero, 'Apaguei *' + r.titulo + '*.');\n    } else if (op === 'buscar') {\n      const toks = norm(a.busca || a.titulo).split(' ').filter(x => x.length > 2);\n      const pont = mine.map(r => { const alvo = norm(r.titulo + ' ' + (r.texto || '') + ' ' + itensDe(r).join(' ')); let s = 0; for (const k of toks) if (alvo.includes(k) || alvo.includes(k.slice(0, Math.max(4, k.length - 2)))) s++; return { r, s }; }).filter(x => x.s > 0).sort((x, y) => y.s - x.s).slice(0, 5);\n      if (!pont.length) msg(numero, 'Não achei nada sobre isso nas suas notas e ideias.');\n      else msg(numero, 'Achei isso:' + NL + pont.map(x => '• *' + x.r.titulo + '* — ' + (itensDe(x.r).length ? itensDe(x.r).join(', ') : String(x.r.texto || '').slice(0, 140))).join(NL));\n    } else {\n      const r = achar();\n      if (r) msg(numero, mostrar(r));\n      else if (!nt && mine.length === 1) msg(numero, mostrar(mine[0]));\n      else if (!mine.length) msg(numero, 'Você ainda não tem listas nem ideias guardadas.');\n      else msg(numero, 'Suas notas:' + NL + mine.map(x => '• ' + x.titulo + (x.tipo === 'ideia' ? ' (ideia)' : '')).join(NL));\n    }\n    continue;\n  }\n\n  // ---------- Parcelados e recorrentes ----------\n  if (t === 'criar_recorrente') {\n    const valor = Math.abs(num(a.valor, 0));\n    const desc = String(a.descricao || '').trim().slice(0, 120);\n    if (!valor || !desc) { msg(numero, 'Para criar o lançamento automático preciso da descrição e do valor.'); continue; }\n    let total = (a.parcelas === null || a.parcelas === undefined || a.parcelas === '') ? null : Math.round(num(a.parcelas, 0));\n    if (total !== null) total = Math.max(1, Math.min(60, total));\n    const ja = Math.max(0, Math.round(num(a.ja_pagas, 0)));\n    const prim = diaIso(a.primeira_data) || hoje;\n    const row = { titulo: desc, valor, data: prim.toUTC().toISO(), autor, dados: JSON.stringify({ total, feitas: ja, movimento: a.movimento === 'receita' ? 'receita' : 'despesa', categoria: String(a.categoria || 'outros').toLowerCase(), forma: String(a.forma_pagamento || ''), dia: prim.day }) };\n    const rr = rodar(row);\n    ins(autor, 'recorrente', desc, '', rr.d, valor, rr.prox ? rr.prox.toUTC().toISO() : null, rr.fim ? 'encerrada' : 'ativa');\n    msg(numero, 'Combinado! *' + desc + '*: ' + brl(valor) + (total ? ' em ' + total + ' parcelas' : ' todo mês') + '.' + (rr.lanc.length ? ' Já lancei: ' + rr.lanc.join(', ') + '.' : '') + (rr.fim ? ' Todas as parcelas já estavam lançadas.' : ' Próximo lançamento automático em ' + rr.prox.toFormat('dd/LL/yyyy') + '.'));\n    continue;\n  }\n  if (t === 'cancelar_recorrente') {\n    const nt = norm(a.titulo);\n    const r = extras.find(x => x.tipo === 'recorrente' && aut(x) === autor && x.status === 'ativa' && nt && (norm(x.titulo).includes(nt) || nt.includes(norm(x.titulo))));\n    if (!r) { msg(numero, 'Não achei esse lançamento automático ativo.'); continue; }\n    upd(r, { status: 'cancelada' });\n    msg(numero, 'Cancelei o lançamento automático de *' + r.titulo + '*. O que já foi lançado continua no histórico.');\n    continue;\n  }\n  if (t === 'listar_recorrentes') {\n    const l = extras.filter(x => x.tipo === 'recorrente' && aut(x) === autor && x.status === 'ativa');\n    if (!l.length) { msg(numero, 'Você não tem parcelados nem recorrentes ativos.'); continue; }\n    msg(numero, 'Seus lançamentos automáticos:' + NL + l.map(r => { const d = dados(r); const falta = d.total ? (d.total - (d.feitas || 0)) + ' parcelas restantes' : 'sem fim'; return '• *' + r.titulo + '* — ' + brl(r.valor) + ', ' + falta + ', próximo ' + dtx(r.data).toFormat('dd/LL'); }).join(NL));\n    continue;\n  }\n\n  // ---------- Clientes e contas a receber ----------\n  if (t === 'cadastrar_cliente') {\n    const nome = String(a.nome || '').trim().slice(0, 120);\n    if (!nome) continue;\n    const ex = extras.find(x => x.tipo === 'cliente' && aut(x) === autor && norm(x.titulo) === norm(nome));\n    const d = { documento: String(a.documento || ''), papel: a.papel === 'fornecedor' ? 'fornecedor' : 'cliente', telefone: String(a.telefone || ''), obs: String(a.obs || '') };\n    if (ex) { upd(ex, { dados: JSON.stringify(Object.assign(dados(ex), d)) }); msg(numero, 'Atualizei o cadastro de *' + nome + '*.'); }\n    else { ins(autor, 'cliente', nome, '', d, null, null, 'ativa'); msg(numero, (d.papel === 'fornecedor' ? 'Fornecedor' : 'Cliente') + ' cadastrado: *' + nome + '*.'); }\n    continue;\n  }\n  if (t === 'criar_recebivel') {\n    const valor = Math.abs(num(a.valor, 0));\n    const dev = String(a.devedor || '').trim().slice(0, 120);\n    if (!valor || !dev) { msg(numero, 'Para anotar o que te devem preciso do nome e do valor.'); continue; }\n    const venc = diaIso(a.vencimento);\n    ins(autor, 'recebivel', dev, String(a.motivo || '').slice(0, 200), { origem: 'manual' }, valor, venc ? venc.toUTC().toISO() : null, 'aberto');\n    msg(numero, 'Anotado: *' + dev + '* te deve ' + brl(valor) + (a.motivo ? ' (' + a.motivo + ')' : '') + (venc ? ', vence em ' + venc.toFormat('dd/LL/yyyy') : '') + '.');\n    continue;\n  }\n  if (t === 'quem_deve') {\n    const ab = extras.filter(x => x.tipo === 'recebivel' && aut(x) === autor && x.status === 'aberto');\n    if (!ab.length) { msg(numero, 'Ninguém está te devendo nada por aqui.'); continue; }\n    const g = {};\n    for (const r of ab) { const k = r.titulo; g[k] = g[k] || { total: 0, atraso: 0 }; g[k].total += Number(r.valor) || 0; if (r.data) { const dd = Math.round(hoje.diff(dtx(r.data).startOf('day'), 'days').days); if (dd > g[k].atraso) g[k].atraso = dd; } }\n    const ls = Object.entries(g).sort((x, y) => y[1].total - x[1].total);\n    const tot = ls.reduce((s, x) => s + x[1].total, 0);\n    msg(numero, 'Te devem ' + brl(tot) + ':' + NL + ls.map(x => '• *' + x[0] + '* — ' + brl(x[1].total) + (x[1].atraso > 0 ? ' (atrasado há ' + x[1].atraso + ' dias)' : '')).join(NL));\n    continue;\n  }\n  if (t === 'receber_recebivel') {\n    const nd = norm(a.devedor);\n    const ab = extras.filter(x => x.tipo === 'recebivel' && aut(x) === autor && x.status === 'aberto' && nd && (norm(x.titulo).includes(nd) || nd.includes(norm(x.titulo)))).sort((x, y) => x.id - y.id);\n    if (!ab.length) { msg(numero, 'Não achei nada em aberto com esse nome.'); continue; }\n    let resta = Math.abs(num(a.valor, 0)) || ab.reduce((s, x) => s + Number(x.valor), 0);\n    const recebido = resta;\n    for (const r of ab) {\n      if (resta <= 0) break;\n      const v = Number(r.valor) || 0;\n      if (resta >= v - 0.005) { upd(r, { status: 'pago', data: r.data }); resta -= v; }\n      else { upd(r, { valor: Math.round((v - resta) * 100) / 100 }); resta = 0; }\n    }\n    out.push({ json: { op: 'ins_tx', movimento: 'receita', valor: recebido, categoria: 'recebimentos', descricao: 'Recebido de ' + ab[0].titulo, data: agora.toUTC().toISO(), forma_pagamento: String(a.forma_pagamento || ''), autor, comprovante_url: '' } });\n    msg(numero, 'Baixei ' + brl(recebido) + ' de *' + ab[0].titulo + '* e lancei como receita.');\n    continue;\n  }\n  if (t === 'consultar_cliente') {\n    const nm = norm(a.nome);\n    if (!nm) continue;\n    const p = periodo(a.periodo);\n    const rel = txs.filter(x => aut(x) === autor && norm(x.descricao).includes(nm) && dtx(x.data) >= p.ini && dtx(x.data) <= p.fim);\n    const rec = rel.filter(x => x.tipo === 'receita');\n    const des = rel.filter(x => x.tipo !== 'receita');\n    const soma = l => l.reduce((s, x) => s + Number(x.valor || 0), 0);\n    const ab = extras.filter(x => x.tipo === 'recebivel' && aut(x) === autor && x.status === 'aberto' && norm(x.titulo).includes(nm));\n    const cad = extras.find(x => x.tipo === 'cliente' && aut(x) === autor && (norm(x.titulo).includes(nm) || nm.includes(norm(x.titulo))));\n    const nomeShow = cad ? cad.titulo : cap(String(a.nome));\n    const partes = [];\n    if (rec.length) partes.push('Você recebeu ' + brl(soma(rec)) + ' de *' + nomeShow + '* ' + p.rotulo + ', em ' + rec.length + (rec.length === 1 ? ' pagamento.' : ' pagamentos.'));\n    if (des.length) partes.push('E pagou ' + brl(soma(des)) + ' a *' + nomeShow + '* no período, em ' + des.length + (des.length === 1 ? ' lançamento.' : ' lançamentos.'));\n    if (!partes.length) partes.push('Não encontrei lançamentos de *' + nomeShow + '* ' + p.rotulo + '. (Eu procuro o nome na descrição do lançamento.)');\n    if (ab.length) partes.push('Ainda tem ' + brl(soma(ab)) + ' em aberto dele(a).');\n    msg(numero, partes.join(' '));\n    continue;\n  }\n\n  // ---------- Desfazer / editar último lançamento (24h) ----------\n  if (t === 'desfazer_ultimo' || t === 'editar_ultimo') {\n    const mine = txs.filter(x => aut(x) === autor && x.createdAt && agora.diff(dtx(x.createdAt), 'hours').hours <= 24).sort((x, y) => Number(y.id) - Number(x.id));\n    if (!mine.length) { msg(numero, 'Não achei nenhum lançamento seu nas últimas 24 horas para ' + (t === 'desfazer_ultimo' ? 'desfazer.' : 'ajustar.')); continue; }\n    const l = mine[0];\n    const resumo = (l.tipo === 'receita' ? 'receita' : 'despesa') + ' de ' + brl(l.valor) + ' em ' + (l.categoria || 'outros') + (l.descricao ? ' (' + l.descricao + ')' : '');\n    if (t === 'desfazer_ultimo') {\n      out.push({ json: { op: 'del_tx', id: l.id, autor } });\n      msg(numero, 'Desfeito: ' + resumo + '.');\n    } else {\n      const novo = { id: l.id, autor, tipo: a.movimento === 'receita' || a.movimento === 'despesa' ? a.movimento : l.tipo, valor: Math.abs(num(a.valor, Number(l.valor))), categoria: a.categoria ? String(a.categoria).toLowerCase() : l.categoria, descricao: a.descricao ? String(a.descricao) : (l.descricao || ''), data: a.data && DateTime.fromISO(String(a.data)).isValid ? DateTime.fromISO(String(a.data), { zone: TZ }).toUTC().toISO() : l.data, forma_pagamento: a.forma_pagamento ? String(a.forma_pagamento) : (l.forma_pagamento || '') };\n      out.push({ json: Object.assign({ op: 'upd_tx' }, novo) });\n      msg(numero, 'Ajustei: agora é ' + (novo.tipo === 'receita' ? 'receita' : 'despesa') + ' de ' + brl(novo.valor) + ' em ' + (novo.categoria || 'outros') + (novo.descricao ? ' (' + novo.descricao + ')' : '') + '.');\n    }\n    continue;\n  }\n\n  // ---------- Convites ----------\n  if (t === 'gerar_convite') {\n    const alfa = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';\n    let cod = 'DYNO-';\n    for (let i = 0; i < 6; i++) cod += alfa.charAt(Math.floor(Math.random() * alfa.length));\n    const exp = hoje.plus({ days: 7 });\n    ins(autor, 'convite', cod, '', { para: String(a.nome || '') }, null, exp.toUTC().toISO(), 'aberto');\n    msg(numero, 'Convite criado: *' + cod + '*' + (a.nome ? ' (para ' + a.nome + ')' : '') + '. Vale até ' + exp.toFormat('dd/LL/yyyy') + '. Quem receber usa esse código para entrar na sua conta, sem pagar a mais.');\n    continue;\n  }\n  if (t === 'listar_convites') {\n    const l = extras.filter(x => x.tipo === 'convite' && aut(x) === autor && x.status === 'aberto' && (!x.data || dtx(x.data) >= hoje));\n    msg(numero, l.length ? 'Convites abertos:' + NL + l.map(x => '• *' + x.titulo + '*' + (dados(x).para ? ' (' + dados(x).para + ')' : '') + ' — até ' + dtx(x.data).toFormat('dd/LL')).join(NL) : 'Você não tem convites abertos.');\n    continue;\n  }\n  if (t === 'revogar_convite') {\n    const cod = String(a.codigo || '').toUpperCase().trim();\n    const r = extras.find(x => x.tipo === 'convite' && aut(x) === autor && x.titulo === cod && x.status === 'aberto');\n    if (!r) { msg(numero, 'Não achei esse convite aberto.'); continue; }\n    upd(r, { status: 'revogado' });\n    msg(numero, 'Convite *' + cod + '* cancelado.');\n    continue;\n  }\n  if (t === 'resgatar_convite') {\n    const cod = String(a.codigo || '').toUpperCase().trim();\n    const r = extras.find(x => x.tipo === 'convite' && x.titulo === cod && x.status === 'aberto' && (!x.data || dtx(x.data) >= hoje));\n    if (!r) { msg(numero, 'Esse código de convite não existe, já foi usado ou expirou.'); continue; }\n    upd(r, { status: 'usado', dados: JSON.stringify(Object.assign(dados(r), { usado_por: String(a.nome || ''), numero, em: agora.toISO() })) });\n    ins(r.autor || 'Daniel', 'participante', String(a.nome || numero), numero, { convite: cod }, null, agora.toUTC().toISO(), 'ativo');\n    msg(numero, 'Prontinho' + (a.nome ? ', ' + a.nome : '') + '! Sua conta foi conectada à de ' + (r.autor || 'Daniel') + '.');\n    continue;\n  }\n\n  // ---------- Relatório em Excel (+ dashboard em imagem) ----------\n  if (t === 'relatorio_excel') {\n    const p = periodo(a.periodo);\n    const mine = txs.filter(x => aut(x) === autor && dtx(x.data) >= p.ini && dtx(x.data) <= p.fim).sort((x, y) => dtx(x.data).toMillis() - dtx(y.data).toMillis());\n    if (!mine.length) { msg(numero, 'Não encontrei lançamentos seus ' + p.rotulo + ' para montar o relatório.'); continue; }\n    const linhas = mine.map(x => ({ 'Data': dtx(x.data).toFormat('dd/LL/yyyy'), 'Descrição': x.descricao || '', 'Categoria': cap(String(x.categoria || 'outros')), 'Tipo': x.tipo === 'receita' ? 'Receita' : 'Despesa', 'Forma de pagamento': x.forma_pagamento || '', 'Valor': Number(Number(x.valor || 0).toFixed(2)) }));\n    const totD = mine.filter(x => x.tipo !== 'receita').reduce((s, x) => s + Number(x.valor || 0), 0);\n    const totR = mine.filter(x => x.tipo === 'receita').reduce((s, x) => s + Number(x.valor || 0), 0);\n    linhas.push({ 'Data': '', 'Descrição': '', 'Categoria': '', 'Tipo': '', 'Forma de pagamento': '', 'Valor': '' });\n    linhas.push({ 'Data': '', 'Descrição': 'TOTAL DE DESPESAS', 'Categoria': '', 'Tipo': '', 'Forma de pagamento': '', 'Valor': Number(totD.toFixed(2)) });\n    linhas.push({ 'Data': '', 'Descrição': 'TOTAL DE RECEITAS', 'Categoria': '', 'Tipo': '', 'Forma de pagamento': '', 'Valor': Number(totR.toFixed(2)) });\n    linhas.push({ 'Data': '', 'Descrição': 'SALDO', 'Categoria': '', 'Tipo': '', 'Forma de pagamento': '', 'Valor': Number((totR - totD).toFixed(2)) });\n    out.push({ json: { op: 'excel', numero, autor, linhas, caption: '📎 Relatório (Excel) ' + p.rotulo + NL + mine.length + ' lançamentos · Despesas ' + brl(totD) + ' · Receitas ' + brl(totR) } });\n    out.push({ json: { op: 'dash', numero, autor, periodo: p.chave } });\n    continue;\n  }\n\n  // ---------- Tarefas: projeto e atrasadas ----------\n  if (t === 'definir_projeto') {\n    const id = Number(a.id);\n    const r = tarefas.find(x => Number(x.id) === id && aut(x) === autor);\n    if (!r) { msg(numero, 'Não achei essa tarefa.'); continue; }\n    const proj = String(a.projeto || '').trim().slice(0, 80);\n    out.push({ json: { op: 'upd_tarefa', id, autor, projeto: proj } });\n    msg(numero, proj ? 'Coloquei *' + r.titulo + '* no projeto *' + proj + '*.' : 'Tirei *' + r.titulo + '* do projeto.');\n    continue;\n  }\n  if (t === 'ver_tarefas') {\n    const proj = a.projeto ? String(a.projeto) : null;\n    if (proj) {\n      const l = tarefas.filter(x => aut(x) === autor && norm(x.projeto) === norm(proj));\n      if (!l.length) { msg(numero, 'Não achei tarefas abertas no projeto *' + proj + '*.'); continue; }\n      const atr = l.filter(x => x.prazo && diasAtraso(x) > 0).length;\n      msg(numero, 'Projeto *' + proj + '*: ' + l.length + ' abertas' + (atr ? ', ' + atr + ' em atraso' : '') + '.' + NL + l.slice(0, 10).map(x => '• ' + x.titulo + (x.prazo ? ' — ' + (diasAtraso(x) > 0 ? 'atrasada há ' + diasAtraso(x) + 'd' : 'prazo ' + dtx(x.prazo).toFormat('dd/LL')) : '')).join(NL));\n    } else {\n      const l = atrasadasDe(autor, null);\n      msg(numero, l.length ? textoAtrasadas(l, 'Você tem ') : 'Nenhuma tarefa em atraso. 👏');\n    }\n    continue;\n  }\n}\nreturn out;\n"
-      },
       "id": "bcb50efb-0f56-4429-914b-1371afd94557",
       "name": "Processar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         880,
-        304
-      ]
+        300
+      ],
+      "parameters": {
+        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst GRUPO = '120363412854461070@g.us';\nconst NL = String.fromCharCode(10);\nconst agora = DateTime.now().setZone(TZ);\nconst hoje = agora.startOf('day');\nconst rows = n => { try { return $(n).all().map(i => i.json).filter(r => r && r.id != null); } catch (e) { return []; } };\nconst extras = rows('Carregar extras');\nconst txs = rows('Carregar transações');\nconst tarefas = rows('Carregar tarefas abertas');\nconst out = [];\nconst MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];\nconst norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9 ]/g, '').trim();\nconst cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;\nconst milhar = s => { let o = ''; for (let i = 0; i < s.length; i++) { if (i > 0 && (s.length - i) % 3 === 0) o += '.'; o += s[i]; } return o; };\nconst brl = v => { const n = Math.abs(Number(v || 0)).toFixed(2).split('.'); return (Number(v) < 0 ? '-' : '') + 'R$ ' + milhar(n[0]) + ',' + n[1]; };\nconst num = (v, d) => { if (v === null || v === undefined || v === '') return d; const n = Number(String(v).replace(',', '.')); return isNaN(n) ? d : n; };\nconst dados = r => { try { return JSON.parse(r.dados || '{}') || {}; } catch (e) { return {}; } };\nconst diaIso = v => { if (!v) return null; const d = DateTime.fromISO(String(v).slice(0, 10), { zone: TZ }); return d.isValid ? d.startOf('day') : null; };\nconst aut = r => r.autor || 'Daniel';\nconst msg = (numero, texto) => out.push({ json: { op: 'msg', numero, texto } });\nconst ins = (autor, tipo, titulo, texto, d, valor, data, status) => out.push({ json: { op: 'ins_extras', autor, tipo, titulo, texto: texto || '', dados: JSON.stringify(d || {}), valor: valor === undefined ? null : valor, data: data || null, status: status || 'ativa' } });\nconst upd = (r, ch) => { const base = { op: 'upd_extras', id: r.id, titulo: r.titulo, texto: r.texto || '', dados: r.dados || '{}', valor: r.valor === undefined ? null : r.valor, data: r.data || null, status: r.status || 'ativa' }; out.push({ json: Object.assign(base, ch) }); };\nconst dtx = v => DateTime.fromISO(String(v)).setZone(TZ);\n\nconst periodo = p0 => {\n  const p = String(p0 || 'mes').toLowerCase();\n  let ini, fim, rotulo;\n  if (p === 'mes_passado') { ini = agora.minus({ months: 1 }).startOf('month'); fim = agora.startOf('month').minus({ milliseconds: 1 }); rotulo = 'em ' + MESES[ini.month - 1] + ' de ' + ini.year; }\n  else if (p === 'semana') { ini = agora.startOf('week'); fim = agora.endOf('day'); rotulo = 'esta semana'; }\n  else if (p === 'ultimos_30' || p === '30d') { ini = agora.minus({ days: 29 }).startOf('day'); fim = agora.endOf('day'); rotulo = 'nos últimos 30 dias'; }\n  else if (p === 'ano') { ini = agora.startOf('year'); fim = agora.endOf('day'); rotulo = 'em ' + agora.year; }\n  else { ini = agora.startOf('month'); fim = agora.endOf('day'); rotulo = 'em ' + MESES[agora.month - 1] + ' de ' + agora.year; }\n  return { ini, fim, rotulo, chave: p };\n};\n\n// Lançamentos automáticos de parcelados e recorrentes\nconst rodar = r => {\n  const d = dados(r);\n  const lanc = [];\n  let prox = diaIso(r.data);\n  let guarda = 0;\n  while (prox && prox <= hoje && guarda < 24 && (d.total === null || d.total === undefined || (d.feitas || 0) < d.total)) {\n    d.feitas = (d.feitas || 0) + 1;\n    const rot = d.total ? ' (' + d.feitas + '/' + d.total + ')' : '';\n    out.push({ json: { op: 'ins_tx', movimento: d.movimento || 'despesa', valor: Number(r.valor), categoria: d.categoria || 'outros', descricao: r.titulo + rot, data: prox.set({ hour: 12 }).toUTC().toISO(), forma_pagamento: d.forma || '', autor: aut(r), comprovante_url: '' } });\n    lanc.push(r.titulo + rot + ' ' + brl(r.valor));\n    const nx = prox.plus({ months: 1 });\n    prox = nx.set({ day: Math.min(d.dia || prox.day, nx.daysInMonth) });\n    guarda++;\n  }\n  const fim = d.total !== null && d.total !== undefined && d.feitas >= d.total;\n  return { d, prox, lanc, fim };\n};\n\n// Tarefas em atraso\nconst diasAtraso = t => Math.round(hoje.diff(dtx(t.prazo).startOf('day'), 'days').days);\nconst atrasadasDe = (autor, projeto) => tarefas.filter(t => aut(t) === autor && t.prazo && diasAtraso(t) > 0 && (!projeto || norm(t.projeto) === norm(projeto)));\nconst textoAtrasadas = (lista, intro) => {\n  const ord = lista.slice().sort((a, b) => diasAtraso(b) - diasAtraso(a));\n  const n = ord.length;\n  let t = (intro || '') + n + (n === 1 ? ' tarefa em atraso' : ' tarefas em atraso') + ', a mais antiga há ' + diasAtraso(ord[0]) + (diasAtraso(ord[0]) === 1 ? ' dia.' : ' dias.');\n  for (const x of ord.slice(0, 6)) t += NL + '• ' + x.titulo + (x.projeto ? ' [' + x.projeto + ']' : '') + ' — há ' + diasAtraso(x) + 'd (' + dtx(x.prazo).toFormat('dd/LL') + ')';\n  if (n > 6) t += NL + '… e mais ' + (n - 6) + '.';\n  return t;\n};\n\nconst itens = [];\nfor (const it of $('Receber ação').all()) { if (it && it.json) itens.push(it.json); }\n\nfor (const it of itens) {\n  const numero = it.numero;\n  const autor = it.autor || 'Daniel';\n\n  // Rotina diária (09:30): parcelas/recorrentes vencidos e aviso de tarefas atrasadas\n  if (it.rotina) {\n    const porAutor = {};\n    for (const r of extras.filter(x => x.tipo === 'recorrente' && x.status === 'ativa')) {\n      const rr = rodar(r);\n      if (!rr.lanc.length) continue;\n      upd(r, { dados: JSON.stringify(rr.d), data: rr.prox ? rr.prox.toUTC().toISO() : r.data, status: rr.fim ? 'encerrada' : 'ativa' });\n      (porAutor[aut(r)] = porAutor[aut(r)] || []).push(...rr.lanc);\n    }\n    for (const [au, ls] of Object.entries(porAutor)) msg(GRUPO, au + ', lancei automaticamente hoje: ' + ls.join('; ') + '.');\n    const autores = Array.from(new Set(tarefas.map(aut)));\n    for (const au of autores) {\n      const l = atrasadasDe(au, null);\n      if (l.length) msg(GRUPO, textoAtrasadas(l, au + ', você tem '));\n    }\n    continue;\n  }\n\n  const a = it.a || {};\n  const t = String(a.tipo || '');\n\n  // ---------- Notas, listas e ideias ----------\n  if (t === 'nota') {\n    const op = String(a.op || 'ver');\n    const mine = extras.filter(r => aut(r) === autor && (r.tipo === 'nota' || r.tipo === 'ideia') && r.status !== 'apagada');\n    const nt = norm(a.titulo);\n    const achar = () => nt ? (mine.find(r => norm(r.titulo) === nt) || mine.find(r => norm(r.titulo).includes(nt) || nt.includes(norm(r.titulo)))) : null;\n    // Evita listas duplicadas: se a pessoa mexeu numa lista parecida na última 1h (mesmo assunto), usa a mesma.\n    const PARADA = ['lista', 'listas', 'checklist', 'check', 'para', 'itens', 'item', 'compras', 'compra', 'levar', 'nota', 'notas', 'minha', 'meus', 'minhas'];\n    const toks = s => norm(s).split(' ').filter(w => w.length > 3 && !PARADA.includes(w));\n    const parecida = () => { const tk = toks(a.titulo); if (!tk.length) return null; const lim = agora.minus({ hours: 1 }); return mine.filter(r => DateTime.fromISO(String(r.updatedAt || r.createdAt)) >= lim).find(r => toks(r.titulo).some(w => tk.includes(w))) || null; };\n    const lista = Array.isArray(a.itens) ? a.itens.map(x => String(x).trim()).filter(Boolean) : [];\n    const itensDe = r => Array.isArray(dados(r).itens) ? dados(r).itens : [];\n    const mostrar = r => {\n      const its = itensDe(r);\n      if (its.length) return '📝 *' + r.titulo + '*' + NL + its.map(x => '☐ ' + x).join(NL);\n      return '*' + r.titulo + '*' + NL + (r.texto || '(vazia)');\n    };\n    if (op === 'criar' || op === 'adicionar') {\n      const r = achar() || parecida();\n      if (r) {\n        const its = itensDe(r);\n        if (lista.length) {\n          const novos = lista.filter(x => !its.some(y => norm(y) === norm(x)));\n          const todos = its.concat(novos);\n          upd(r, { dados: JSON.stringify({ itens: todos }), status: 'ativa' });\n          msg(numero, (novos.length ? 'Atualizei a lista (' + novos.length + (novos.length === 1 ? ' item novo).' : ' itens novos).') : 'Essa lista já tinha tudo isso.') + NL + NL + '📝 *' + r.titulo + '*' + NL + todos.map(x => '☐ ' + x).join(NL) + NL + NL + '_Para ver de novo: \"me mostra a lista ' + r.titulo + '\". Para riscar: \"tira protetor da lista\"._');\n        } else if (a.texto) {\n          upd(r, { texto: (r.texto ? r.texto + NL : '') + String(a.texto).slice(0, 2000), status: 'ativa' });\n          msg(numero, 'Anotei em *' + r.titulo + '*.');\n        } else msg(numero, 'O que você quer que eu adicione em *' + r.titulo + '*?');\n      } else if (lista.length) {\n        const titulo = String(a.titulo || 'Lista').slice(0, 80);\n        ins(autor, 'nota', titulo, '', { itens: lista }, null, null, 'ativa');\n        msg(numero, 'Criei a lista, com ' + lista.length + (lista.length === 1 ? ' item:' : ' itens:') + NL + NL + '📝 *' + titulo + '*' + NL + lista.map(x => '☐ ' + x).join(NL) + NL + NL + '_Para ver de novo: \"me mostra a lista ' + titulo + '\". Para riscar: \"tira ' + lista[0].toLowerCase() + ' da lista\"._');\n      } else if (a.texto) {\n        const titulo = String(a.titulo || String(a.texto).slice(0, 40)).slice(0, 80);\n        ins(autor, a.formato === 'nota' ? 'nota' : 'ideia', titulo, String(a.texto).slice(0, 2000), {}, null, null, 'ativa');\n        msg(numero, (a.formato === 'nota' ? 'Nota guardada: *' : 'Ideia guardada: *') + titulo + '*. Depois é só me perguntar sobre esse assunto.');\n      }\n    } else if (op === 'remover_item') {\n      const r = achar();\n      if (!r || !lista.length) { msg(numero, 'Não achei essa lista. Quer ver as suas?'); continue; }\n      const its = itensDe(r);\n      const resta = its.filter(x => !lista.some(y => norm(x).includes(norm(y)) && norm(y).length > 1));\n      upd(r, { dados: JSON.stringify({ itens: resta }) });\n      msg(numero, resta.length ? 'Riscado ✅' + NL + NL + '📝 *' + r.titulo + '*' + NL + resta.map(x => '☐ ' + x).join(NL) : 'Riscado ✅ A lista *' + r.titulo + '* está completa! 🎉');\n    } else if (op === 'apagar') {\n      const r = achar();\n      if (!r) { msg(numero, 'Não achei essa nota para apagar.'); continue; }\n      upd(r, { status: 'apagada' });\n      msg(numero, 'Apaguei *' + r.titulo + '*.');\n    } else if (op === 'buscar') {\n      const toks = norm(a.busca || a.titulo).split(' ').filter(x => x.length > 2);\n      const pont = mine.map(r => { const alvo = norm(r.titulo + ' ' + (r.texto || '') + ' ' + itensDe(r).join(' ')); let s = 0; for (const k of toks) if (alvo.includes(k) || alvo.includes(k.slice(0, Math.max(4, k.length - 2)))) s++; return { r, s }; }).filter(x => x.s > 0).sort((x, y) => y.s - x.s).slice(0, 5);\n      if (!pont.length) msg(numero, 'Não achei nada sobre isso nas suas notas e ideias.');\n      else msg(numero, 'Achei isso:' + NL + pont.map(x => '• *' + x.r.titulo + '* — ' + (itensDe(x.r).length ? itensDe(x.r).join(', ') : String(x.r.texto || '').slice(0, 140))).join(NL));\n    } else {\n      const r = achar();\n      if (r) msg(numero, mostrar(r));\n      else if (!nt && mine.length === 1) msg(numero, mostrar(mine[0]));\n      else if (!mine.length) msg(numero, 'Você ainda não tem listas nem ideias guardadas.');\n      else msg(numero, 'Suas notas:' + NL + mine.map(x => '• ' + x.titulo + (x.tipo === 'ideia' ? ' (ideia)' : '')).join(NL));\n    }\n    continue;\n  }\n\n  // ---------- Parcelados e recorrentes ----------\n  if (t === 'criar_recorrente') {\n    const valor = Math.abs(num(a.valor, 0));\n    const desc = String(a.descricao || '').trim().slice(0, 120);\n    if (!valor || !desc) { msg(numero, 'Para criar o lançamento automático preciso da descrição e do valor.'); continue; }\n    let total = (a.parcelas === null || a.parcelas === undefined || a.parcelas === '') ? null : Math.round(num(a.parcelas, 0));\n    if (total !== null) total = Math.max(1, Math.min(60, total));\n    const ja = Math.max(0, Math.round(num(a.ja_pagas, 0)));\n    const prim = diaIso(a.primeira_data) || hoje;\n    const row = { titulo: desc, valor, data: prim.toUTC().toISO(), autor, dados: JSON.stringify({ total, feitas: ja, movimento: a.movimento === 'receita' ? 'receita' : 'despesa', categoria: String(a.categoria || 'outros').toLowerCase(), forma: String(a.forma_pagamento || ''), dia: prim.day }) };\n    const rr = rodar(row);\n    ins(autor, 'recorrente', desc, '', rr.d, valor, rr.prox ? rr.prox.toUTC().toISO() : null, rr.fim ? 'encerrada' : 'ativa');\n    msg(numero, 'Combinado! *' + desc + '*: ' + brl(valor) + (total ? ' em ' + total + ' parcelas' : ' todo mês') + '.' + (rr.lanc.length ? ' Já lancei: ' + rr.lanc.join(', ') + '.' : '') + (rr.fim ? ' Todas as parcelas já estavam lançadas.' : ' Próximo lançamento automático em ' + rr.prox.toFormat('dd/LL/yyyy') + '.'));\n    continue;\n  }\n  if (t === 'cancelar_recorrente') {\n    const nt = norm(a.titulo);\n    const r = extras.find(x => x.tipo === 'recorrente' && aut(x) === autor && x.status === 'ativa' && nt && (norm(x.titulo).includes(nt) || nt.includes(norm(x.titulo))));\n    if (!r) { msg(numero, 'Não achei esse lançamento automático ativo.'); continue; }\n    upd(r, { status: 'cancelada' });\n    msg(numero, 'Cancelei o lançamento automático de *' + r.titulo + '*. O que já foi lançado continua no histórico.');\n    continue;\n  }\n  if (t === 'listar_recorrentes') {\n    const l = extras.filter(x => x.tipo === 'recorrente' && aut(x) === autor && x.status === 'ativa');\n    if (!l.length) { msg(numero, 'Você não tem parcelados nem recorrentes ativos.'); continue; }\n    msg(numero, 'Seus lançamentos automáticos:' + NL + l.map(r => { const d = dados(r); const falta = d.total ? (d.total - (d.feitas || 0)) + ' parcelas restantes' : 'sem fim'; return '• *' + r.titulo + '* — ' + brl(r.valor) + ', ' + falta + ', próximo ' + dtx(r.data).toFormat('dd/LL'); }).join(NL));\n    continue;\n  }\n\n  // ---------- Clientes e contas a receber ----------\n  if (t === 'cadastrar_cliente') {\n    const nome = String(a.nome || '').trim().slice(0, 120);\n    if (!nome) continue;\n    const ex = extras.find(x => x.tipo === 'cliente' && aut(x) === autor && norm(x.titulo) === norm(nome));\n    const d = { documento: String(a.documento || ''), papel: a.papel === 'fornecedor' ? 'fornecedor' : 'cliente', telefone: String(a.telefone || ''), obs: String(a.obs || '') };\n    if (ex) { upd(ex, { dados: JSON.stringify(Object.assign(dados(ex), d)) }); msg(numero, 'Atualizei o cadastro de *' + nome + '*.'); }\n    else { ins(autor, 'cliente', nome, '', d, null, null, 'ativa'); msg(numero, (d.papel === 'fornecedor' ? 'Fornecedor' : 'Cliente') + ' cadastrado: *' + nome + '*.'); }\n    continue;\n  }\n  if (t === 'criar_recebivel') {\n    const valor = Math.abs(num(a.valor, 0));\n    const dev = String(a.devedor || '').trim().slice(0, 120);\n    if (!valor || !dev) { msg(numero, 'Para anotar o que te devem preciso do nome e do valor.'); continue; }\n    const venc = diaIso(a.vencimento);\n    ins(autor, 'recebivel', dev, String(a.motivo || '').slice(0, 200), { origem: 'manual' }, valor, venc ? venc.toUTC().toISO() : null, 'aberto');\n    msg(numero, 'Anotado: *' + dev + '* te deve ' + brl(valor) + (a.motivo ? ' (' + a.motivo + ')' : '') + (venc ? ', vence em ' + venc.toFormat('dd/LL/yyyy') : '') + '.');\n    continue;\n  }\n  if (t === 'quem_deve') {\n    const ab = extras.filter(x => x.tipo === 'recebivel' && aut(x) === autor && x.status === 'aberto');\n    if (!ab.length) { msg(numero, 'Ninguém está te devendo nada por aqui.'); continue; }\n    const g = {};\n    for (const r of ab) { const k = r.titulo; g[k] = g[k] || { total: 0, atraso: 0 }; g[k].total += Number(r.valor) || 0; if (r.data) { const dd = Math.round(hoje.diff(dtx(r.data).startOf('day'), 'days').days); if (dd > g[k].atraso) g[k].atraso = dd; } }\n    const ls = Object.entries(g).sort((x, y) => y[1].total - x[1].total);\n    const tot = ls.reduce((s, x) => s + x[1].total, 0);\n    msg(numero, 'Te devem ' + brl(tot) + ':' + NL + ls.map(x => '• *' + x[0] + '* — ' + brl(x[1].total) + (x[1].atraso > 0 ? ' (atrasado há ' + x[1].atraso + ' dias)' : '')).join(NL));\n    continue;\n  }\n  if (t === 'receber_recebivel') {\n    const nd = norm(a.devedor);\n    const ab = extras.filter(x => x.tipo === 'recebivel' && aut(x) === autor && x.status === 'aberto' && nd && (norm(x.titulo).includes(nd) || nd.includes(norm(x.titulo)))).sort((x, y) => x.id - y.id);\n    if (!ab.length) { msg(numero, 'Não achei nada em aberto com esse nome.'); continue; }\n    let resta = Math.abs(num(a.valor, 0)) || ab.reduce((s, x) => s + Number(x.valor), 0);\n    const recebido = resta;\n    for (const r of ab) {\n      if (resta <= 0) break;\n      const v = Number(r.valor) || 0;\n      if (resta >= v - 0.005) { upd(r, { status: 'pago', data: r.data }); resta -= v; }\n      else { upd(r, { valor: Math.round((v - resta) * 100) / 100 }); resta = 0; }\n    }\n    out.push({ json: { op: 'ins_tx', movimento: 'receita', valor: recebido, categoria: 'recebimentos', descricao: 'Recebido de ' + ab[0].titulo, data: agora.toUTC().toISO(), forma_pagamento: String(a.forma_pagamento || ''), autor, comprovante_url: '' } });\n    msg(numero, 'Baixei ' + brl(recebido) + ' de *' + ab[0].titulo + '* e lancei como receita.');\n    continue;\n  }\n  if (t === 'consultar_cliente') {\n    const nm = norm(a.nome);\n    if (!nm) continue;\n    const p = periodo(a.periodo);\n    const rel = txs.filter(x => aut(x) === autor && norm(x.descricao).includes(nm) && dtx(x.data) >= p.ini && dtx(x.data) <= p.fim);\n    const rec = rel.filter(x => x.tipo === 'receita');\n    const des = rel.filter(x => x.tipo !== 'receita');\n    const soma = l => l.reduce((s, x) => s + Number(x.valor || 0), 0);\n    const ab = extras.filter(x => x.tipo === 'recebivel' && aut(x) === autor && x.status === 'aberto' && norm(x.titulo).includes(nm));\n    const cad = extras.find(x => x.tipo === 'cliente' && aut(x) === autor && (norm(x.titulo).includes(nm) || nm.includes(norm(x.titulo))));\n    const nomeShow = cad ? cad.titulo : cap(String(a.nome));\n    const partes = [];\n    if (rec.length) partes.push('Você recebeu ' + brl(soma(rec)) + ' de *' + nomeShow + '* ' + p.rotulo + ', em ' + rec.length + (rec.length === 1 ? ' pagamento.' : ' pagamentos.'));\n    if (des.length) partes.push('E pagou ' + brl(soma(des)) + ' a *' + nomeShow + '* no período, em ' + des.length + (des.length === 1 ? ' lançamento.' : ' lançamentos.'));\n    if (!partes.length) partes.push('Não encontrei lançamentos de *' + nomeShow + '* ' + p.rotulo + '. (Eu procuro o nome na descrição do lançamento.)');\n    if (ab.length) partes.push('Ainda tem ' + brl(soma(ab)) + ' em aberto dele(a).');\n    msg(numero, partes.join(' '));\n    continue;\n  }\n\n  // ---------- Desfazer / editar último lançamento (24h) ----------\n  if (t === 'desfazer_ultimo' || t === 'editar_ultimo') {\n    const mine = txs.filter(x => aut(x) === autor && x.createdAt && agora.diff(dtx(x.createdAt), 'hours').hours <= 24).sort((x, y) => Number(y.id) - Number(x.id));\n    if (!mine.length) { msg(numero, 'Não achei nenhum lançamento seu nas últimas 24 horas para ' + (t === 'desfazer_ultimo' ? 'desfazer.' : 'ajustar.')); continue; }\n    const l = mine[0];\n    const resumo = (l.tipo === 'receita' ? 'receita' : 'despesa') + ' de ' + brl(l.valor) + ' em ' + (l.categoria || 'outros') + (l.descricao ? ' (' + l.descricao + ')' : '');\n    if (t === 'desfazer_ultimo') {\n      out.push({ json: { op: 'del_tx', id: l.id, autor } });\n      msg(numero, 'Desfeito: ' + resumo + '.');\n    } else {\n      const novo = { id: l.id, autor, tipo: a.movimento === 'receita' || a.movimento === 'despesa' ? a.movimento : l.tipo, valor: Math.abs(num(a.valor, Number(l.valor))), categoria: a.categoria ? String(a.categoria).toLowerCase() : l.categoria, descricao: a.descricao ? String(a.descricao) : (l.descricao || ''), data: a.data && DateTime.fromISO(String(a.data)).isValid ? DateTime.fromISO(String(a.data), { zone: TZ }).toUTC().toISO() : l.data, forma_pagamento: a.forma_pagamento ? String(a.forma_pagamento) : (l.forma_pagamento || '') };\n      out.push({ json: Object.assign({ op: 'upd_tx' }, novo) });\n      msg(numero, 'Ajustei: agora é ' + (novo.tipo === 'receita' ? 'receita' : 'despesa') + ' de ' + brl(novo.valor) + ' em ' + (novo.categoria || 'outros') + (novo.descricao ? ' (' + novo.descricao + ')' : '') + '.');\n    }\n    continue;\n  }\n\n  // ---------- Convites ----------\n  if (t === 'gerar_convite') {\n    const alfa = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';\n    let cod = 'DYNO-';\n    for (let i = 0; i < 6; i++) cod += alfa.charAt(Math.floor(Math.random() * alfa.length));\n    const exp = hoje.plus({ days: 7 });\n    ins(autor, 'convite', cod, '', { para: String(a.nome || '') }, null, exp.toUTC().toISO(), 'aberto');\n    msg(numero, 'Convite criado: *' + cod + '*' + (a.nome ? ' (para ' + a.nome + ')' : '') + '. Vale até ' + exp.toFormat('dd/LL/yyyy') + '. Quem receber usa esse código para entrar na sua conta, sem pagar a mais.');\n    continue;\n  }\n  if (t === 'listar_convites') {\n    const l = extras.filter(x => x.tipo === 'convite' && aut(x) === autor && x.status === 'aberto' && (!x.data || dtx(x.data) >= hoje));\n    msg(numero, l.length ? 'Convites abertos:' + NL + l.map(x => '• *' + x.titulo + '*' + (dados(x).para ? ' (' + dados(x).para + ')' : '') + ' — até ' + dtx(x.data).toFormat('dd/LL')).join(NL) : 'Você não tem convites abertos.');\n    continue;\n  }\n  if (t === 'revogar_convite') {\n    const cod = String(a.codigo || '').toUpperCase().trim();\n    const r = extras.find(x => x.tipo === 'convite' && aut(x) === autor && x.titulo === cod && x.status === 'aberto');\n    if (!r) { msg(numero, 'Não achei esse convite aberto.'); continue; }\n    upd(r, { status: 'revogado' });\n    msg(numero, 'Convite *' + cod + '* cancelado.');\n    continue;\n  }\n  if (t === 'resgatar_convite') {\n    const cod = String(a.codigo || '').toUpperCase().trim();\n    const r = extras.find(x => x.tipo === 'convite' && x.titulo === cod && x.status === 'aberto' && (!x.data || dtx(x.data) >= hoje));\n    if (!r) { msg(numero, 'Esse código de convite não existe, já foi usado ou expirou.'); continue; }\n    upd(r, { status: 'usado', dados: JSON.stringify(Object.assign(dados(r), { usado_por: String(a.nome || ''), numero, em: agora.toISO() })) });\n    ins(r.autor || 'Daniel', 'participante', String(a.nome || numero), numero, { convite: cod }, null, agora.toUTC().toISO(), 'ativo');\n    msg(numero, 'Prontinho' + (a.nome ? ', ' + a.nome : '') + '! Sua conta foi conectada à de ' + (r.autor || 'Daniel') + '.');\n    continue;\n  }\n\n  // ---------- Relatório em Excel (+ dashboard em imagem) ----------\n  if (t === 'relatorio_excel') {\n    const p = periodo(a.periodo);\n    const mine = txs.filter(x => aut(x) === autor && dtx(x.data) >= p.ini && dtx(x.data) <= p.fim).sort((x, y) => dtx(x.data).toMillis() - dtx(y.data).toMillis());\n    if (!mine.length) { msg(numero, 'Não encontrei lançamentos seus ' + p.rotulo + ' para montar o relatório.'); continue; }\n    const linhas = mine.map(x => ({ 'Data': dtx(x.data).toFormat('dd/LL/yyyy'), 'Descrição': x.descricao || '', 'Categoria': cap(String(x.categoria || 'outros')), 'Tipo': x.tipo === 'receita' ? 'Receita' : 'Despesa', 'Forma de pagamento': x.forma_pagamento || '', 'Valor': Number(Number(x.valor || 0).toFixed(2)) }));\n    const totD = mine.filter(x => x.tipo !== 'receita').reduce((s, x) => s + Number(x.valor || 0), 0);\n    const totR = mine.filter(x => x.tipo === 'receita').reduce((s, x) => s + Number(x.valor || 0), 0);\n    linhas.push({ 'Data': '', 'Descrição': '', 'Categoria': '', 'Tipo': '', 'Forma de pagamento': '', 'Valor': '' });\n    linhas.push({ 'Data': '', 'Descrição': 'TOTAL DE DESPESAS', 'Categoria': '', 'Tipo': '', 'Forma de pagamento': '', 'Valor': Number(totD.toFixed(2)) });\n    linhas.push({ 'Data': '', 'Descrição': 'TOTAL DE RECEITAS', 'Categoria': '', 'Tipo': '', 'Forma de pagamento': '', 'Valor': Number(totR.toFixed(2)) });\n    linhas.push({ 'Data': '', 'Descrição': 'SALDO', 'Categoria': '', 'Tipo': '', 'Forma de pagamento': '', 'Valor': Number((totR - totD).toFixed(2)) });\n    out.push({ json: { op: 'excel', numero, autor, linhas, caption: '📎 Relatório (Excel) ' + p.rotulo + NL + mine.length + ' lançamentos · Despesas ' + brl(totD) + ' · Receitas ' + brl(totR) } });\n    out.push({ json: { op: 'dash', numero, autor, periodo: p.chave } });\n    continue;\n  }\n\n  // ---------- Tarefas: projeto e atrasadas ----------\n  if (t === 'definir_projeto') {\n    const id = Number(a.id);\n    const r = tarefas.find(x => Number(x.id) === id && aut(x) === autor);\n    if (!r) { msg(numero, 'Não achei essa tarefa.'); continue; }\n    const proj = String(a.projeto || '').trim().slice(0, 80);\n    out.push({ json: { op: 'upd_tarefa', id, autor, projeto: proj } });\n    msg(numero, proj ? 'Coloquei *' + r.titulo + '* no projeto *' + proj + '*.' : 'Tirei *' + r.titulo + '* do projeto.');\n    continue;\n  }\n  if (t === 'ver_tarefas') {\n    const proj = a.projeto ? String(a.projeto) : null;\n    if (proj) {\n      const l = tarefas.filter(x => aut(x) === autor && norm(x.projeto) === norm(proj));\n      if (!l.length) { msg(numero, 'Não achei tarefas abertas no projeto *' + proj + '*.'); continue; }\n      const atr = l.filter(x => x.prazo && diasAtraso(x) > 0).length;\n      msg(numero, 'Projeto *' + proj + '*: ' + l.length + ' abertas' + (atr ? ', ' + atr + ' em atraso' : '') + '.' + NL + l.slice(0, 10).map(x => '• ' + x.titulo + (x.prazo ? ' — ' + (diasAtraso(x) > 0 ? 'atrasada há ' + diasAtraso(x) + 'd' : 'prazo ' + dtx(x.prazo).toFormat('dd/LL')) : '')).join(NL));\n    } else {\n      const l = atrasadasDe(autor, null);\n      msg(numero, l.length ? textoAtrasadas(l, 'Você tem ') : 'Nenhuma tarefa em atraso. 👏');\n    }\n    continue;\n  }\n}\nreturn out;\n\n",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      },
+      "alwaysOutputData": true
     },
     {
+      "id": "91675f55-f7ac-4fb4-aa1f-065268ff1463",
+      "name": "Carregar extras",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        300
+      ],
       "parameters": {
-        "operation": "get",
         "dataTableId": {
           "__rl": true,
           "cachedResultName": "assessor_extras",
@@ -37,84 +56,24 @@
           "value": "mJnt4Rop3vW3pcGI"
         },
         "matchType": "allConditions",
-        "returnAll": true
-      },
-      "id": "91675f55-f7ac-4fb4-aa1f-065268ff1463",
-      "name": "Carregar extras",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        224,
-        304
-      ],
-      "alwaysOutputData": true,
-      "executeOnce": true
-    },
-    {
-      "parameters": {
         "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_transacoes",
-          "mode": "id",
-          "value": "czjKVg7HFjMKNpAq"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "data",
-              "condition": "gte",
-              "keyValue": "={{ $now.minus({ days: 400 }).toISO() }}"
-            }
-          ]
-        },
+        "resource": "row",
         "returnAll": true
       },
-      "id": "e11ce7b8-c752-486c-82d4-4cf5c93b5cd3",
-      "name": "Carregar transações",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        448,
-        304
-      ],
       "alwaysOutputData": true,
       "executeOnce": true
     },
     {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_tarefas",
-          "mode": "id",
-          "value": "LnRebLLXT3hHXXVT"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "status",
-              "keyValue": "aberta"
-            }
-          ]
-        },
-        "returnAll": true
-      },
-      "id": "812d1f97-e4f4-4547-8330-b0700cfa410f",
-      "name": "Carregar tarefas abertas",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "id": "2b187fb3-91b1-4b2f-95fd-7d88387b4357",
+      "name": "Rotear",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
       "position": [
-        672,
-        304
+        1100,
+        300
       ],
-      "alwaysOutputData": true,
-      "executeOnce": true
-    },
-    {
       "parameters": {
+        "mode": "rules",
         "rules": {
           "values": [
             {
@@ -133,12 +92,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "msg"
+              "outputKey": "msg",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -156,12 +114,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "ins_extras"
+              "outputKey": "ins_extras",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -179,12 +136,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "upd_extras"
+              "outputKey": "upd_extras",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -202,12 +158,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "ins_tx"
+              "outputKey": "ins_tx",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -225,12 +180,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "upd_tx"
+              "outputKey": "upd_tx",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -248,12 +202,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "del_tx"
+              "outputKey": "del_tx",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -271,12 +224,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "upd_tarefa"
+              "outputKey": "upd_tarefa",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -294,12 +246,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "excel"
+              "outputKey": "excel",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -317,181 +268,227 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "dash"
+              "outputKey": "dash",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "ins_sb"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                }
+              },
+              "outputKey": "ins_sb",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "pat_sb"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                }
+              },
+              "outputKey": "pat_sb",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "rpc_sb"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                }
+              },
+              "outputKey": "rpc_sb",
+              "renameOutput": true
             }
           ]
-        },
-        "options": {}
-      },
-      "id": "2b187fb3-91b1-4b2f-95fd-7d88387b4357",
-      "name": "Rotear",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
-      "position": [
-        1104,
-        304
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.EVOLUTION_URL }}/message/sendText/pesquisa-aereo",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: \"​*Dyno:* \" + $json.texto, delay: 600 }) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "5d64c141-b948-40e1-a60e-19761a609a98",
       "name": "Enviar texto",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1344,
+        1340,
         0
       ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: \"​*Dyno:* \" + $json.texto, delay: 600 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "={{ $env.EVOLUTION_URL }}/message/sendText/pesquisa-aereo"
+      },
+      "onError": "continueRegularOutput",
       "retryOnFail": true,
       "maxTries": 2,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "z2JC1dDh1D3EEQ2b",
-          "name": "Evolution pesquisa-aereo"
-        }
-      },
-      "disabled": true,
-      "onError": "continueRegularOutput"
+      "disabled": true
     },
     {
-      "parameters": {
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_extras",
-          "mode": "id",
-          "value": "mJnt4Rop3vW3pcGI"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "schema": [
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "autor",
-              "id": "autor",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "tipo",
-              "id": "tipo",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "titulo",
-              "id": "titulo",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "texto",
-              "id": "texto",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "dados",
-              "id": "dados",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "valor",
-              "id": "valor",
-              "required": false,
-              "type": "number"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "data",
-              "id": "data",
-              "required": false,
-              "type": "dateTime"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "status",
-              "id": "status",
-              "required": false,
-              "type": "string"
-            }
-          ],
-          "value": {
-            "autor": "={{ $json.autor }}",
-            "dados": "={{ $json.dados }}",
-            "data": "={{ $json.data || null }}",
-            "status": "={{ $json.status }}",
-            "texto": "={{ $json.texto }}",
-            "tipo": "={{ $json.tipo }}",
-            "titulo": "={{ $json.titulo }}",
-            "valor": "={{ $json.valor }}"
-          }
-        },
-        "options": {}
-      },
       "id": "d899578f-75b8-4091-a420-104e84af0092",
       "name": "Inserir extras",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1344,
-        160
-      ]
-    },
-    {
+        1340,
+        150
+      ],
       "parameters": {
-        "operation": "update",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "autor",
+              "id": "autor",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "tipo",
+              "id": "tipo",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "titulo",
+              "id": "titulo",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "texto",
+              "id": "texto",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "dados",
+              "id": "dados",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "valor",
+              "id": "valor",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "data",
+              "id": "data",
+              "required": false,
+              "type": "dateTime"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "status",
+              "id": "status",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "autor": "={{ $json.autor }}",
+            "dados": "={{ $json.dados }}",
+            "data": "={{ $json.data || null }}",
+            "status": "={{ $json.status }}",
+            "texto": "={{ $json.texto }}",
+            "tipo": "={{ $json.tipo }}",
+            "titulo": "={{ $json.titulo }}",
+            "valor": "={{ $json.valor }}"
+          }
+        },
         "dataTableId": {
           "__rl": true,
           "cachedResultName": "assessor_extras",
           "mode": "id",
           "value": "mJnt4Rop3vW3pcGI"
         },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyValue": "={{ $json.id }}"
-            }
-          ]
-        },
+        "operation": "insert",
+        "resource": "row"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "fe8e1d3f-8f42-4135-b7fa-a4aa419248c1",
+      "name": "Atualizar extras",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1340,
+        300
+      ],
+      "parameters": {
         "columns": {
           "mappingMode": "defineBelow",
           "schema": [
@@ -559,459 +556,131 @@
             "valor": "={{ $json.valor }}"
           }
         },
-        "options": {}
-      },
-      "id": "fe8e1d3f-8f42-4135-b7fa-a4aa419248c1",
-      "name": "Atualizar extras",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1344,
-        304
-      ]
-    },
-    {
-      "parameters": {
         "dataTableId": {
           "__rl": true,
-          "cachedResultName": "assessor_transacoes",
+          "cachedResultName": "assessor_extras",
           "mode": "id",
-          "value": "czjKVg7HFjMKNpAq"
+          "value": "mJnt4Rop3vW3pcGI"
         },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "schema": [
+        "filters": {
+          "conditions": [
             {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "tipo",
-              "id": "tipo",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "valor",
-              "id": "valor",
-              "required": false,
-              "type": "number"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "categoria",
-              "id": "categoria",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "descricao",
-              "id": "descricao",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "data",
-              "id": "data",
-              "required": false,
-              "type": "dateTime"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "forma_pagamento",
-              "id": "forma_pagamento",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "autor",
-              "id": "autor",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "comprovante_url",
-              "id": "comprovante_url",
-              "required": false,
-              "type": "string"
+              "condition": "eq",
+              "keyName": "id",
+              "keyValue": "={{ $json.id }}"
             }
-          ],
-          "value": {
-            "autor": "={{ $json.autor }}",
-            "categoria": "={{ $json.categoria }}",
-            "comprovante_url": "={{ $json.comprovante_url }}",
-            "data": "={{ $json.data }}",
-            "descricao": "={{ $json.descricao }}",
-            "forma_pagamento": "={{ $json.forma_pagamento }}",
-            "tipo": "={{ $json.movimento }}",
-            "valor": "={{ $json.valor }}"
-          }
+          ]
         },
-        "options": {}
-      },
-      "id": "53d3ef03-86ac-42a6-9c36-d937539ad144",
-      "name": "Inserir transação",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1344,
-        464
-      ]
-    },
-    {
-      "parameters": {
+        "matchType": "allConditions",
         "operation": "update",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_transacoes",
-          "mode": "id",
-          "value": "czjKVg7HFjMKNpAq"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyValue": "={{ $json.id }}"
-            },
-            {
-              "keyName": "autor",
-              "keyValue": "={{ $json.autor }}"
-            }
-          ]
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "schema": [
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "tipo",
-              "id": "tipo",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "valor",
-              "id": "valor",
-              "required": false,
-              "type": "number"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "categoria",
-              "id": "categoria",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "descricao",
-              "id": "descricao",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "data",
-              "id": "data",
-              "required": false,
-              "type": "dateTime"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "forma_pagamento",
-              "id": "forma_pagamento",
-              "required": false,
-              "type": "string"
-            }
-          ],
-          "value": {
-            "categoria": "={{ $json.categoria }}",
-            "data": "={{ $json.data }}",
-            "descricao": "={{ $json.descricao }}",
-            "forma_pagamento": "={{ $json.forma_pagamento }}",
-            "tipo": "={{ $json.tipo }}",
-            "valor": "={{ $json.valor }}"
-          }
-        },
-        "options": {}
+        "resource": "row"
       },
-      "id": "aee0ad40-f3e5-4855-9814-f4f94969ae46",
-      "name": "Atualizar transação",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1344,
-        608
-      ]
+      "onError": "continueErrorOutput"
     },
     {
-      "parameters": {
-        "operation": "deleteRows",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_transacoes",
-          "mode": "id",
-          "value": "czjKVg7HFjMKNpAq"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyValue": "={{ $json.id }}"
-            },
-            {
-              "keyName": "autor",
-              "keyValue": "={{ $json.autor }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "9b6e3089-cfe6-4b55-8764-625497893d7c",
-      "name": "Apagar transação",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1344,
-        752
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "update",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_tarefas",
-          "mode": "id",
-          "value": "LnRebLLXT3hHXXVT"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyValue": "={{ $json.id }}"
-            },
-            {
-              "keyName": "autor",
-              "keyValue": "={{ $json.autor }}"
-            }
-          ]
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "schema": [
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "projeto",
-              "id": "projeto",
-              "required": false,
-              "type": "string"
-            }
-          ],
-          "value": {
-            "projeto": "={{ $json.projeto }}"
-          }
-        },
-        "options": {}
-      },
-      "id": "4e12239a-2024-4719-b19a-60cc64350588",
-      "name": "Atualizar tarefa (projeto)",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1344,
-        912
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const it = $input.first().json;\nreturn (it.linhas || []).map(l => ({ json: l }));"
-      },
       "id": "5db81d7f-907f-484d-bda7-345cf396b97a",
       "name": "Linhas da planilha",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1344,
-        1056
-      ]
+        1340,
+        1050
+      ],
+      "parameters": {
+        "jsCode": "const it = $input.first().json;\nreturn (it.linhas || []).map(l => ({ json: l }));",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
-      "parameters": {
-        "operation": "xlsx",
-        "options": {
-          "fileName": "relatorio-dyno.xlsx",
-          "sheetName": "Lançamentos"
-        }
-      },
       "id": "8c2c8f5e-6bc2-4c97-b44e-a672e170d270",
       "name": "Gerar Excel",
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
-        1568,
-        1056
-      ]
+        1560,
+        1050
+      ],
+      "parameters": {
+        "binaryPropertyName": "data",
+        "operation": "xlsx",
+        "options": {
+          "fileName": "relatorio-dyno.xlsx",
+          "sheetName": "Lançamentos"
+        }
+      }
     },
     {
-      "parameters": {
-        "jsCode": "const buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst m = $('Processar').all().map(i => i.json).find(j => j.op === 'excel') || {};\nreturn [{ json: { numero: m.numero, caption: m.caption, b64: buf.toString('base64') } }];"
-      },
       "id": "f0660a25-f142-49ad-97d8-bed3a55b4d82",
       "name": "Anexo Excel",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1792,
-        1056
-      ]
+        1780,
+        1050
+      ],
+      "parameters": {
+        "jsCode": "const buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst m = $('Processar').all().map(i => i.json).find(j => j.op === 'excel') || {};\nreturn [{ json: { numero: m.numero, caption: m.caption, b64: buf.toString('base64') } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.EVOLUTION_URL }}/message/sendMedia/pesquisa-aereo",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $json.numero, mediatype: \"document\", mimetype: \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\", caption: $json.caption, media: $json.b64, fileName: \"relatorio-dyno.xlsx\", delay: 800 }) }}",
-        "options": {
-          "timeout": 60000
-        }
-      },
       "id": "3faec842-c992-48bf-8dcd-5fe317a62aed",
       "name": "Enviar Excel",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
         2000,
-        1056
+        1050
       ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, mediatype: \"document\", mimetype: \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\", caption: $json.caption, media: $json.b64, fileName: \"relatorio-dyno.xlsx\", delay: 800 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "={{ $env.EVOLUTION_URL }}/message/sendMedia/pesquisa-aereo"
+      },
+      "onError": "continueRegularOutput",
       "retryOnFail": true,
       "maxTries": 2,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "z2JC1dDh1D3EEQ2b",
-          "name": "Evolution pesquisa-aereo"
-        }
-      },
-      "disabled": true,
-      "onError": "continueRegularOutput"
+      "disabled": true
     },
     {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "qHNQDuOeWVg7EyZq"
-        },
-        "options": {
-          "waitForSubWorkflow": false
-        }
-      },
       "id": "8fad6d43-b4f3-4d20-b913-593072b1062b",
       "name": "Gerar dashboard",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        1344,
+        1340,
         1200
-      ]
+      ],
+      "parameters": {
+        "options": {
+          "waitForSubWorkflow": false
+        },
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "qHNQDuOeWVg7EyZq"
+        }
+      }
     },
     {
-      "parameters": {
-        "conditions": {
-          "combinator": "and",
-          "conditions": [
-            {
-              "leftValue": "={{ $('Receber ação').first().json.instancia }}",
-              "operator": {
-                "operation": "equals",
-                "type": "string"
-              },
-              "rightValue": "dyno"
-            }
-          ],
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
-          }
-        },
-        "options": {}
-      },
       "id": "2f86f9e2-4303-4796-aa69-0a66b45fcf06",
       "name": "Via Dyno? Enviar texto",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1152,
-        80
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: String.fromCharCode(8203) + \"*Dyno:* \" + $json.texto, delay: 600 }) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
-      "id": "e63b5029-b807-4bcc-b897-ea33dfa58ab8",
-      "name": "Enviar texto (Dyno)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        1344,
-        144
+        1140,
+        70
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
-        }
-      }
-    },
-    {
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -1028,61 +697,508 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
+        }
+      }
+    },
+    {
+      "id": "e63b5029-b807-4bcc-b897-ea33dfa58ab8",
+      "name": "Enviar texto (Dyno)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1340,
+        140
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: String.fromCharCode(8203) + ($json.voz === 'dina' ? '*⏰ Dina*' : '*💰 Dyno*') + String.fromCharCode(10) + $json.texto, delay: 600 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
         },
-        "options": {}
-      },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno"
+      }
+    },
+    {
       "id": "53982fa6-16cb-4f8e-93e1-aaf38aab8077",
       "name": "Via Dyno? Enviar Excel",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1808,
+        1800,
         1120
-      ]
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Receber ação').first().json.instancia }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "dyno"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        }
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendMedia/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $json.numero, mediatype: \"document\", mimetype: \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\", caption: $json.caption, media: $json.b64, fileName: \"relatorio-dyno.xlsx\", delay: 800 }) }}",
-        "options": {
-          "timeout": 60000
-        }
-      },
       "id": "153ca594-5b5c-49f9-852a-a2ebcf1d19fe",
       "name": "Enviar Excel (Dyno)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
         2000,
-        1200
+        1190
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, mediatype: \"document\", mimetype: \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\", caption: $json.caption, media: $json.b64, fileName: \"relatorio-dyno.xlsx\", delay: 800 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendMedia/dyno"
       }
     },
     {
-      "parameters": {
-        "jsCode": "// Na rotina diária (09:30), as mensagens saem como \"Nome, ...\" para o grupo da família.\n// Família continua no grupo; clientes do piloto recebem no privado (destinos vem do Supabase); quem não está no cadastro não recebe.\nconst FAMS = ['Daniel', 'Quézia', 'Eliezer'];\nconst GRUPO = '120363412854461070@g.us';\nlet pedido = {};\ntry { pedido = $('Receber ação').first().json || {}; } catch (e) { pedido = {}; }\nif (!pedido.rotina) return $input.all();\nconst dest = (pedido.destinos && typeof pedido.destinos === 'object') ? pedido.destinos : {};\nconst nomes = Array.from(new Set([...FAMS, ...Object.keys(dest)])).sort((a, b) => b.length - a.length);\nconst out = [];\nfor (const it of $input.all()) {\n  const j = it.json || {};\n  if (j.op !== 'msg' || j.numero !== GRUPO) { out.push(it); continue; }\n  const t = String(j.texto || '');\n  const au = nomes.find(n => t.startsWith(n + ', '));\n  if (au && FAMS.includes(au)) { out.push(it); continue; }\n  const n = au ? String(dest[au] || '') : '';\n  if (/^\\d{12,13}$/.test(n)) out.push({ json: { ...j, numero: n } });\n}\nreturn out;"
-      },
       "id": "90e6f39d-f918-47c7-947a-8f65ebaee1ad",
       "name": "Destino da rotina",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1104,
-        128
-      ]
+        1100,
+        120
+      ],
+      "parameters": {
+        "jsCode": "// Na rotina diária (09:30), as mensagens saem como \"Nome, ...\" para o grupo da família.\n// Família continua no grupo; clientes do piloto recebem no privado (destinos vem do Supabase); quem não está no cadastro não recebe.\nconst FAMS = ['Daniel', 'Quézia', 'Eliezer'];\nconst GRUPO = '120363412854461070@g.us';\nlet pedido = {};\ntry { pedido = $('Receber ação').first().json || {}; } catch (e) { pedido = {}; }\nif (!pedido.rotina) return $input.all();\nconst dest = (pedido.destinos && typeof pedido.destinos === 'object') ? pedido.destinos : {};\nconst nomes = Array.from(new Set([...FAMS, ...Object.keys(dest)])).sort((a, b) => b.length - a.length);\nconst out = [];\nfor (const it of $input.all()) {\n  const j = it.json || {};\n  if (j.op !== 'msg' || j.numero !== GRUPO) { out.push(it); continue; }\n  const t = String(j.texto || '');\n  const au = nomes.find(n => t.startsWith(n + ', '));\n  if (au && FAMS.includes(au)) { out.push(it); continue; }\n  const n = au ? String(dest[au] || '') : '';\n  if (/^\\d{12,13}$/.test(n)) out.push({ json: { ...j, numero: n } });\n}\nreturn out;",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "b843bd3a-856f-4bf6-b1fe-b1b03e3b36c3",
+      "name": "Carregar transações",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_transacoes?' + 'order=data.desc&limit=5000&data=gte.' + encodeURIComponent($now.minus({ days: 400 }).toISO()) }}"
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "ae79d8c1-3204-4264-98ba-776f8a6b2fa1",
+      "name": "Inserir transação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1340,
+        450
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify({ tipo: $json.movimento, valor: $json.valor, categoria: $json.categoria, descricao: $json.descricao, data: $json.data || null, forma_pagamento: $json.forma_pagamento, autor: $json.autor, comprovante_url: $json.comprovante_url }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_transacoes"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "88037856-dc95-4979-8c0f-5c1afae0e624",
+      "name": "Atualizar transação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1340,
+        600
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify({ tipo: $json.tipo, valor: $json.valor, categoria: $json.categoria, descricao: $json.descricao, data: $json.data || null, forma_pagamento: $json.forma_pagamento }) }}",
+        "method": "PATCH",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_transacoes?' + 'id=eq.' + $json.id + '&autor=eq.' + encodeURIComponent($json.autor) }}"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "2c523e2a-7928-4591-a1e3-7762570ee682",
+      "name": "Apagar transação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1340,
+        750
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_transacoes?' + 'id=eq.' + $json.id + '&autor=eq.' + encodeURIComponent($json.autor) }}"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dba6b255-4a85-48c6-b42f-5d63a49f3558",
+      "name": "Carregar tarefas abertas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_tarefas?' + 'order=id&limit=5000' + '&' + 'status=eq.' + encodeURIComponent(String(\"aberta\")) }}"
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "fae066c3-160b-4b3d-b2c4-7658647176cd",
+      "name": "Atualizar tarefa (projeto)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1340,
+        900
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify({ \"projeto\": ($json.projeto) }) }}",
+        "method": "PATCH",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_tarefas?' + 'id=eq.' + encodeURIComponent(String(($json.id))) + '&' + 'autor=eq.' + encodeURIComponent(String(($json.autor))) }}"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "1946dbc7-23ca-4b36-b6c5-8ef0e9f78f80",
+      "name": "Carregar dados novos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        770,
+        300
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_extras_dados"
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "5a591c42-caec-4805-9635-aeded7b11310",
+      "name": "Processar novas funções",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        990,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Novas funções do Dyno/Dina: editar/apagar, previsão do mês, categorias próprias, metas, agenda.\n// Passa todos os itens do \"Processar\" adiante e acrescenta os novos.\nconst TZ = 'America/Sao_Paulo';\nconst GRUPO = '120363412854461070@g.us';\nconst NL = String.fromCharCode(10);\nconst agora = DateTime.now().setZone(TZ);\nconst hoje = agora.startOf('day');\nconst out = $input.all().slice();\nconst rows = n => { try { return $(n).all().map(i => i.json).filter(r => r && r.id != null); } catch (e) { return []; } };\nconst extras = rows('Carregar extras');\nconst txs = rows('Carregar transações');\nconst tarefas = rows('Carregar tarefas abertas');\nlet nd = {};\ntry { nd = $('Carregar dados novos').first().json || {}; } catch (e) { nd = {}; }\nconst L = k => Array.isArray(nd[k]) ? nd[k] : [];\nconst lembretes = L('lembretes'), contas = L('contas'), assinaturas = L('assinaturas'), metas = L('metas'), compromissos = L('compromissos'), regras = L('regras');\nconst norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9 ]/g, '').trim();\nconst milhar = s => { let o = ''; for (let i = 0; i < s.length; i++) { if (i > 0 && (s.length - i) % 3 === 0) o += '.'; o += s[i]; } return o; };\nconst brl = v => { const n = Math.abs(Number(v || 0)).toFixed(2).split('.'); return (Number(v) < 0 ? '-' : '') + 'R$ ' + milhar(n[0]) + ',' + n[1]; };\nconst num = (v, d) => { if (v === null || v === undefined || v === '') return d; const n = Number(String(v).replace(',', '.')); return isNaN(n) ? d : n; };\nconst aut = r => r.autor || 'Daniel';\nconst dt = v => DateTime.fromISO(String(v)).setZone(TZ);\nconst diaIso = v => { if (!v) return null; const d = DateTime.fromISO(String(v)).setZone(TZ); return d.isValid ? d.startOf('day') : null; };\nconst msg = (numero, texto) => out.push({ json: { op: 'msg', numero, texto } });\nconst ins = (tabela, corpo) => out.push({ json: { op: 'ins_sb', tabela, corpo } });\nconst pat = (tabela, id, autor, campos) => out.push({ json: { op: 'pat_sb', tabela, id, autor, campos } });\nconst rpc = (fn, args) => out.push({ json: { op: 'rpc_sb', fn, args } });\nconst upd = (r, ch) => { const base = { op: 'upd_extras', id: r.id, titulo: r.titulo, texto: r.texto || '', dados: r.dados || '{}', valor: r.valor === undefined ? null : r.valor, data: r.data || null, status: r.status || 'ativa' }; out.push({ json: Object.assign(base, ch) }); };\nconst parseDt = v => { if (!v) return null; const d = DateTime.fromISO(String(v), { zone: TZ }); return d.isValid ? d : null; };\nconst fmtDH = d => d.toFormat('dd/LL') + ' às ' + d.toFormat('HH:mm');\nconst DS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];\n\n// Metas: progresso e valor semanal necessário\nconst linhaMeta = m => {\n  const alvo = Number(m.valor_alvo), at = Number(m.valor_atual || 0);\n  const pct = alvo > 0 ? Math.min(100, Math.round(at / alvo * 100)) : 0;\n  let s = '• *' + m.titulo + '*: ' + brl(at) + ' de ' + brl(alvo) + ' (' + pct + '%)';\n  const pz = diaIso(m.prazo);\n  if (pz) {\n    const sem = Math.max(1, Math.ceil(pz.diff(hoje, 'days').days / 7));\n    const falta = Math.max(0, alvo - at);\n    s += ' — prazo ' + pz.toFormat('dd/LL/yyyy') + (falta > 0 ? ', precisa guardar ~' + brl(falta / sem) + ' por semana' : '');\n  }\n  return s;\n};\n\nconst itens = [];\nfor (const it of $('Receber ação').all()) { if (it && it.json) itens.push(it.json); }\n\nfor (const it of itens) {\n  const numero = it.numero;\n  const autor = it.autor || 'Daniel';\n\n  // Rotina: toda segunda-feira, resumo das metas de cada pessoa\n  if (it.rotina) {\n    if (agora.weekday === 1) {\n      const por = {};\n      for (const m of metas) (por[aut(m)] = por[aut(m)] || []).push(m);\n      for (const [au, ms] of Object.entries(por)) msg(GRUPO, au + ', suas metas:' + NL + ms.map(linhaMeta).join(NL));\n    }\n    continue;\n  }\n\n  const a = it.a || {};\n  const t = String(a.tipo || '');\n\n  // ---------- Editar lembrete ----------\n  if (t === 'editar_lembrete') {\n    const r = lembretes.find(x => Number(x.id) === Number(a.id) && aut(x) === autor);\n    if (!r) { msg(numero, 'Não achei esse lembrete pendente.'); continue; }\n    if (r.conta_id) { msg(numero, 'Esse lembrete é de uma conta a pagar. Para mudar, ajuste a própria conta.'); continue; }\n    const ch = { status: 'pendente', insistencias: 0, proxima: null, msg_id: null, msg_jid: null };\n    if (a.texto) ch.texto = String(a.texto).slice(0, 300);\n    const q = parseDt(a.quando);\n    if (a.quando && !q) { msg(numero, 'Não entendi o novo horário. Pode repetir com dia e hora?'); continue; }\n    if (q) ch.quando = q.toUTC().toISO();\n    if (a.recorrencia) ch.recorrencia = String(a.recorrencia);\n    pat('dyno_lembretes', r.id, autor, ch);\n    msg(numero, 'Lembrete atualizado: *' + (ch.texto || r.texto) + '* — ' + fmtDH(q || dt(r.quando)) + '.');\n    continue;\n  }\n\n  // ---------- Editar / apagar tarefa ----------\n  if (t === 'editar_tarefa' || t === 'apagar_tarefa') {\n    const r = tarefas.find(x => Number(x.id) === Number(a.id) && aut(x) === autor);\n    if (!r) { msg(numero, 'Não achei essa tarefa aberta.'); continue; }\n    if (t === 'apagar_tarefa') { pat('dyno_tarefas', r.id, autor, { status: 'cancelada' }); msg(numero, 'Apaguei a tarefa *' + r.titulo + '*.'); continue; }\n    const ch = {};\n    if (a.titulo) ch.titulo = String(a.titulo).slice(0, 200);\n    if (a.prioridade && ['alta', 'media', 'baixa'].includes(String(a.prioridade))) ch.prioridade = String(a.prioridade);\n    if (a.notas) ch.notas = String(a.notas).slice(0, 500);\n    if (a.prazo) { const p = parseDt(a.prazo); if (!p) { msg(numero, 'Não entendi o novo prazo.'); continue; } ch.prazo = p.toUTC().toISO(); }\n    if (!Object.keys(ch).length) { msg(numero, 'O que você quer mudar nessa tarefa?'); continue; }\n    pat('dyno_tarefas', r.id, autor, ch);\n    msg(numero, 'Tarefa atualizada: *' + (ch.titulo || r.titulo) + '*' + (ch.prazo ? ' — prazo ' + dt(ch.prazo).toFormat('dd/LL') : '') + '.');\n    continue;\n  }\n\n  // ---------- Editar nota ----------\n  if (t === 'editar_nota') {\n    const mine = extras.filter(r => aut(r) === autor && (r.tipo === 'nota' || r.tipo === 'ideia') && r.status !== 'apagada');\n    const nt = norm(a.titulo);\n    const r = nt ? (mine.find(x => norm(x.titulo) === nt) || mine.find(x => norm(x.titulo).includes(nt) || nt.includes(norm(x.titulo)))) : null;\n    if (!r) { msg(numero, 'Não achei essa nota.'); continue; }\n    const ch = {};\n    if (a.novo_titulo) ch.titulo = String(a.novo_titulo).slice(0, 120);\n    if (a.texto !== undefined && a.texto !== null && a.texto !== '') ch.texto = String(a.texto);\n    if (!Object.keys(ch).length) { msg(numero, 'O que você quer mudar nessa nota?'); continue; }\n    upd(r, ch);\n    msg(numero, 'Nota atualizada: *' + (ch.titulo || r.titulo) + '*.');\n    continue;\n  }\n\n  // ---------- Previsão do mês ----------\n  if (t === 'previsao_mes') {\n    const ini = agora.startOf('month'), fim = agora.endOf('month');\n    const dia = agora.day, total = agora.daysInMonth, resta = total - dia;\n    const doMes = txs.filter(x => aut(x) === autor && x.data && dt(x.data) >= ini && dt(x.data) <= agora);\n    const des = doMes.filter(x => x.tipo !== 'receita');\n    const gasto = des.reduce((s, x) => s + Number(x.valor || 0), 0);\n    const receb = doMes.filter(x => x.tipo === 'receita').reduce((s, x) => s + Number(x.valor || 0), 0);\n    const fixo = x => ['contas', 'assinaturas'].includes(norm(x.categoria)) || /^conta:/i.test(String(x.descricao || '')) || /\\(\\d+\\/\\d+\\)/.test(String(x.descricao || ''));\n    const variavel = des.filter(x => !fixo(x)).reduce((s, x) => s + Number(x.valor || 0), 0);\n    const projVar = variavel / Math.max(1, dia) * resta;\n    let aVencer = 0; const itensV = [];\n    for (const c of contas.filter(x => aut(x) === autor)) { const v = diaIso(c.vencimento); if (v && v >= hoje && v <= fim) { aVencer += Number(c.valor || 0); itensV.push(c.descricao); } }\n    for (const s of assinaturas.filter(x => aut(x) === autor)) { const v = diaIso(s.proxima_cobranca); if (v && v > hoje && v <= fim) { aVencer += Number(s.valor || 0); itensV.push(s.nome); } }\n    for (const r of extras.filter(x => aut(x) === autor && x.tipo === 'recorrente' && x.status === 'ativa')) { const v = diaIso(r.data); if (v && v > hoje && v <= fim) { aVencer += Number(r.valor || 0); itensV.push(r.titulo); } }\n    const prev = gasto + projVar + aVencer;\n    let s = '📈 *Previsão de ' + agora.toFormat('LL/yyyy') + '* (estimativa)' + NL;\n    s += '• Gasto até agora: ' + brl(gasto) + NL;\n    s += '• Contas/assinaturas/parcelas a vencer: ' + brl(aVencer) + (itensV.length ? ' (' + itensV.slice(0, 5).join(', ') + ')' : '') + NL;\n    s += '• Gastos do dia a dia no ritmo atual (' + resta + ' dias restantes): ' + brl(projVar) + NL;\n    s += '*Total previsto no mês: ' + brl(prev) + '*';\n    if (receb > 0) s += NL + 'Recebido no mês: ' + brl(receb) + ' → saldo previsto ' + brl(receb - prev) + '.';\n    if (dia < 5) s += NL + '⚠️ Ainda é começo do mês, então a estimativa pode variar bastante.';\n    msg(numero, s);\n    continue;\n  }\n\n  // ---------- Categorias próprias ----------\n  if (t === 'regra_categoria') {\n    const padrao = norm(a.padrao), cat = String(a.categoria || '').toLowerCase().trim();\n    if (!padrao || !cat) { msg(numero, 'Me diga a palavra e a categoria. Ex.: \"mercado do João é alimentação\".'); continue; }\n    if (['receita', 'despesa', 'gasto', 'compra', 'venda', 'pix', 'pagamento', 'transferencia', 'entrada', 'saida', 'outros'].includes(padrao)) { msg(numero, 'Essa palavra é muito genérica para virar regra (pegaria quase todo lançamento). Me diga algo mais específico, como o nome da loja ou \"dividendo\".'); continue; }\n    const ex = regras.find(r => aut(r) === autor && norm(r.padrao) === padrao);\n    if (ex) pat('dyno_regras_categoria', ex.id, autor, { categoria: cat, ativo: true }); else ins('dyno_regras_categoria', { autor, padrao, categoria: cat });\n    msg(numero, 'Combinado: lançamentos com *' + padrao + '* vão para a categoria *' + cat + '*.');\n    continue;\n  }\n  if (t === 'listar_regras') {\n    const mine = regras.filter(r => aut(r) === autor);\n    msg(numero, mine.length ? 'Suas regras de categoria:' + NL + mine.map(r => '• ' + r.padrao + ' → ' + r.categoria).join(NL) : 'Você ainda não tem regras de categoria. Diga, por exemplo: \"padaria é alimentação\".');\n    continue;\n  }\n  if (t === 'apagar_regra') {\n    const p = norm(a.padrao);\n    const r = regras.find(x => aut(x) === autor && (norm(x.padrao) === p || (p && norm(x.padrao).includes(p))));\n    if (!r) { msg(numero, 'Não achei essa regra.'); continue; }\n    pat('dyno_regras_categoria', r.id, autor, { ativo: false });\n    msg(numero, 'Regra removida: ' + r.padrao + ' → ' + r.categoria + '.');\n    continue;\n  }\n  // Aprender com correções: ao ajustar a categoria do último lançamento, cria a regra\n  if (t === 'editar_ultimo' && a.categoria) {\n    const mine = txs.filter(x => aut(x) === autor && x.createdAt && agora.diff(dt(x.createdAt), 'hours').hours <= 24).sort((x, y) => Number(y.id) - Number(x.id));\n    const l = mine[0];\n    if (l && l.descricao && norm(l.categoria) !== norm(a.categoria)) {\n      const padrao = norm(l.descricao).split(' ').filter(Boolean).slice(0, 3).join(' ');\n      const cat = String(a.categoria).toLowerCase().trim();\n      // 08/10: não aprende regra com palavra genérica (ex.: \"receita\" virou regra para tudo em 07/10).\n      const GENERICAS = ['receita', 'despesa', 'gasto', 'gastos', 'compra', 'compras', 'venda', 'vendas', 'pix', 'pagamento', 'transferencia', 'entrada', 'saida', 'outros', 'outro', 'credito', 'debito', 'cartao', 'dinheiro', 'valor', 'conta', 'contas', 'recebido', 'recebimento', 'deposito', 'lancamento', 'ajuste', 'de', 'do', 'da', 'no', 'na', 'em', 'e'];\n      const generico = padrao.split(' ').every(w => GENERICAS.includes(w));\n      if (padrao.length >= 4 && !generico && !regras.find(r => aut(r) === autor && norm(r.padrao) === padrao)) {\n        ins('dyno_regras_categoria', { autor, padrao, categoria: cat });\n        msg(numero, '🧠 Aprendi: lançamentos com *' + padrao + '* agora vão para *' + cat + '*. Para desfazer, diga \"apagar regra ' + padrao + '\".');\n      }\n    }\n    continue;\n  }\n\n  // ---------- Metas ----------\n  if (t === 'criar_meta') {\n    const alvo = num(a.valor_alvo, 0), tit = String(a.titulo || '').trim().slice(0, 100);\n    if (!tit || alvo <= 0) { msg(numero, 'Me diga o nome e o valor da meta. Ex.: \"meta viagem 5000 até dezembro\".'); continue; }\n    const pz = parseDt(a.prazo);\n    ins('dyno_metas', { autor, titulo: tit, valor_alvo: alvo, valor_atual: Math.max(0, num(a.valor_atual, 0)), prazo: pz ? pz.toFormat('yyyy-LL-dd') : null });\n    msg(numero, '🎯 Meta criada: *' + tit + '* — ' + brl(alvo) + (pz ? ', até ' + pz.toFormat('dd/LL/yyyy') + ' (~' + brl(alvo / Math.max(1, Math.ceil(pz.diff(hoje, 'days').days / 7))) + ' por semana)' : '') + '. Para guardar, diga \"guardei 200 na meta ' + tit + '\".');\n    continue;\n  }\n  if (t === 'guardar_meta' || t === 'apagar_meta') {\n    const nt = norm(a.titulo);\n    const mine = metas.filter(m => aut(m) === autor);\n    const m = nt ? (mine.find(x => norm(x.titulo) === nt) || mine.find(x => norm(x.titulo).includes(nt) || nt.includes(norm(x.titulo)))) : (mine.length === 1 ? mine[0] : null);\n    if (!m) { msg(numero, 'Não achei essa meta.' + (mine.length ? ' Suas metas: ' + mine.map(x => x.titulo).join(', ') + '.' : '')); continue; }\n    if (t === 'apagar_meta') { pat('dyno_metas', m.id, autor, { status: 'cancelada' }); msg(numero, 'Meta *' + m.titulo + '* apagada.'); continue; }\n    const v = num(a.valor, 0);\n    if (v === 0) { msg(numero, 'Quanto você guardou?'); continue; }\n    const novo = Math.max(0, Number(m.valor_atual || 0) + v);\n    const fim = novo >= Number(m.valor_alvo);\n    pat('dyno_metas', m.id, autor, { valor_atual: novo, status: fim ? 'concluida' : 'ativa' });\n    msg(numero, fim ? '🎉 Meta *' + m.titulo + '* concluída! Você chegou a ' + brl(novo) + '. Parabéns!' : '✅ Guardado. ' + linhaMeta(Object.assign({}, m, { valor_atual: novo })).slice(2));\n    continue;\n  }\n  if (t === 'ver_metas') {\n    const mine = metas.filter(m => aut(m) === autor);\n    msg(numero, mine.length ? '🎯 *Suas metas*' + NL + mine.map(linhaMeta).join(NL) : 'Você ainda não tem metas. Diga, por exemplo: \"meta viagem 5000 até dezembro\".');\n    continue;\n  }\n\n  // ---------- Agenda ----------\n  if (t === 'criar_compromisso') {\n    const ini = parseDt(a.inicio), tit = String(a.titulo || '').trim().slice(0, 150);\n    if (!tit || !ini) { msg(numero, 'Me diga o que é e quando. Ex.: \"dentista quinta às 15h\".'); continue; }\n    if (ini < agora) { msg(numero, 'Esse horário já passou. Pode confirmar o dia e a hora?'); continue; }\n    const fimD = parseDt(a.fim) || ini.plus({ hours: 1 });\n    const conf = compromissos.filter(k => aut(k) === autor && k.status === 'ativo').filter(k => { const i2 = dt(k.inicio), f2 = k.fim ? dt(k.fim) : i2.plus({ hours: 1 }); return ini < f2 && fimD > i2; });\n    rpc('dyno_compromisso_criar', { p: { autor, titulo: tit, inicio: ini.toUTC().toISO(), fim: a.fim ? fimD.toUTC().toISO() : '', local: a.local ? String(a.local).slice(0, 120) : '', lembrar_min: num(a.lembrar_min, 60) } });\n    let s = '📅 Agendado: *' + tit + '* — ' + DS[ini.weekday - 1] + ' ' + fmtDH(ini) + (a.local ? ' (' + a.local + ')' : '') + '. Aviso ' + num(a.lembrar_min, 60) + ' min antes.';\n    if (conf.length) s += NL + '⚠️ Atenção: conflita com ' + conf.map(k => '*' + k.titulo + '* (' + fmtDH(dt(k.inicio)) + ')').join(', ') + '.';\n    msg(numero, s);\n    continue;\n  }\n  if (t === 'editar_compromisso' || t === 'cancelar_compromisso') {\n    const k = compromissos.find(x => Number(x.id) === Number(a.id) && aut(x) === autor);\n    if (!k) { msg(numero, 'Não achei esse compromisso.'); continue; }\n    if (t === 'cancelar_compromisso') { rpc('dyno_compromisso_alterar', { p: { id: k.id, autor, acao: 'cancelar' } }); msg(numero, 'Compromisso *' + k.titulo + '* cancelado.'); continue; }\n    const ini = a.inicio ? parseDt(a.inicio) : null;\n    if (a.inicio && !ini) { msg(numero, 'Não entendi o novo horário.'); continue; }\n    const p = { id: k.id, autor, acao: 'editar', titulo: a.titulo ? String(a.titulo) : '', local: a.local ? String(a.local) : '', lembrar_min: num(a.lembrar_min, 60) };\n    if (ini) p.inicio = ini.toUTC().toISO();\n    rpc('dyno_compromisso_alterar', { p });\n    msg(numero, 'Compromisso atualizado: *' + (a.titulo || k.titulo) + '* — ' + fmtDH(ini || dt(k.inicio)) + '.');\n    continue;\n  }\n  if (t === 'ver_agenda') {\n    // 08/10: a agenda junta compromissos, tarefas com prazo, contas a vencer e lembretes (recorrentes diários viram uma linha só).\n    const dias = Math.max(1, Math.min(31, Math.round(num(a.dias, 1))));\n    const d0 = a.data && parseDt(a.data) ? parseDt(a.data).startOf('day') : hoje;\n    const d1 = d0.plus({ days: dias });\n    const dentro = d => d && d.isValid && d >= d0 && d < d1;\n    const ks = compromissos.filter(k => aut(k) === autor && k.status === 'ativo' && dentro(dt(k.inicio)));\n    const ts = tarefas.filter(x => aut(x) === autor && x.prazo && dentro(dt(x.prazo)));\n    const cs = contas.filter(x => aut(x) === autor && x.vencimento && dentro(dt(x.vencimento)));\n    const titulos = ks.map(k => norm(k.titulo));\n    const ev = [];\n    for (const k of ks) ev.push({ d: dt(k.inicio), h: true, s: '📅 ' + k.titulo + (k.local ? ' (' + k.local + ')' : '') });\n    for (const x of ts) ev.push({ d: dt(x.prazo), h: false, s: '📋 Tarefa: ' + x.titulo });\n    for (const x of cs) ev.push({ d: dt(x.vencimento), h: false, s: '💸 Conta: ' + (x.descricao || x.beneficiario || 'conta') + (x.valor ? ' — ' + brl(x.valor) : '') });\n    const diarios = [];\n    for (const l of lembretes.filter(l => aut(l) === autor && !l.conta_id)) {\n      const tx = String(l.texto || '').split(NL)[0];\n      if (/^compromisso:/i.test(tx) || titulos.some(tt => tt && norm(tx).includes(tt))) continue;\n      let q = dt(l.quando);\n      if (!q.isValid) continue;\n      if (l.recorrencia === 'diaria' && dias > 1) { if (q < d1) diarios.push(q.toFormat('HH:mm') + ' ' + tx); continue; }\n      const passo = l.recorrencia === 'semanal' ? { weeks: 1 } : l.recorrencia === 'mensal' ? { months: 1 } : l.recorrencia === 'diaria' ? { days: 1 } : null;\n      if (passo) { while (q < d0) q = q.plus(passo); }\n      let n = 0;\n      while (dentro(q) && n < 40) { ev.push({ d: q, h: true, s: '⏰ ' + tx }); n++; if (!passo) break; q = q.plus(passo); }\n    }\n    ev.sort((x, y) => x.d - y.d);\n    const rotulo = dias === 1 ? (d0.equals(hoje) ? 'hoje' : d0.toFormat('dd/LL')) : d0.toFormat('dd/LL') + ' a ' + d1.minus({ days: 1 }).toFormat('dd/LL');\n    if (!ev.length && !diarios.length) { msg(numero, '📅 Nada na agenda para ' + rotulo + '.'); continue; }\n    let s = '📅 *Agenda — ' + rotulo + '*';\n    for (const e of ev) { const pre = ((dias > 1 ? DS[e.d.weekday - 1] + ' ' + e.d.toFormat('dd/LL') + ' ' : '') + (e.h ? e.d.toFormat('HH:mm') : '')).trim(); s += NL + '• ' + (pre ? pre + ' — ' : '') + e.s; }\n    if (diarios.length) s += NL + NL + '🔁 *Todo dia:* ' + diarios.join('; ');\n    msg(numero, s);\n    continue;\n  }\n}\nreturn out;",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "74fa3ab2-d574-46a1-88d4-2943a9ea42da",
+      "name": "Inserir (genérico)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1340,
+        1000
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/' + $json.tabela }}"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "71f1b084-064f-4e15-80c8-31dd60ff601d",
+      "name": "Atualizar (genérico)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1340,
+        1100
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify($json.campos) }}",
+        "method": "PATCH",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/' + $json.tabela + '?id=eq.' + encodeURIComponent(String($json.id)) + '&autor=eq.' + encodeURIComponent(String($json.autor)) }}"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "ea294468-60e6-4a0e-933a-6dde1447d6a1",
+      "name": "Chamar função (genérico)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1340,
+        1200
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify($json.args) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/' + $json.fn }}"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "e1b31e15-4ad9-48db-b18d-6a19eeefe15b",
+      "name": "Definir voz",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        -240
+      ],
+      "parameters": {
+        "jsCode": "// Quem fala: agenda, listas, tarefas, compromissos e documentos = Dina; dinheiro = Dyno.\nconst DINA = new Set(['nota', 'ver_tarefas', 'definir_projeto', 'editar_lembrete', 'editar_tarefa', 'apagar_tarefa', 'editar_nota', 'criar_compromisso', 'editar_compromisso', 'cancelar_compromisso', 'ver_agenda', 'salvar_documento', 'ver_documentos', 'apagar_documento']);\nlet acts = [];\ntry { acts = $('Receber ação').all().map(i => i.json || {}); } catch (e) { acts = []; }\nconst rotina = acts.some(a => a.rotina);\nconst tipos = acts.map(a => String((a.a || {}).tipo || '')).filter(Boolean);\nconst soDina = tipos.length > 0 && tipos.every(t => DINA.has(t));\nreturn $input.all().map(i => ({ json: { ...i.json, voz: rotina ? (/tarefa/i.test(String(i.json.texto || '')) ? 'dina' : 'dyno') : (soDina ? 'dina' : 'dyno') } }));",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "fa1eac8f-3a44-4faf-9f1e-f9a949dc1df2",
+      "name": "Histórico (extras)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2000,
+        -200
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p: { telefone: String($('Via Dyno? Enviar texto').item.json.numero), texto: ($('Via Dyno? Enviar texto').item.json.voz === 'dina' ? '*⏰ Dina*' : '*💰 Dyno*') + String.fromCharCode(10) + $('Via Dyno? Enviar texto').item.json.texto } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_registrar_saida"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "2e53edd3-6459-4632-8fec-838ee4cdad1c",
+      "name": "Falha ao gravar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        900
+      ],
+      "parameters": {
+        "jsCode": "// 07/10/2026: gravação falhou depois de a Dina/Dyno já ter confirmado. Avisa a pessoa e o Daniel.\nconst ZW = String.fromCharCode(8203);\nconst NL = String.fromCharCode(10);\nconst ADMIN = '5511930851325';\nlet numero = '', autor = '', inst = 'dyno', rotina = false;\ntry { const r = $('Receber ação').first().json || {}; numero = String(r.numero || ''); autor = String(r.autor || ''); inst = String(r.instancia || 'dyno'); rotina = r.rotina === true; } catch (e) { }\nconst itens = $input.all();\nconst oque = Array.from(new Set(itens.map(i => { const j = i.json || {}; return j.tabela ? String(j.tabela).replace('dyno_', '') : (j.fn ? String(j.fn).replace('dyno_', '') : String(j.op || 'registro')); }))).join(', ');\nconst erro = itens.map(i => { const e = (i.json || {}).error; return e ? String(e.message || e.description || JSON.stringify(e)).slice(0, 200) : ''; }).filter(Boolean).join(' | ');\nconst out = [];\nif (numero && inst === 'dyno' && !rotina) out.push({ json: { corpo: { number: numero, text: ZW + '⚠️ Ops, não consegui gravar isso agora por uma falha técnica (' + oque + '). Pode repetir daqui a pouco? Desculpe o transtorno.', delay: 600 } } });\nout.push({ json: { corpo: { number: ADMIN, text: ZW + '⚠️ *Dyno (extras): falha ao gravar* ' + oque + ' de ' + (autor || '?') + ' (' + numero + ')' + NL + (erro || 'sem detalhe'), delay: 300 } } });\nreturn out;",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "ebb524d1-4981-4afb-be61-9ca1d0ca4afd",
+      "name": "Avisar falha ao gravar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2620,
+        900
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "0b4e5e86-2d31-40eb-b12e-d89381d89e41",
+      "name": "Processar documentos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1045,
+        140
+      ],
+      "parameters": {
+        "jsCode": "// 08/10/2026: Documentos e vencimentos (salvar, ver, apagar). Passa adiante tudo do \"Processar novas funções\" e acrescenta os itens novos.\nconst TZ = 'America/Sao_Paulo';\nconst NL = String.fromCharCode(10);\nconst hoje = DateTime.now().setZone(TZ).startOf('day');\nconst out = $input.all().slice();\nlet nd = {};\ntry { nd = $('Carregar dados novos').first().json || {}; } catch (e) { nd = {}; }\nconst documentos = Array.isArray(nd.documentos) ? nd.documentos : [];\nconst aut = r => r.autor || 'Daniel';\nconst diaIso = v => { if (!v) return null; const d = DateTime.fromISO(String(v).slice(0, 10), { zone: TZ }); return d.isValid ? d.startOf('day') : null; };\nconst msg = (numero, texto) => out.push({ json: { op: 'msg', numero, texto } });\nconst rpc = (fn, args) => out.push({ json: { op: 'rpc_sb', fn, args } });\nconst itens = [];\ntry { for (const x of $('Receber ação').all()) if (x && x.json) itens.push(x.json); } catch (e) { }\nfor (const it of itens) {\n  if (it.rotina) continue;\n  const numero = it.numero;\n  const autor = it.autor || 'Daniel';\n  const a = it.a || {};\n  const t = String(a.tipo || '');\n  if (t === 'salvar_documento') {\n    const venc = diaIso(a.vencimento);\n    if (!venc) { msg(numero, 'Qual é a data de validade? Me diga no formato dia/mês/ano que eu guardo.'); continue; }\n    const TIPOS = ['cnh', 'rg', 'passaporte', 'visto', 'seguro', 'contrato', 'garantia', 'certificado', 'outro'];\n    const doc = TIPOS.includes(String(a.documento || '').toLowerCase()) ? String(a.documento).toLowerCase() : 'outro';\n    const desc = String(a.descricao || '').replace(/\\d[\\d.\\-\\/ ]{4,}\\d/g, '•••').trim().slice(0, 120) || doc.toUpperCase();\n    const ja = documentos.find(x => aut(x) === autor && a.id && Number(x.id) === Number(a.id));\n    rpc('dyno_documento_salvar', { p: { autor, documento: doc, descricao: desc, vencimento: venc.toISODate(), id: ja ? ja.id : '', arquivo_url: String(it.arquivo || '').indexOf('sb://') === 0 ? it.arquivo : '' } });\n    const MARC = { passaporte: [90, 30, 7], visto: [90, 30, 7], cnh: [60, 30, 7], rg: [60, 30] };\n    const mc = MARC[doc] || [30, 7];\n    const dias = Math.round(venc.diff(hoje, 'days').days);\n    let s = '🗂️ ' + (ja ? 'Atualizei' : 'Guardei') + ': *' + desc + '* — validade ' + venc.toFormat('dd/LL/yyyy') + '.';\n    if (dias < 0) s += NL + '⚠️ Essa data já passou. Se já renovou, me manda a nova validade.';\n    else { const ant = mc.filter(m => m < dias); s += NL + 'Vou te avisar ' + (ant.length ? ant.join(', ').replace(/, (\\d+)$/, ' e $1') + ' dias antes e no dia' : 'no dia') + '.'; }\n    if (it.arquivo && ['cnh', 'rg', 'passaporte', 'visto'].includes(doc)) s += NL + '🔒 Por segurança, não repito números do documento aqui na conversa.';\n    msg(numero, s);\n    continue;\n  }\n  if (t === 'ver_documentos') {\n    const mine = documentos.filter(x => aut(x) === autor).sort((x, y) => String(x.vencimento).localeCompare(String(y.vencimento)));\n    if (!mine.length) { msg(numero, '🗂️ Você ainda não tem documentos com validade guardados. Mande a foto da CNH, do passaporte ou a nota fiscal com garantia, ou diga: \"minha CNH vence em 10/05/2027\".'); continue; }\n    const lin = mine.map(x => { const v = diaIso(x.vencimento); const dd = Math.round(v.diff(hoje, 'days').days); return '• *' + x.descricao + '* — ' + v.toFormat('dd/LL/yyyy') + (dd < 0 ? ' (vencido)' : dd <= 60 ? ' (faltam ' + dd + ' dias)' : ''); });\n    msg(numero, '🗂️ *Seus documentos e validades*' + NL + lin.join(NL));\n    continue;\n  }\n  if (t === 'apagar_documento') {\n    const x = documentos.find(y => Number(y.id) === Number(a.id) && aut(y) === autor);\n    if (!x) { msg(numero, 'Não achei esse documento. Peça \"meus documentos\" para ver a lista.'); continue; }\n    rpc('dyno_documento_apagar', { p: { autor, id: x.id } });\n    msg(numero, 'Pronto, tirei *' + x.descricao + '* da lista. Não vou mais avisar sobre ele.');\n    continue;\n  }\n}\nreturn out;\n",
+        "mode": "runOnceForAllItems"
+      }
     }
   ],
   "connections": {
@@ -1097,44 +1213,11 @@
         ]
       ]
     },
-    "Carregar extras": {
-      "main": [
-        [
-          {
-            "node": "Carregar transações",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Carregar transações": {
-      "main": [
-        [
-          {
-            "node": "Carregar tarefas abertas",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Carregar tarefas abertas": {
-      "main": [
-        [
-          {
-            "node": "Processar",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Rotear": {
       "main": [
         [
           {
-            "node": "Via Dyno? Enviar texto",
+            "node": "Definir voz",
             "type": "main",
             "index": 0
           }
@@ -1191,6 +1274,27 @@
         [
           {
             "node": "Gerar dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Inserir (genérico)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar (genérico)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Chamar função (genérico)",
             "type": "main",
             "index": 0
           }
@@ -1266,17 +1370,6 @@
         ]
       ]
     },
-    "Processar": {
-      "main": [
-        [
-          {
-            "node": "Destino da rotina",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Destino da rotina": {
       "main": [
         [
@@ -1287,23 +1380,226 @@
           }
         ]
       ]
+    },
+    "Carregar extras": {
+      "main": [
+        [
+          {
+            "node": "Carregar transações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carregar transações": {
+      "main": [
+        [
+          {
+            "node": "Carregar tarefas abertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carregar tarefas abertas": {
+      "main": [
+        [
+          {
+            "node": "Carregar dados novos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carregar dados novos": {
+      "main": [
+        [
+          {
+            "node": "Processar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar": {
+      "main": [
+        [
+          {
+            "node": "Processar novas funções",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Definir voz": {
+      "main": [
+        [
+          {
+            "node": "Via Dyno? Enviar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar texto (Dyno)": {
+      "main": [
+        [
+          {
+            "node": "Histórico (extras)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Falha ao gravar": {
+      "main": [
+        [
+          {
+            "node": "Avisar falha ao gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inserir extras": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Falha ao gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar extras": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Falha ao gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inserir transação": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Falha ao gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar transação": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Falha ao gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar transação": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Falha ao gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar tarefa (projeto)": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Falha ao gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inserir (genérico)": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Falha ao gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar (genérico)": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Falha ao gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chamar função (genérico)": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Falha ao gravar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar novas funções": {
+      "main": [
+        [
+          {
+            "node": "Processar documentos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar documentos": {
+      "main": [
+        [
+          {
+            "node": "Destino da rotina",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": true,
-    "errorWorkflow": "5UUmuzItIYDsd3AG",
-    "timezone": "America/Sao_Paulo"
-  },
-  "versionId": "c49ebcc0-9b5e-4c91-855b-3a64f4475d99",
-  "meta": {
-    "aiBuilderAssisted": true,
-    "builderVariant": "mcp",
-    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
-  },
-  "nodeGroups": [],
-  "id": "K4GH2JArrLnZbJAG",
-  "tags": []
+  "tags": [],
+  "versionId": "ab1a3021-a567-4b0e-8834-2c7b8b8e8683"
 }

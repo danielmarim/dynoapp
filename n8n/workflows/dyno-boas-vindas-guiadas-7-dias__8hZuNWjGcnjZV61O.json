@@ -1,0 +1,172 @@
+{
+  "id": "8hZuNWjGcnjZV61O",
+  "name": "Dyno | Boas-vindas guiadas (7 dias)",
+  "description": "Todo dia 10:30: manda a dica do dia (1 a 7) para clientes novos, se a função ainda não foi usada. Desligado até dyno_config.dicas_ativas = sim.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo"
+  },
+  "nodes": [
+    {
+      "id": "bcd1ed2d-7230-4591-90a8-64772381894f",
+      "name": "Todo dia 10:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 10 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "332dfa39-dee2-4276-99fa-9daae7b9d33b",
+      "name": "Dicas pendentes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_dicas_pendentes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "7e5d772f-66f0-479b-830a-455a1832f93c",
+      "name": "Montar mensagens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const NL = String.fromCharCode(10);\nconst out = [];\nfor (const it of $input.all()) {\n  const d = it.json || {};\n  if (!d.cliente || !d.texto) continue;\n  const nome = String(d.nome || d.autor || '').split(' ')[0];\n  const cab = d.voz === 'dina' ? '*⏰ Dina*' : '*💰 Dyno*';\n  const texto = String(d.texto).split('{nome}').join(nome);\n  out.push({ json: { numero: String(d.cliente), cliente: String(d.cliente), dia: d.dia, text: String.fromCharCode(8203) + cab + NL + texto } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "248ec75b-5a1a-47fe-9ba5-7006b1331900",
+      "name": "Enviar dica (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: $json.text, delay: 1500 }) }}",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 4000
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "a42ad693-a93b-4a2d-b962-a4c55e06ce00",
+      "name": "Marcar como enviada",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_dica_enviada",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ p_cliente: $('Montar mensagens').item.json.cliente, p_dia: $('Montar mensagens').item.json.dia }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Todo dia 10:30": {
+      "main": [
+        [
+          {
+            "node": "Dicas pendentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dicas pendentes": {
+      "main": [
+        [
+          {
+            "node": "Montar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar mensagens": {
+      "main": [
+        [
+          {
+            "node": "Enviar dica (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar dica (WhatsApp)": {
+      "main": [
+        [
+          {
+            "node": "Marcar como enviada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "9c2c12ec-cc6c-4245-ab94-b6c51493b1d1"
+}

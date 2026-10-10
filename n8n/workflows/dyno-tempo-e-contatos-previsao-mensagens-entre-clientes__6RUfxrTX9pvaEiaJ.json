@@ -1,0 +1,426 @@
+{
+  "id": "6RUfxrTX9pvaEiaJ",
+  "name": "Dyno | Tempo e contatos (previsão, mensagens entre clientes)",
+  "description": "Chamado pelo cérebro: previsão do tempo (Open-Meteo) e ações com outros clientes Dyno (mensagem, lista, lembrete, agenda) via dyno_contato_acao; envia e grava no histórico.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "nodes": [
+    {
+      "id": "fe63c080-a504-4810-8991-05a6430971a1",
+      "name": "Receber ação",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "c95b146f-3814-441c-a0b6-35ec494d01e7",
+      "name": "Preparar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// 09/10: previsão do tempo e ações com outros clientes Dyno (mensagem, lista, lembrete, agenda).\nconst TZ = 'America/Sao_Paulo';\nconst out = [];\nfor (const it of $input.all()) {\n  const j = it.json || {};\n  const a = j.a || {};\n  const base = { numero: String(j.numero || ''), autor: String(j.autor || ''), teste: j.teste === true };\n  if (!base.numero || !base.autor) continue;\n  if (a.tipo === 'previsao_tempo') {\n    let dia = DateTime.fromISO(String(a.data || '').slice(0, 10), { zone: TZ });\n    if (!dia.isValid) dia = DateTime.now().setZone(TZ);\n    const local = String(a.local || '').trim().slice(0, 80) || 'São Paulo';\n    out.push({ json: { ...base, kind: 'tempo', local, busca: local.split(',')[0].trim(), dia: dia.toISODate() } });\n  } else if (a.tipo === 'contato') {\n    const p = {\n      autor: base.autor, numero_conversa: base.numero, nome_remetente: String(j.nome_exibicao || ''),\n      op: String(a.op || 'mensagem'), para: String(a.para || ''), numero_para: String(a.numero || a.numero_para || ''),\n      texto: a.texto ? String(a.texto) : '', titulo: a.titulo ? String(a.titulo) : '', itens: Array.isArray(a.itens) ? a.itens.map(String) : [],\n      quando: a.quando ? String(a.quando) : '', inicio: a.inicio ? String(a.inicio) : '', local: a.local ? String(a.local) : '', lembrar_min: a.lembrar_min || null\n    };\n    out.push({ json: { ...base, kind: 'contato', p } });\n  }\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "740613f1-6ae3-4468-a8ff-5f60482e447c",
+      "name": "Rotear",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        440,
+        200
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "tempo",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.kind }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "tempo"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "contato",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.kind }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "contato"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "0d888314-5555-4e19-a7fc-74ecc3832ad2",
+      "name": "Open-Meteo: achar cidade",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        680,
+        80
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://geocoding-api.open-meteo.com/v1/search?count=5&language=pt&format=json&countryCode=BR&name=' + encodeURIComponent($json.busca) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "a16cf4f3-82a6-4cbb-be38-ff2edf47c395",
+      "name": "Open-Meteo: previsão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        920,
+        80
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ (($json.results || [])[0]) ? ('https://api.open-meteo.com/v1/forecast?latitude=' + $json.results[0].latitude + '&longitude=' + $json.results[0].longitude + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&timezone=America%2FSao_Paulo&start_date=' + $('Rotear').item.json.dia + '&end_date=' + $('Rotear').item.json.dia) : 'https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&daily=weather_code&forecast_days=1' }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "528a64dc-4f34-4609-a828-485cb30be1a1",
+      "name": "Formatar previsão",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        80
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst NL = String.fromCharCode(10);\nconst ped = $('Rotear').item.json;\nconst geo = $('Escolher cidade').item.json || {};\nconst f = $json || {};\nconst nrm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();\nconst rs = geo.results || [];\nconst cid = rs[0];\nconst COD = { 0: ['☀️', 'céu limpo'], 1: ['🌤️', 'poucas nuvens'], 2: ['⛅', 'parcialmente nublado'], 3: ['☁️', 'nublado'], 45: ['🌫️', 'neblina'], 48: ['🌫️', 'neblina'], 51: ['🌦️', 'garoa fraca'], 53: ['🌦️', 'garoa'], 55: ['🌧️', 'garoa forte'], 61: ['🌦️', 'chuva fraca'], 63: ['🌧️', 'chuva'], 65: ['🌧️', 'chuva forte'], 66: ['🌧️', 'chuva congelante'], 67: ['🌧️', 'chuva congelante'], 80: ['🌦️', 'pancadas de chuva'], 81: ['🌧️', 'pancadas de chuva'], 82: ['⛈️', 'pancadas fortes de chuva'], 95: ['⛈️', 'trovoadas'], 96: ['⛈️', 'trovoadas com granizo'], 99: ['⛈️', 'trovoadas com granizo'] };\nconst DS = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];\nlet texto;\nconst d = f.daily || {};\nif (!cid) {\n  texto = 'Não achei a cidade *' + ped.local + '*. Me diga o nome da cidade (ex.: \"Barueri\" ou \"Santana de Parnaíba\").';\n} else if (!Array.isArray(d.time) || !d.time.length) {\n  texto = 'Não consegui a previsão de *' + cid.name + '* para ' + DateTime.fromISO(ped.dia).toFormat('dd/LL') + ' agora. A previsão vai só até 16 dias à frente; tente de novo em alguns minutos.';\n} else {\n  const dia = DateTime.fromISO(d.time[0], { zone: TZ });\n  const hoje = DateTime.now().setZone(TZ).startOf('day');\n  const rot = dia.hasSame(hoje, 'day') ? 'hoje' : dia.hasSame(hoje.plus({ days: 1 }), 'day') ? 'amanhã' : DS[dia.weekday - 1];\n  const c = COD[d.weather_code[0]] || ['🌡️', 'tempo variável'];\n  const prob = d.precipitation_probability_max ? d.precipitation_probability_max[0] : null;\n  const mm = d.precipitation_sum ? d.precipitation_sum[0] : null;\n  const onde = cid.name + (cid.admin1 ? ' (' + (cid.admin1 === 'São Paulo' ? 'SP' : cid.admin1) + ')' : '');\n  const aviso = nrm(cid.name) !== nrm(ped.busca) ? NL + '_Busquei por \"' + ped.local + '\" e usei ' + onde + '._' : '';\n  texto = c[0] + ' *Tempo em ' + onde + ' — ' + rot + ', ' + dia.toFormat('dd/LL') + '*' + NL +\n    '🌡️ Mínima ' + Math.round(d.temperature_2m_min[0]) + '° · máxima ' + Math.round(d.temperature_2m_max[0]) + '°' + NL +\n    '☔ Chuva: ' + (prob == null ? 'sem dado' : prob + '% de chance') + (mm ? ' (' + String(Math.round(mm * 10) / 10).replace('.', ',') + ' mm)' : '') + NL +\n    c[0] + ' ' + c[1].charAt(0).toUpperCase() + c[1].slice(1) +\n    (prob != null && prob >= 50 ? NL + NL + 'Vale levar guarda-chuva ☂️' : '') + aviso;\n}\nreturn { json: { numero: ped.numero, autor: ped.autor, teste: ped.teste, voz: 'dina', texto } };"
+      }
+    },
+    {
+      "id": "f5842275-01db-4e79-a354-298e19022e53",
+      "name": "Enviar de verdade?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1400,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.teste }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8feb17c4-b483-4316-8a9d-9119d635e7d6",
+      "name": "Supabase: ação de contato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        680,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_contato_acao",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: $json.p }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "51726db4-7a85-4ce8-a9af-f7bfb69f9d76",
+      "name": "Mensagens do contato",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        320
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const out = [];\nconst peds = $('Rotear').all(1);\n$input.all().forEach((it, i) => {\n  const ped = (peds[i] || peds[0] || { json: {} }).json;\n  const r = it.json || {};\n  const ms = Array.isArray(r.mensagens) ? r.mensagens : [];\n  if (!ms.length && r.error) out.push({ json: { numero: ped.numero, autor: ped.autor, teste: ped.teste, voz: 'dina', texto: 'Não consegui fazer esse envio agora. Tente de novo em alguns minutos.' } });\n  for (const m of ms) if (m && m.numero && m.texto) out.push({ json: { numero: String(m.numero), autor: String(m.autor_hist || ''), teste: ped.teste, voz: m.voz || 'dina', texto: String(m.texto) } });\n});\nreturn out;"
+      }
+    },
+    {
+      "id": "64dcb14b-a302-4bc7-bad7-2208f10c860f",
+      "name": "WhatsApp: enviar (Dyno)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1620,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: String.fromCharCode(8203) + ($json.voz === 'dyno' ? '*💰 Dyno*' : '*⏰ Dina*') + String.fromCharCode(10) + $json.texto, delay: 1200 }) }}",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1500
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "19ca75d1-8b9b-47e1-bf66-6246ab330d9d",
+      "name": "Supabase: histórico",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1840,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_registrar_saida",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: { telefone: $('Enviar de verdade?').item.json.numero, autor: $('Enviar de verdade?').item.json.autor || null, texto: ($('Enviar de verdade?').item.json.voz === 'dyno' ? '*💰 Dyno*' : '*⏰ Dina*') + String.fromCharCode(10) + $('Enviar de verdade?').item.json.texto } }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "06a5bf14-59f0-4e62-b781-e69f61470b51",
+      "name": "Escolher cidade",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -60
+      ],
+      "parameters": {
+        "jsCode": "// Ordena os resultados: nome igual ao pedido, estado pedido (ex.: \", SP\"), São Paulo como padrão, população.\nconst ped = $('Rotear').item.json;\nconst nrm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();\nconst UF = { ac: 'acre', al: 'alagoas', ap: 'amapa', am: 'amazonas', ba: 'bahia', ce: 'ceara', df: 'distrito federal', es: 'espirito santo', go: 'goias', ma: 'maranhao', mt: 'mato grosso', ms: 'mato grosso do sul', mg: 'minas gerais', pa: 'para', pb: 'paraiba', pr: 'parana', pe: 'pernambuco', pi: 'piaui', rj: 'rio de janeiro', rn: 'rio grande do norte', rs: 'rio grande do sul', ro: 'rondonia', rr: 'roraima', sc: 'santa catarina', sp: 'sao paulo', se: 'sergipe', to: 'tocantins' };\nconst partes = String(ped.local || '').split(/[,-]/).map(nrm).filter(Boolean);\nconst uf = partes.length > 1 ? (UF[partes[partes.length - 1]] || partes[partes.length - 1]) : '';\nconst rs = Array.isArray($json.results) ? $json.results.slice() : [];\nconst nota = r => (nrm(r.name) === nrm(ped.busca) ? 4 : 0) + (uf && nrm(r.admin1) === uf ? 3 : 0) + (nrm(r.admin1) === 'sao paulo' ? 2 : 0) + Math.min(1, (Number(r.population) || 0) / 1e7);\nrs.sort((a, b) => nota(b) - nota(a));\nreturn { json: { ...$json, results: rs } };",
+        "language": "javaScript",
+        "mode": "runOnceForEachItem"
+      }
+    }
+  ],
+  "connections": {
+    "Receber ação": {
+      "main": [
+        [
+          {
+            "node": "Preparar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar": {
+      "main": [
+        [
+          {
+            "node": "Rotear",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rotear": {
+      "main": [
+        [
+          {
+            "node": "Open-Meteo: achar cidade",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase: ação de contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open-Meteo: previsão": {
+      "main": [
+        [
+          {
+            "node": "Formatar previsão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar previsão": {
+      "main": [
+        [
+          {
+            "node": "Enviar de verdade?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar de verdade?": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp: enviar (Dyno)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: ação de contato": {
+      "main": [
+        [
+          {
+            "node": "Mensagens do contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagens do contato": {
+      "main": [
+        [
+          {
+            "node": "Enviar de verdade?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp: enviar (Dyno)": {
+      "main": [
+        [
+          {
+            "node": "Supabase: histórico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open-Meteo: achar cidade": {
+      "main": [
+        [
+          {
+            "node": "Escolher cidade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escolher cidade": {
+      "main": [
+        [
+          {
+            "node": "Open-Meteo: previsão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "c6182d09-f51c-43b4-8c1d-3ff97eb68ee4"
+}

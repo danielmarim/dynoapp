@@ -1,0 +1,200 @@
+{
+  "id": "PuaHnOEXWONTd7sr",
+  "name": "Dyno | Agente: pedidos de função",
+  "description": "A cada 5 min avalia com IA os pedidos de função dos clientes (dyno_pedidos_funcao), avisa o Daniel com a recomendação e pergunta se pode implantar.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "id": "0cea643d-aee6-46b6-b771-eb2771945006",
+      "name": "A cada 5 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9272f833-7fef-47c7-866b-b37430d78e1e",
+      "name": "Pedidos novos (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_pedidos_para_avaliar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3
+    },
+    {
+      "id": "143239c5-8a10-4f83-acf1-71c782a8b16e",
+      "name": "Montar avaliação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Monta a avaliação de cada pedido para a IA (um item por pedido).\nconst out = [];\nconst lista = $input.all().map(i => i.json).flatMap(x => Array.isArray(x) ? x : [x]).filter(x => x && x.id && x.pedido);\nconst sys = [\n  'Você é o agente de produto do Dyno, um assessor pessoal no WhatsApp (finanças por texto/áudio/foto, contas a pagar, lembretes que insistem, tarefas e listas, agenda, rastreio de encomendas dos Correios, câmbio, remédios, modo família, painel web). Também existe o Dyno Business (orçamentos em PDF para pequenos negócios).',\n  'Momento da empresa: Beta com cerca de 17 clientes, um único desenvolvedor (Daniel com o Claude), stack n8n + Supabase + Evolution API + OpenAI. Princípio atual: \"Simplifique, valide, escale\" — funções novas só entram se reforçam o problema central (controle de gastos e contas sem app) ou se muitos clientes pedem; até 06/11 a regra é congelar o que não for essencial.',\n  'Avalie o pedido de um cliente e responda SÓ em JSON: {\"veredito\":\"vale\"|\"talvez\"|\"nao_agora\",\"motivo\":\"2 frases objetivas\",\"como\":\"como implantar em 1 frase (API/fonte de dados, gratuita ou paga)\",\"esforco\":\"pequeno\"|\"médio\"|\"grande\",\"custo\":\"grátis\"|\"baixo\"|\"pago\",\"como_usar\":\"1 frase para o cliente de como usar quando ficar pronto\"}.',\n  'Critérios: valor para o cliente e para a retenção, quantos clientes já pediram algo parecido, custo e risco (dados sensíveis, APIs pagas, scraping frágil), esforço. Seja honesto: diga nao_agora quando não compensar agora. Não invente APIs; se não souber de uma fonte gratuita confiável, diga.'\n].join('\\n');\nfor (const f of lista) {\n  const user = 'Pedido #' + f.id + ' de ' + (f.autor || 'cliente') + ': ' + f.pedido + (f.categoria ? ' (categoria: ' + f.categoria + ')' : '') +\n    (f.texto_usuario ? '\\nMensagem original: \"' + f.texto_usuario + '\"' : '') +\n    '\\nClientes que já pediram algo da mesma categoria: ' + (f.mesma_categoria || 1) +\n    ((f.parecidos || []).length ? '\\nPedidos parecidos: ' + f.parecidos.join(' | ') : '');\n  out.push({ json: { id: f.id, payload: { model: 'gpt-6-luna', reasoning_effort: 'low', response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sys }, { role: 'user', content: user }] } } });\n}\nreturn out;\n"
+      }
+    },
+    {
+      "id": "0ee7878a-b775-4928-8df9-8bdc10142da4",
+      "name": "IA: avaliar pedido",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 90000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1000
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "id": "edf033d1-426e-4fce-9d92-4abfa1995e56",
+      "name": "Ler avaliação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Junta a resposta da IA com o id do pedido.\nconst out = [];\nconst ids = $('Montar avaliação').all().map(i => i.json.id);\n$input.all().forEach((it, k) => {\n  let a = null;\n  try { a = JSON.parse(it.json.choices[0].message.content); } catch (e) { a = null; }\n  if (!a) a = { veredito: 'talvez', motivo: 'Não consegui avaliar automaticamente; vale olhar com calma.', como: '', esforco: '?', custo: '?', como_usar: '' };\n  out.push({ json: { p_id: ids[k], p_avaliacao: a } });\n});\nreturn out;\n"
+      }
+    },
+    {
+      "id": "c5608cb0-356d-494f-9a69-d909a56b04ae",
+      "name": "Salvar e avisar Daniel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_pedido_funcao_avaliado",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_id: $json.p_id, p_avaliacao: $json.p_avaliacao }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3
+    }
+  ],
+  "connections": {
+    "A cada 5 minutos": {
+      "main": [
+        [
+          {
+            "node": "Pedidos novos (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pedidos novos (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Montar avaliação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar avaliação": {
+      "main": [
+        [
+          {
+            "node": "IA: avaliar pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA: avaliar pedido": {
+      "main": [
+        [
+          {
+            "node": "Ler avaliação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler avaliação": {
+      "main": [
+        [
+          {
+            "node": "Salvar e avisar Daniel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "19f67de1-3486-4066-9d2e-1932111e2a6b"
+}

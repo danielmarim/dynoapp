@@ -1,0 +1,396 @@
+{
+  "id": "Jfu2kYsVxFkUjCzb",
+  "name": "Dyno | Cartões visuais (fluxo e parcelados)",
+  "description": "Gera e envia no WhatsApp cartões em imagem: fluxo de caixa (6 meses) e parcelados mês a mês. Chamado pelo Cérebro.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "nodes": [
+    {
+      "id": "5533fae6-b408-44e3-ab15-f41a427aa090",
+      "name": "Receber pedido",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "d8509959-ca6c-4fbf-ac44-ae7336977040",
+      "name": "Buscar transações",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_transacoes?order=data.desc&limit=5000&autor=eq.' + encodeURIComponent($json.autor) + '&data=gte.' + encodeURIComponent($now.minus({ months: 6 }).startOf('month').toISO()) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "608ce2b2-9826-4ed3-9263-bf5aca1a7e97",
+      "name": "Carregar extras",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mJnt4Rop3vW3pcGI",
+          "cachedResultName": "assessor_extras"
+        },
+        "matchType": "allConditions",
+        "returnAll": true
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "d8fad7f8-95ea-4f9f-b93f-ddef846ab626",
+      "name": "Montar cartão",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst NL = String.fromCharCode(10);\nconst ped = $('Receber pedido').first().json;\nconst numero = ped.numero, autor = ped.autor || 'Daniel', cartao = ped.cartao === 'parcelados' ? 'parcelados' : 'fluxo';\nconst linhas = (n) => { try { return $(n).all().map((i) => i.json).filter((r) => r && r.id !== undefined && r.id !== null); } catch (e) { return []; } };\nconst num = (v) => Number(v) || 0;\nconst esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst brl = (v) => { const p = Math.abs(num(v)).toFixed(2).split('.'); return 'R$ ' + p[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.') + ',' + p[1]; };\nconst brl0 = (v) => 'R$ ' + String(Math.round(Math.abs(num(v)))).replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');\nconst agora = DateTime.now().setZone(TZ).setLocale('pt-BR');\nconst dt = (v) => { if (!v) return null; let d = DateTime.fromISO(String(v)); if (!d.isValid) d = DateTime.fromSQL(String(v)); return d.isValid ? d.setZone(TZ).setLocale('pt-BR') : null; };\nconst mesCurto = (d) => d.toFormat('LLL').replace('.', '');\nconst BONITO = { alimentacao: 'Alimentação', educacao: 'Educação', saude: 'Saúde', vestuario: 'Vestuário', servicos: 'Serviços' };\nconst nomeCat = (c) => { const k = String(c || 'outros').toLowerCase().trim(); return BONITO[k] || (k.charAt(0).toUpperCase() + k.slice(1)); };\nconst CORES = ['#14B37D', '#FF8A3D', '#6C7BFF', '#F2B53A', '#E35D8F', '#8A8FA8'];\n\nconst CSS = '*{box-sizing:border-box;margin:0;padding:0}html,body{width:1080px;height:1350px;background:#FFF6EA}' +\n  'body{font-family:\"Lato\",\"Open Sans\",\"Roboto\",\"DejaVu Sans\",sans-serif;color:#1B1F3B;-webkit-font-smoothing:antialiased}' +\n  '.wrap{position:relative;width:1080px;height:1350px;overflow:hidden;padding:56px 60px}.blob{position:absolute;border-radius:50%}' +\n  '.top{position:relative;display:flex;align-items:center;justify-content:space-between}.who{display:flex;align-items:center;gap:18px}' +\n  '.av{width:76px;height:76px;border-radius:50%;background:#14B37D;color:#fff;display:grid;place-items:center;font-size:40px;box-shadow:0 0 0 6px #D9F7EA}' +\n  '.who h1{font-size:44px;font-weight:900;letter-spacing:-.02em;line-height:1}.who p{font-size:24px;color:#5E6280;margin-top:6px;font-weight:700}' +\n  '.per{white-space:nowrap;flex:none;background:#1B1F3B;color:#fff;border-radius:999px;padding:14px 24px;font-size:24px;font-weight:700}' +\n  '.hero{position:relative;margin-top:30px;background:#1B1F3B;color:#fff;border-radius:36px;padding:32px 44px;display:flex;justify-content:space-between;align-items:flex-end;overflow:hidden}' +\n  '.hero .k{font-size:22px;letter-spacing:.12em;font-weight:800;color:#9AF4D5}.hero .big{font-size:84px;font-weight:900;letter-spacing:-.03em;line-height:1;margin-top:12px}' +\n  '.hero .sub{font-size:24px;color:#C9CCDD;margin-top:14px;font-weight:700}' +\n  '.chip{display:inline-block;border-radius:999px;padding:10px 18px;font-size:22px;font-weight:800;margin-top:16px}.chip.ok{background:#3EE9AF;color:#0B3D2C}.chip.up{background:#FFB98B;color:#5A2600}.chip.neu{background:#3A4070;color:#fff}' +\n  '.mini{text-align:right}.mini div{font-size:22px;color:#C9CCDD;font-weight:700}.mini b{display:block;font-size:40px;color:#fff;margin-top:4px}' +\n  '.grid{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;margin-top:22px}' +\n  '.card{background:#fff;border-radius:30px;padding:30px 32px;border:3px solid #1B1F3B;box-shadow:8px 8px 0 #1B1F3B}' +\n  '.card h3{font-size:20px;letter-spacing:.12em;font-weight:900;color:#0B6E4D;margin-bottom:18px}.full{grid-column:1/3}' +\n  '.par{display:flex;align-items:flex-end;justify-content:space-between;height:250px;gap:16px}' +\n  '.pm{flex:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}.pm .bs{display:flex;align-items:flex-end;gap:6px;width:100%;justify-content:center;flex:1}' +\n  '.pm .b1,.pm .b2{width:42%;border-radius:12px 12px 4px 4px}.pm .b1{background:#14B37D}.pm .b2{background:#FF8A3D}.pm .b3{width:62%;border-radius:12px 12px 4px 4px;background:#14B37D}' +\n  '.pm .v{font-size:17px;font-weight:800;color:#5E6280;white-space:nowrap;margin-bottom:6px;text-align:center;line-height:1.15}.pm .lb{font-size:22px;font-weight:800;margin-top:10px;text-transform:capitalize}.pm.hoje .lb{color:#0B6E4D}' +\n  '.leg{display:flex;gap:22px;font-size:21px;font-weight:800;color:#5E6280;margin-bottom:14px}.leg span:before{content:\"\";display:inline-block;width:16px;height:16px;border-radius:5px;margin-right:8px;background:var(--c);vertical-align:-2px}' +\n  '.stack{display:flex;height:26px;border-radius:13px;overflow:hidden;gap:4px;margin-bottom:20px}.stack i{display:block;height:100%}' +\n  '.lg{display:flex;align-items:center;gap:12px;font-size:23px;font-weight:700;padding:4px 0}.lg b{width:16px;height:16px;border-radius:5px;flex:none}.lg .ln{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lg .lv{font-weight:900}.lg .lp{width:58px;text-align:right;color:#8A8FA8}' +\n  '.pr{padding:10px 0;border-bottom:2px dashed #EFE5D2}.pr:last-child{border-bottom:0}.pr .t{display:flex;justify-content:space-between;gap:12px;font-size:23px;font-weight:800}.pr .t span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pr .t b{flex:none}' +\n  '.pr .s{display:flex;align-items:center;gap:12px;margin-top:8px;font-size:19px;font-weight:700;color:#5E6280}.trk{flex:1;height:12px;background:#EFE5D2;border-radius:6px;overflow:hidden}.trk i{display:block;height:100%;background:#14B37D;border-radius:6px}' +\n  '.ag{display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:2px dashed #EFE5D2;font-size:23px;font-weight:700}.ag:last-child{border-bottom:0}.ad{flex:none;background:#D9F7EA;color:#0B6E4D;border-radius:12px;padding:6px 12px;font-size:20px;font-weight:900}.ab{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.am{font-weight:900;font-size:20px;color:#0B6E4D}' +\n  '.nums{display:flex;gap:14px;margin-top:6px}.num{flex:1;background:#FFF6EA;border-radius:18px;padding:14px 16px}.num b{display:block;font-size:34px;font-weight:900}.num span{font-size:19px;color:#5E6280;font-weight:800}' +\n  '.vazio{font-size:23px;color:#5E6280;font-weight:700;line-height:1.4}' +\n  '.foot{position:absolute;left:60px;right:60px;bottom:40px;display:flex;justify-content:space-between;align-items:center;font-size:22px;font-weight:800;color:#5E6280}.duo{display:flex;align-items:center;gap:10px}.duo i{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:18px}';\nconst moldura = (titulo, sub, periodo, corpo) => '<!doctype html><html><head><meta charset=\"utf-8\"><style>' + CSS + '</style></head><body><div class=\"wrap\">' +\n  '<div class=\"blob\" style=\"width:520px;height:520px;background:#D9F7EA;right:-180px;top:-220px\"></div><div class=\"blob\" style=\"width:380px;height:380px;background:#FFE2CC;left:-160px;bottom:-140px\"></div>' +\n  '<div class=\"top\"><div class=\"who\"><div class=\"av\">💰</div><div><h1>' + esc(titulo) + '</h1><p>' + esc(sub) + '</p></div></div><div class=\"per\">' + esc(periodo) + '</div></div>' + corpo +\n  '<div class=\"foot\"><div class=\"duo\"><i style=\"background:#14B37D\">💰</i><i style=\"background:#FF8A3D\">⏰</i>Dyno &amp; Dina</div><div>dynoapp.com.br</div></div></div></body></html>';\n\nlet caption = '', html = '', texto = '';\nif (cartao === 'fluxo') {\n  const tx = linhas('Buscar transações').map((t) => ({ t, d: dt(t.data || t.createdAt), v: num(t.valor) })).filter((x) => x.d && (x.t.autor || autor) === autor);\n  const ms = [];\n  for (let i = 5; i >= 0; i--) {\n    const a = agora.minus({ months: i }).startOf('month'), b = a.endOf('month');\n    const mm = tx.filter((x) => x.d >= a && x.d <= b);\n    const s = mm.filter((x) => x.t.tipo !== 'receita').reduce((q, x) => q + x.v, 0), e = mm.filter((x) => x.t.tipo === 'receita').reduce((q, x) => q + x.v, 0);\n    ms.push({ lb: mesCurto(a), e, s, hoje: i === 0 });\n  }\n  if (!tx.length) { texto = 'Ainda não tenho lançamentos seus para montar o fluxo de caixa. Anote um gasto, tipo “almoço 32”, e peça de novo 😉'; }\n  else {\n    const cur = ms[5], ant = ms[4], saldo = cur.e - cur.s;\n    const max = Math.max(1, ...ms.map((m) => Math.max(m.e, m.s)));\n    const barras = ms.map((m) => '<div class=\"pm' + (m.hoje ? ' hoje' : '') + '\"><div class=\"v\">' + (m.e ? brl0(m.e) : '') + (m.e && m.s ? '<br>' : '') + (m.s ? brl0(m.s) : '') + '</div><div class=\"bs\"><div class=\"b1\" style=\"height:' + (m.e ? Math.max(8, Math.round(m.e / max * 150)) : 4) + 'px\"></div><div class=\"b2\" style=\"height:' + (m.s ? Math.max(8, Math.round(m.s / max * 150)) : 4) + 'px\"></div></div><div class=\"lb\">' + esc(m.lb) + '</div></div>').join('');\n    const porCat = {};\n    tx.filter((x) => x.d >= agora.startOf('month') && x.t.tipo !== 'receita').forEach((x) => { const k = nomeCat(x.t.categoria); porCat[k] = (porCat[k] || 0) + x.v; });\n    let cats = Object.entries(porCat).sort((p, q) => q[1] - p[1]);\n    if (cats.length > 5) cats = cats.slice(0, 4).concat([['Outras', cats.slice(4).reduce((q, c) => q + c[1], 0)]]);\n    const totC = cats.reduce((q, c) => q + c[1], 0) || 1;\n    const stack = cats.map((c, i) => '<i style=\"flex:' + c[1].toFixed(2) + ';background:' + CORES[i % 6] + '\"></i>').join('');\n    const leg = cats.map((c, i) => '<div class=\"lg\"><b style=\"background:' + CORES[i % 6] + '\"></b><span class=\"ln\">' + esc(c[0]) + '</span><span class=\"lv\">' + brl(c[1]) + '</span><span class=\"lp\">' + Math.round(c[1] / totC * 100) + '%</span></div>').join('');\n    const comj = ms.slice(0, 5).filter((m) => m.e || m.s);\n    const media = comj.length ? comj.reduce((q, m) => q + m.s, 0) / comj.length : 0;\n    const melhor = ms.slice().sort((p, q) => (q.e - q.s) - (p.e - p.s))[0];\n    let chip = '';\n    const sAnt = ant.e - ant.s;\n    if (ant.e || ant.s) { chip = '<span class=\"chip ' + (saldo >= sAnt ? 'ok' : 'up') + '\">' + (saldo >= sAnt ? '▲ ' : '▼ ') + 'saldo anterior ' + (sAnt < 0 ? '-' : '') + brl(sAnt) + '</span>'; }\n    const corpo = '<div class=\"hero\"><div><div class=\"k\">SALDO DE ' + esc(agora.toFormat('LLLL').toUpperCase()) + '</div><div class=\"big\" style=\"' + (saldo < 0 ? 'color:#FFB98B' : '') + '\">' + (saldo < 0 ? '-' : '') + brl(saldo) + '</div>' + chip + '</div>' +\n      '<div class=\"mini\"><div>Entradas</div><b style=\"color:#3EE9AF\">' + brl(cur.e) + '</b><div style=\"margin-top:12px\">Saídas</div><b>' + brl(cur.s) + '</b></div></div>' +\n      '<div class=\"grid\"><div class=\"card full\"><h3>FLUXO DE CAIXA · 6 MESES</h3><div class=\"leg\"><span style=\"--c:#14B37D\">Entradas</span><span style=\"--c:#FF8A3D\">Saídas</span></div><div class=\"par\">' + barras + '</div></div>' +\n      '<div class=\"card\"><h3>ONDE FOI O DINHEIRO NO MÊS</h3>' + (cats.length ? '<div class=\"stack\">' + stack + '</div>' + leg : '<div class=\"vazio\">Sem saídas neste mês.</div>') + '</div>' +\n      '<div class=\"card\"><h3>EM RESUMO</h3><div class=\"nums\"><div class=\"num\"><b>' + brl0(media) + '</b><span>saída média/mês</span></div></div>' +\n      '<div class=\"nums\"><div class=\"num\"><b>' + esc(melhor ? melhor.lb : '-') + '</b><span>melhor saldo do período</span></div></div></div></div>';\n    html = moldura('Seu fluxo de caixa', 'Dyno, com os seus números', ms[0].lb + ' a ' + ms[5].lb + ' ' + agora.toFormat('yyyy'), corpo);\n    caption = ['*💰 Dyno*', 'Aqui está o seu fluxo de caixa dos últimos 6 meses 👆', '', '📈 Entradas em ' + agora.toFormat('LLLL') + ': *' + brl(cur.e) + '*', '📉 Saídas: *' + brl(cur.s) + '*', (saldo >= 0 ? '✅ Saldo: *' : '⚠️ Saldo: *-') + brl(saldo) + '*', '', 'Quer o detalhe? Peça “meu dashboard do mês”.'].join(NL);\n  }\n} else {\n  const dd = (r) => { try { return JSON.parse(r.dados || '{}'); } catch (e) { return {}; } };\n  const rec = linhas('Carregar extras').filter((r) => r.tipo === 'recorrente' && r.status === 'ativa' && (r.autor || 'Daniel') === autor).map((r) => { const d = dd(r); return { r, d, nome: String(r.titulo || 'Parcelado').slice(0, 40), valor: num(r.valor), prox: dt(r.data), total: d.total ? Math.round(num(d.total)) : null, feitas: Math.round(num(d.feitas)), rec: d.movimento === 'receita' }; }).filter((x) => !x.rec && x.valor > 0 && x.prox);\n  if (!rec.length) { texto = 'Você não tem parcelados nem gastos fixos ativos agora. Para criar, é só dizer: “notebook 12x de 250 no cartão” 💳'; }\n  else {\n    rec.forEach((x) => { x.falta = x.total ? Math.max(0, x.total - x.feitas) : null; x.fim = x.falta ? x.prox.plus({ months: x.falta - 1 }) : null; });\n    const meses = [];\n    for (let i = 0; i < 6; i++) {\n      const a = agora.startOf('month').plus({ months: i }), b = a.endOf('month');\n      let s = 0;\n      rec.forEach((x) => { const n = x.falta === null ? 60 : x.falta; for (let k = 0; k < n; k++) { const d = x.prox.plus({ months: k }); if (d > b) break; if (d >= a) s += x.valor; } });\n      meses.push({ lb: mesCurto(a), v: s, hoje: i === 0 });\n    }\n    const max = Math.max(1, ...meses.map((m) => m.v));\n    const barras = meses.map((m) => '<div class=\"pm' + (m.hoje ? ' hoje' : '') + '\"><div class=\"v\">' + (m.v ? brl0(m.v) : '') + '</div><div class=\"bs\"><div class=\"b3\" style=\"height:' + (m.v ? Math.max(8, Math.round(m.v / max * 160)) : 4) + 'px\"></div></div><div class=\"lb\">' + esc(m.lb) + '</div></div>').join('');\n    const finitos = rec.filter((x) => x.falta);\n    const restante = finitos.reduce((q, x) => q + x.valor * x.falta, 0);\n    const porMes = rec.reduce((q, x) => q + x.valor, 0);\n    const lista = rec.slice().sort((p, q) => (p.falta === null ? 999 : p.falta) - (q.falta === null ? 999 : q.falta)).slice(0, 5).map((x) => {\n      const pct = x.total ? Math.round(x.feitas / x.total * 100) : 0;\n      return '<div class=\"pr\"><div class=\"t\"><span>' + esc(x.nome) + '</span><b>' + brl(x.valor) + '</b></div><div class=\"s\"><div class=\"trk\"><i style=\"width:' + (x.total ? Math.max(4, pct) : 100) + '%\"></i></div><span>' + (x.total ? x.feitas + '/' + x.total : 'todo mês') + '</span></div></div>';\n    }).join('');\n    const libera = finitos.slice().sort((p, q) => p.fim - q.fim).slice(0, 4).map((x) => '<div class=\"ag\"><span class=\"ad\">' + esc(mesCurto(x.fim) + '/' + x.fim.toFormat('yy')) + '</span><span class=\"ab\">' + esc(x.nome) + '</span><span class=\"am\">+' + brl0(x.valor) + '</span></div>').join('');\n    const ult = finitos.length ? finitos.reduce((p, q) => (q.fim > p.fim ? q : p)) : null;\n    const corpo = '<div class=\"hero\"><div><div class=\"k\">AINDA FALTA PAGAR</div><div class=\"big\">' + (finitos.length ? brl(restante) : 'sem fim') + '</div><div class=\"sub\">' + rec.length + (rec.length === 1 ? ' parcelado ou fixo ativo' : ' parcelados e fixos ativos') + '</div></div>' +\n      '<div class=\"mini\"><div>Todo mês</div><b>' + brl(porMes) + '</b>' + (ult ? '<div style=\"margin-top:12px\">Livre em</div><b style=\"color:#3EE9AF\">' + esc(mesCurto(ult.fim) + '/' + ult.fim.toFormat('yy')) + '</b>' : '') + '</div></div>' +\n      '<div class=\"grid\"><div class=\"card full\"><h3>MÊS A MÊS · PRÓXIMOS 6 MESES</h3><div class=\"par\">' + barras + '</div></div>' +\n      '<div class=\"card\"><h3>SEUS PARCELADOS</h3>' + lista + '</div>' +\n      '<div class=\"card\"><h3>QUANDO LIBERA DINHEIRO</h3>' + (libera || '<div class=\"vazio\">Seus lançamentos não têm data final.</div>') + '</div></div>';\n    html = moldura('Seus parcelados', 'Dyno, mês a mês', 'a partir de ' + agora.toFormat('LLL/yy').replace('.', ''), corpo);\n    caption = ['*💰 Dyno*', 'Aqui estão os seus parcelados mês a mês 👆', '', '💳 Todo mês: *' + brl(porMes) + '*', finitos.length ? '🧾 Ainda falta pagar: *' + brl(restante) + '*' : '♾️ Só gastos fixos, sem data final.', ult ? '🎉 Você fica livre em *' + mesCurto(ult.fim) + '/' + ult.fim.toFormat('yyyy') + '*' : '', '', 'Para cancelar um, é só dizer “cancela o parcelado do notebook”.'].filter((l) => l !== '').join(NL);\n  }\n}\nif (!html) return [{ json: { numero, instancia: ped.instancia, temImagem: false, texto } }];\nconst bin = await this.helpers.prepareBinaryData(Buffer.from(html, 'utf8'), 'index.html', 'text/html');\nreturn [{ json: { numero, instancia: ped.instancia, caption, temImagem: true }, binary: { files: bin } }];\n"
+      }
+    },
+    {
+      "id": "139399f1-2a1a-4bd1-9124-1e78661f035e",
+      "name": "Tem imagem?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1000,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.temImagem }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "eabf33cd-6de7-4606-905d-8a9f541d64ee",
+      "name": "Desenhar cartão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1250,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://dyno-render:3000/forms/chromium/screenshot/html",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "files"
+            },
+            {
+              "parameterType": "formData",
+              "name": "width",
+              "value": "1080"
+            },
+            {
+              "parameterType": "formData",
+              "name": "height",
+              "value": "1350"
+            },
+            {
+              "parameterType": "formData",
+              "name": "format",
+              "value": "png"
+            },
+            {
+              "parameterType": "formData",
+              "name": "clip",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 45000,
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "3c53a6c7-6d85-466d-a7c2-a0a8289f56f3",
+      "name": "Imagem para envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const base = $('Montar cartão').first().json;\nconst buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nreturn [{ json: { numero: base.numero, caption: base.caption, b64: buf.toString('base64') } }];"
+      }
+    },
+    {
+      "id": "0d4077ce-38a7-46c0-a569-c90debfe4008",
+      "name": "Enviar cartão (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1750,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendMedia/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, mediatype: 'image', mimetype: 'image/png', caption: String.fromCharCode(8203) + $json.caption, media: $json.b64, fileName: 'dyno-cartao.png', delay: 1500 }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "id": "7b032a05-3456-42cc-8a51-f262a5394cd3",
+      "name": "Enviar texto (sem dados)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1250,
+        450
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: String.fromCharCode(8203) + '*💰 Dyno*\\n' + $json.texto, delay: 800 }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "5a84041b-6372-4e2b-b559-80b248fbf792",
+      "name": "Histórico (cartão)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2000,
+        200
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p: { telefone: String($('Imagem para envio').item.json.numero), texto: $('Imagem para envio').item.json.caption + String.fromCharCode(10) + '[enviou o cartão em imagem]' } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_registrar_saida"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "d1e0b74d-5edd-4f44-96b5-b3a9a3a9fbaa",
+      "name": "Histórico (sem dados)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1500,
+        450
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p: { telefone: String($('Montar cartão').item.json.numero), texto: '*💰 Dyno*' + String.fromCharCode(10) + $('Montar cartão').item.json.texto } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_registrar_saida"
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Receber pedido": {
+      "main": [
+        [
+          {
+            "node": "Buscar transações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar transações": {
+      "main": [
+        [
+          {
+            "node": "Carregar extras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carregar extras": {
+      "main": [
+        [
+          {
+            "node": "Montar cartão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar cartão": {
+      "main": [
+        [
+          {
+            "node": "Tem imagem?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem imagem?": {
+      "main": [
+        [
+          {
+            "node": "Desenhar cartão",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar texto (sem dados)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Desenhar cartão": {
+      "main": [
+        [
+          {
+            "node": "Imagem para envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Imagem para envio": {
+      "main": [
+        [
+          {
+            "node": "Enviar cartão (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar cartão (WhatsApp)": {
+      "main": [
+        [
+          {
+            "node": "Histórico (cartão)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar texto (sem dados)": {
+      "main": [
+        [
+          {
+            "node": "Histórico (sem dados)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "01bc98ec-8d60-4215-a5e9-e9c75a19eb97"
+}

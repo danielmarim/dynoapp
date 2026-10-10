@@ -1,0 +1,314 @@
+{
+  "id": "8Yj6960YfDcJmOzf",
+  "name": "Dyno Plataforma | WhatsApp oficial (Meta) — foto e perfil do número",
+  "description": "Gera a foto oficial (logo D) no dyno-render e aplica foto, recado, descrição, e-mail e site no perfil do número oficial pela API. Execução manual.",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "saveManualExecutions": true,
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "id": "7011189c-736b-47fa-95ea-ac7e5faac894",
+      "name": "Aplicar perfil",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-meta-wa-perfil",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "21c6c1e7-fef0-4ea8-a01e-dc438b01abcb"
+    },
+    {
+      "id": "04280cd5-810b-489c-bfb4-9c4a80acee13",
+      "name": "HTML do logo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const HTML = \"<!doctype html><html><head><meta charset=\\\"utf-8\\\"><style>html,body{margin:0;padding:0;width:640px;height:640px;overflow:hidden;background:#1B1F3B}</style></head><body><svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"640\\\" height=\\\"640\\\" viewBox=\\\"0 0 640 640\\\"><rect width=\\\"640\\\" height=\\\"640\\\" fill=\\\"#1B1F3B\\\"/><circle cx=\\\"320\\\" cy=\\\"320\\\" r=\\\"300\\\" fill=\\\"#14B37D\\\"/><path fill=\\\"#1B1F3B\\\" transform=\\\"translate(320 322) scale(0.205 -0.205) translate(-745 -750)\\\" d=\\\"M686 1500Q924 1500 1094.0 1405.5Q1264 1311 1355.0 1142.0Q1446 973 1446 750Q1446 582 1392.0 444.5Q1338 307 1237.5 207.5Q1137 108 997.0 54.0Q857 0 686 0H45V39H226V1461H45V1500ZM537 39H686Q802 39 880.5 94.0Q959 149 1006.5 246.5Q1054 344 1075.0 473.0Q1096 602 1096 750Q1096 898 1072.0 1027.0Q1048 1156 999.0 1253.5Q950 1351 872.5 1406.0Q795 1461 686 1461H537Z\\\"/></svg></body></html>\";\nconst bin = await this.helpers.prepareBinaryData(Buffer.from(HTML, 'utf8'), 'index.html', 'text/html');\nreturn [{ json: {}, binary: { files: bin } }];"
+      }
+    },
+    {
+      "id": "bc86dcc6-9a7f-4c71-a91f-a3eb7d4fb727",
+      "name": "Gerar JPG 640",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://dyno-render:3000/forms/chromium/screenshot/html",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "files"
+            },
+            {
+              "parameterType": "formData",
+              "name": "width",
+              "value": "640"
+            },
+            {
+              "parameterType": "formData",
+              "name": "height",
+              "value": "640"
+            },
+            {
+              "parameterType": "formData",
+              "name": "format",
+              "value": "jpeg"
+            },
+            {
+              "parameterType": "formData",
+              "name": "quality",
+              "value": "92"
+            },
+            {
+              "parameterType": "formData",
+              "name": "clip",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 45000,
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "7c518cf3-8ac3-4d1b-9ce5-f8d364f8f189",
+      "name": "Tamanho",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const it = $input.first();\nconst buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst bin = await this.helpers.prepareBinaryData(buf, 'dyno-perfil.jpg', 'image/jpeg');\nreturn [{ json: { len: buf.length }, binary: { data: bin } }];"
+      }
+    },
+    {
+      "id": "91bfb78a-004a-4dd5-a47a-4c886ea49eb5",
+      "name": "Abrir upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"https://graph.facebook.com/v26.0/2507377823090652/uploads?file_name=dyno-perfil.jpg&file_type=image/jpeg&file_length=\" + $json.len }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "4fa77aa5-2b6c-4c5c-84fd-e9a3c0ce845d",
+      "name": "Juntar arquivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const s = $input.first().json;\nconst t = $('Tamanho').first();\nreturn [{ json: { sessao: s.id }, binary: t.binary }];"
+      }
+    },
+    {
+      "id": "6c08a78b-be7a-4513-a335-b12ee7d55633",
+      "name": "Enviar arquivo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"https://graph.facebook.com/v26.0/\" + $json.sessao }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "file_offset",
+              "value": "0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "7dbb96c6-9e23-4804-8e58-bcd12951cfb4",
+      "name": "Atualizar perfil",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1568,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v26.0/1405532732623905/whatsapp_business_profile",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: \"whatsapp\", profile_picture_handle: $json.h, about: \"Seu assessor pessoal no WhatsApp 💚\", description: \"Dyno cuida do seu dinheiro e a Dina, da sua agenda: anote gastos, contas, lembretes e compromissos por texto, áudio ou foto.\", email: \"suporte@dynoapp.com.br\", websites: [\"https://dynoapp.com.br\"], vertical: \"PROF_SERVICES\" }) }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "7980dbe9-2881-438b-b3c8-fed0aa92c999",
+      "name": "Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json; return [{ json: { http: r.statusCode, body: r.body, bytes: $('Tamanho').first().json.len } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Aplicar perfil": {
+      "main": [
+        [
+          {
+            "node": "HTML do logo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML do logo": {
+      "main": [
+        [
+          {
+            "node": "Gerar JPG 640",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar JPG 640": {
+      "main": [
+        [
+          {
+            "node": "Tamanho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tamanho": {
+      "main": [
+        [
+          {
+            "node": "Abrir upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Abrir upload": {
+      "main": [
+        [
+          {
+            "node": "Juntar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Juntar arquivo": {
+      "main": [
+        [
+          {
+            "node": "Enviar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar arquivo": {
+      "main": [
+        [
+          {
+            "node": "Atualizar perfil",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar perfil": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "f80dd130-8c15-4d63-a29a-398881693922"
+}

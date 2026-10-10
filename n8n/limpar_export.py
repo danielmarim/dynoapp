@@ -9,6 +9,7 @@ Saída: n8n/workflows/<nome>__<id>.json
 O que faz:
 - troca o valor da constante SEGREDO (nó "Preparar" da API do site) por '__SEGREDO__';
 - troca p_token fixo (enviado às RPCs do Supabase) por "__P_TOKEN__";
+- troca o caminho secreto do webhook da Pluggy (pluggy-<hex>) por "pluggy-<SEGREDO-REMOVIDO>";
 - remove pinData e staticData (podem trazer dados de clientes de execuções de teste);
 - procura valores com cara de chave/token e telefones; mostra só onde estão, nunca o valor.
 Só aceita workflows cujo nome começa com "Dyno" (inclui "Dyno Plataforma |" e "Dyno Business |"; Dynamo Wear fica de fora) (o n8n também tem os da Dynamo Wear e outros);
@@ -29,6 +30,8 @@ PADRAO_ENTRADA = PASTA / "_download"
 RE_SEGREDO = re.compile(r"""(const\s+SEGREDO\s*=\s*)(['"`])(?!__SEGREDO__\2)[^'"`]*\2""")
 # p_token fixo enviado às RPCs do Supabase (ex.: Asaas webhook → dyno_evento_asaas)
 RE_P_TOKEN = re.compile(r"""(\bp_token\\?["']?\s*:\s*)(\\?["'])(?!__P_TOKEN__)[^"'\\]+\2""")
+# caminho secreto do webhook da Pluggy (aparece no nó Webhook e em quem monta a URL)
+RE_PLUGGY = re.compile(r"pluggy-[0-9a-f]{16,}")
 SUSPEITAS = {
     "chave OpenAI/Anthropic": re.compile(r"\bsk-(?:ant-|proj-)?[A-Za-z0-9_\-]{16,}"),
     "chave TypeSafe": re.compile(r"\bts_[A-Za-z0-9]{16,}"),
@@ -100,6 +103,20 @@ def limpar(wf):
             novo, n = RE_P_TOKEN.subn(r"\1\2__P_TOKEN__\2", params["jsonBody"])
             params["jsonBody"] = novo
             trocas += n
+    def trocar_pluggy(valor):
+        nonlocal trocas
+        if isinstance(valor, dict):
+            return {k: trocar_pluggy(v) for k, v in valor.items()}
+        if isinstance(valor, list):
+            return [trocar_pluggy(v) for v in valor]
+        if isinstance(valor, str):
+            novo, n = RE_PLUGGY.subn("pluggy-<SEGREDO-REMOVIDO>", valor)
+            trocas += n
+            return novo
+        return valor
+
+    for no in wf.get("nodes", []):
+        no["parameters"] = trocar_pluggy(no.get("parameters", {}))
     for chave in ("pinData", "staticData"):
         wf.pop(chave, None)
     return trocas

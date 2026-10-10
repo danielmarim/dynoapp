@@ -1,0 +1,321 @@
+{
+  "id": "UWNyczR34xIOw7KG",
+  "name": "Dyno | Agente: cobrador de promessas",
+  "description": "10:40 a IA separa, das frases \"preciso/tenho que...\", o que ficou sem lembrete; 11:00 a Dina pergunta (1 por pessoa/dia) se a pessoa conseguiu. Respostas feito/ainda não/esquece no SQL.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "nodes": [
+    {
+      "id": "4756b3d8-8ca6-44c3-acee-9e567a0b898d",
+      "name": "Triagem 10:40",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "40 10 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "0831a98a-5f42-4611-b27f-9812834f8b5a",
+      "name": "Supabase: candidatas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_promessas_candidatas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "id": "c3538e3b-4542-4829-b017-694332d9beda",
+      "name": "Montar triagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Cobrador de promessas (08/10/2026): pede à IA para separar, das frases de intenção, o que é compromisso pessoal que ficou sem lembrete.\nconst NL = String.fromCharCode(10);\nconst lista = $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json]).filter(p => p && p.autor && Array.isArray(p.itens) && p.itens.length);\nconst hoje = DateTime.now().setZone('America/Sao_Paulo').setLocale('pt-BR');\nconst sistema = [\n  'Você ajuda a Dina, assistente pessoal no WhatsApp, a lembrar das coisas que a pessoa DISSE que precisava fazer e que ficaram sem lembrete.',\n  'Hoje é ' + hoje.toFormat(\"cccc, dd/LL/yyyy\") + '. As datas das mensagens estão em dd/mm (ano atual).',\n  'Para cada mensagem, decida se ela contém um COMPROMISSO PESSOAL concreto da própria pessoa (ex.: ligar para alguém, devolver algo, pagar alguém, marcar consulta, resolver um conserto, responder alguém) que NÃO virou lembrete, tarefa, compromisso, conta ou gasto. Use o campo \"criados\" (lembretes, tarefas e compromissos da pessoa nos 3 dias antes e logo depois da mensagem, com status, mais contas e gastos registrados na hora) e a \"resposta\" do assistente para saber o que já foi agendado ou feito; se algo parecido já existe, NÃO é promessa.',\n  'NÃO é promessa: pedidos ou perguntas ao assistente, registros de gasto, consultas de saldo, coisas já agendadas, rotina genérica (trabalhar, dormir), desabafos e frases vagas sem ação clara.',\n  'Se uma mensagem tiver várias coisas e só uma ficou sem agendamento, marque promessa=true com essa ação.',\n  'Responda SOMENTE com JSON válido, sem texto fora dele: {\"itens\":[{\"msg_id\":123,\"promessa\":true,\"acao\":\"ligar para o encanador\",\"prazo\":\"AAAA-MM-DD\"}]}.',\n  'Regras de \"acao\": verbo no infinitivo, até 60 caracteres, em minúsculas, sem números de documento ou valores. \"prazo\": a data em que a pessoa disse que faria (ex.: \"amanhã\" → dia seguinte à mensagem), ou null se não disse. Inclua TODAS as mensagens recebidas no array, com promessa=false quando não for o caso.'\n].join(NL);\nconst out = [];\nfor (const p of lista) {\n  const ids = p.itens.map(x => Number(x.msg_id));\n  const user = 'Mensagens de ' + p.autor + ':' + NL + JSON.stringify(p.itens.map(x => ({ msg_id: x.msg_id, quando: x.quando, texto: x.texto, resposta: x.resposta, criados: x.criados })));\n  out.push({ json: { autor: p.autor, numero: p.numero, ids, tarefa: 'simples', origem: 'promessas_triagem', sistema, mensagens: [{ role: 'user', content: user }], max_tokens: 900 } });\n}\nreturn out;\n"
+      }
+    },
+    {
+      "id": "be069a87-2f38-4178-95de-23e88b15597c",
+      "name": "IA em camadas",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mOXAwF2cZ8zbYs2j"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c978fc6c-e841-4a99-8ce1-4a7ef456d486",
+      "name": "Ler resposta da IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Lê o JSON da IA e prepara o registro (o que não vier como promessa é descartado e não volta a ser analisado).\nconst out = [];\n$input.all().forEach((it, i) => {\n  const r = it.json || {};\n  const ped = $('Montar triagem').all()[i].json;\n  if (!r.ok) return;\n  let txt = String(r.texto || '').replace(/^```[a-z]*\\s*|```\\s*$/g, '').trim();\n  const a = txt.indexOf('{'), b = txt.lastIndexOf('}');\n  if (a < 0 || b < a) return;\n  let obj = null;\n  try { obj = JSON.parse(txt.slice(a, b + 1)); } catch (e) { return; }\n  const itens = (Array.isArray(obj.itens) ? obj.itens : []).filter(x => x && ped.ids.includes(Number(x.msg_id))).map(x => ({ msg_id: Number(x.msg_id), promessa: x.promessa === true, acao: String(x.acao || '').slice(0, 80), prazo: /^\\d{4}-\\d{2}-\\d{2}$/.test(String(x.prazo || '')) ? x.prazo : null }));\n  out.push({ json: { p_autor: ped.autor, p_numero: ped.numero, p_ids: ped.ids, p_itens: itens } });\n});\nreturn out;\n"
+      }
+    },
+    {
+      "id": "624a3f97-898e-43b4-a278-969515e98e64",
+      "name": "Supabase: registrar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_promessas_registrar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "id": "4599db1b-57fe-4bfb-9771-59356b61e254",
+      "name": "Cobrança 11:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        224
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 11 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c189eb18-8451-4687-aba7-de1e6af3df05",
+      "name": "Supabase: cobrar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        224
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_promessas_cobrar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "disabled": false
+    },
+    {
+      "id": "392eefe7-24ec-45b1-a6ab-32fea6a25f7b",
+      "name": "Separar mensagens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        224
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Uma pergunta da Dina por pessoa (no máximo 1 por dia).\nconst ZW = String.fromCharCode(8203), NL = String.fromCharCode(10);\nconst lista = $input.all().map(i => i.json).filter(x => x && x.autor && x.numero && x.texto);\nreturn lista.map(x => ({ json: { number: String(x.numero), text: ZW + '*⏰ Dina*' + NL + x.texto, delay: 1200 } }));\n"
+      }
+    },
+    {
+      "id": "b3258960-b273-470d-a718-81f86c4097b1",
+      "name": "WhatsApp: enviar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        224
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 3000
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueRegularOutput",
+      "disabled": false
+    }
+  ],
+  "connections": {
+    "Triagem 10:40": {
+      "main": [
+        [
+          {
+            "node": "Supabase: candidatas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: candidatas": {
+      "main": [
+        [
+          {
+            "node": "Montar triagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar triagem": {
+      "main": [
+        [
+          {
+            "node": "IA em camadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA em camadas": {
+      "main": [
+        [
+          {
+            "node": "Ler resposta da IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler resposta da IA": {
+      "main": [
+        [
+          {
+            "node": "Supabase: registrar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cobrança 11:00": {
+      "main": [
+        [
+          {
+            "node": "Supabase: cobrar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: cobrar": {
+      "main": [
+        [
+          {
+            "node": "Separar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar mensagens": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp: enviar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "7a8ee2af-30c0-4c6d-b4a6-b98412c3d561"
+}

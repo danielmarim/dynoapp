@@ -1,0 +1,132 @@
+{
+  "id": "P5K88x0skwrsmEkb",
+  "name": "Dyno Plataforma | WhatsApp oficial (Meta) — diagnóstico",
+  "description": "Consulta o status do número da API oficial e os apps assinados na conta do WhatsApp Business (só leitura).",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "saveManualExecutions": true,
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "id": "fbc8950d-e26a-4c75-956d-6d452275d3ca",
+      "name": "Diagnóstico",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-meta-wa-diag",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "aa725940-fa5f-42f2-8b29-656d2c66f9f2"
+    },
+    {
+      "id": "c5199e98-45a7-438c-9694-03b318b68092",
+      "name": "Status do número",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://graph.facebook.com/v26.0/1405532732623905?fields=display_phone_number,verified_name,code_verification_status,name_status,new_name_status,status,quality_rating,platform_type,account_mode,messaging_limit_tier,is_pin_enabled",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "ed2e9143-5655-473d-ab9c-6bb2eeafa9b8",
+      "name": "Apps assinados na WABA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://graph.facebook.com/v26.0/1948063682821064/subscribed_apps",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "82735d12-d6f8-4240-a2ff-098d79135736",
+      "name": "Resumo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const n = $('Status do número').first().json; const a = $('Apps assinados na WABA').first().json;\nreturn [{ json: { numero: { http: n.statusCode, body: n.body }, apps: { http: a.statusCode, body: a.body } } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Diagnóstico": {
+      "main": [
+        [
+          {
+            "node": "Status do número",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status do número": {
+      "main": [
+        [
+          {
+            "node": "Apps assinados na WABA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apps assinados na WABA": {
+      "main": [
+        [
+          {
+            "node": "Resumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "cb0ca848-3fce-47de-a99b-02a30e4d5c36"
+}

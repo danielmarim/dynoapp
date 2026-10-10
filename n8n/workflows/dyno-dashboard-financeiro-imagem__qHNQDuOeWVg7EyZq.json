@@ -1,103 +1,58 @@
 {
+  "id": "qHNQDuOeWVg7EyZq",
   "name": "Dyno | Dashboard financeiro (imagem)",
+  "description": "Gera o dashboard financeiro em PNG (gastos por categoria, forma de pagamento, assinaturas, maiores gastos) e envia no WhatsApp.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo"
+  },
   "nodes": [
     {
-      "parameters": {
-        "inputSource": "passthrough"
-      },
       "id": "1bb32b9f-4c77-4965-9076-3306fffd453e",
       "name": "Receber pedido",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
         0,
-        304
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "czjKVg7HFjMKNpAq",
-          "cachedResultName": "assessor_transacoes"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "data",
-              "condition": "gte",
-              "keyValue": "={{ $now.minus({ days: 75 }).toISO() }}"
-            }
-          ]
-        },
-        "returnAll": true
-      },
-      "id": "0cb96092-5d7d-4794-a950-e72b94bba92e",
-      "name": "Buscar transações",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        224,
-        304
+        300
       ],
-      "executeOnce": true,
-      "alwaysOutputData": true
+      "parameters": {
+        "inputSource": "passthrough"
+      }
     },
     {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "BhTS13DGVIPZ39LS",
-          "cachedResultName": "assessor_assinaturas"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "ativo",
-              "condition": "isTrue"
-            }
-          ]
-        },
-        "returnAll": true
-      },
-      "id": "6309d08d-430f-4b20-a728-bdb018b88b7f",
-      "name": "Buscar assinaturas",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        448,
-        304
-      ],
-      "executeOnce": true,
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst pedido = $('Receber pedido').first().json;\nconst autor = pedido.autor || 'Daniel';\nconst numero = pedido.numero;\nconst linhas = n => { try { return $(n).all().map(i => i.json).filter(r => r && r.id !== undefined && r.id !== null); } catch (e) { return []; } };\nconst MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];\nconst cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;\nconst BONITO = { alimentacao: 'Alimentação', educacao: 'Educação', saude: 'Saúde', vestuario: 'Vestuário', servicos: 'Serviços', transporte: 'Transporte', moradia: 'Moradia', lazer: 'Lazer', contas: 'Contas', assinaturas: 'Assinaturas', mercado: 'Mercado', outros: 'Outros', presentes: 'Presentes', viagem: 'Viagem', pets: 'Pets', beleza: 'Beleza', impostos: 'Impostos', investimentos: 'Investimentos' };\nconst nomeCat = c => { const k = String(c || 'outros').toLowerCase().trim(); return BONITO[k] || cap(k); };\nconst agora = DateTime.now().setZone(TZ);\nlet ini, fim, rotulo;\nconst p = String(pedido.periodo || 'mes').toLowerCase();\nif (p === 'mes_passado') { ini = agora.minus({ months: 1 }).startOf('month'); fim = agora.startOf('month').minus({ milliseconds: 1 }); rotulo = cap(MESES[ini.month - 1]) + ' de ' + ini.year; }\nelse if (p === 'semana') { ini = agora.startOf('week'); fim = agora.endOf('day'); rotulo = 'Semana de ' + ini.toFormat('dd/LL') + ' a ' + agora.toFormat('dd/LL'); }\nelse if (p === 'ultimos_30' || p === '30d') { ini = agora.minus({ days: 29 }).startOf('day'); fim = agora.endOf('day'); rotulo = 'Últimos 30 dias'; }\nelse { ini = agora.startOf('month'); fim = agora.endOf('day'); rotulo = cap(MESES[agora.month - 1]) + ' de ' + agora.year; }\n\nconst milhar = s => { let o = ''; for (let i = 0; i < s.length; i++) { if (i > 0 && (s.length - i) % 3 === 0) o += '.'; o += s[i]; } return o; };\nconst brl = v => { const n = Math.abs(Number(v || 0)).toFixed(2).split('.'); return (Number(v) < 0 ? '-' : '') + 'R$ ' + milhar(n[0]) + ',' + n[1]; };\nconst semAcento = s => String(s || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9 ]/g, '');\nconst forma = f => {\n  const s = semAcento(f);\n  if (!s.trim()) return 'Não informado';\n  if (s.includes('cred')) return 'Cartão de crédito';\n  if (s.includes('deb')) return 'Cartão de débito';\n  if (s.includes('pix')) return 'Pix';\n  if (s.includes('dinh') || s.includes('especie')) return 'Dinheiro';\n  if (s.includes('boleto')) return 'Boleto';\n  if (s.includes('cart')) return 'Cartão';\n  return cap(String(f).trim().slice(0, 24));\n};\n\nconst tx = linhas('Buscar transações')\n  .filter(t => (t.autor || 'Daniel') === autor)\n  .map(t => ({ ...t, dt: DateTime.fromISO(String(t.data || t.createdAt)).setZone(TZ), v: Number(t.valor) || 0 }))\n  .filter(t => t.dt.isValid && t.dt >= ini && t.dt <= fim);\nconst desp = tx.filter(t => t.tipo !== 'receita');\nconst rec = tx.filter(t => t.tipo === 'receita');\nconst totD = desp.reduce((s, t) => s + t.v, 0);\nconst totR = rec.reduce((s, t) => s + t.v, 0);\nif (!tx.length) {\n  return [{ json: { vazio: true, numero, texto: 'Ainda não encontrei lançamentos seus em ' + rotulo + ', então não tem o que mostrar no dashboard. Assim que você registrar gastos, eu monto para você.' } }];\n}\nconst agrupar = (lista, chave) => { const m = {}; for (const t of lista) { const k = chave(t); m[k] = (m[k] || 0) + t.v; } return Object.entries(m).sort((a, b) => b[1] - a[1]); };\nlet cats = agrupar(desp, t => nomeCat(t.categoria));\nif (cats.length > 6) { const resto = cats.slice(5).reduce((s, c) => s + c[1], 0); cats = cats.slice(0, 5).concat([['Outras', resto]]); }\nconst pags = agrupar(desp, t => forma(t.forma_pagamento)).slice(0, 5);\nconst maiores = desp.slice().sort((a, b) => b.v - a.v).slice(0, 4);\nconst subs = linhas('Buscar assinaturas').filter(s => (s.autor || 'Daniel') === autor && s.ativo !== false)\n  .map(s => ({ nome: String(s.nome || 'Assinatura'), mensal: (Number(s.valor) || 0) / (s.ciclo === 'anual' ? 12 : 1) }))\n  .sort((a, b) => b.mensal - a.mensal);\nconst totSubs = subs.reduce((s, x) => s + x.mensal, 0);\n\nconst W = 1080, M = 54;\nconst NAVY = '#1B1F3B', GREEN = '#14B37D', INK = '#0B6E4D', ORANGE = '#FF8A3D', MUTED = '#6B6F85', TRACK = '#EFE5D2', RED = '#C8402F';\nconst D = [], T = [];\nconst rect = (x1, y1, x2, y2, color, r) => D.push({ c: color, a: Math.round(x1), b: Math.round(y1), e: Math.round(x2), f: Math.round(y2), r: r || 0 });\nconst txt = (t, x, y, size, color) => T.push({ t: String(t), s: size, k: color, x: Math.round(x), y: Math.round(y) });\nconst larg = (s, size) => { let w = 0; for (const c of String(s)) w += /[0-9$]/.test(c) ? .556 : /[.,: ]/.test(c) ? .278 : c === '%' ? .889 : c === '-' ? .333 : /[A-Z]/.test(c) ? .68 : /[a-z]/.test(c) ? .5 : .55; return w * size; };\nconst dir = (t, xr, y, size, color) => txt(t, xr - larg(t, size), y, size, color);\nconst corta = (s, max) => { s = String(s); return s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s; };\nconst pct = (v, tot) => tot > 0 ? Math.round(v / tot * 100) + '%' : '0%';\n\nrect(0, 0, W, 150, NAVY, 0);\nrect(M, 76, M + 9, 94, GREEN, 2); rect(M + 18, 64, M + 27, 94, GREEN, 2); rect(M + 36, 52, M + 45, 94, GREEN, 2);\ntxt('Dyno', M + 66, 94, 46, '#FFF6EA');\ndir('Painel de ' + autor, W - M, 94, 24, '#C9CCDD');\ntxt('Dashboard financeiro · ' + rotulo, M, 132, 24, '#C9CCDD');\n\nconst kpis = [['GASTOS', brl(totD), NAVY], ['RECEITAS', brl(totR), NAVY], ['SALDO', brl(totR - totD), (totR - totD) >= 0 ? INK : RED]];\nkpis.forEach((k, i) => { const x = M + i * 330; rect(x, 180, x + 312, 300, '#FFFFFF', 14); txt(k[0], x + 22, 216, 20, MUTED); txt(k[1], x + 22, 270, 38, k[2]); });\n\ntxt('ONDE VOCÊ MAIS GASTOU', M, 346, 20, INK);\nconst maxC = cats.length ? cats[0][1] : 1;\ncats.forEach((c, i) => {\n  const y = 378 + i * 58;\n  txt(corta(c[0], 28), M, y + 24, 24, NAVY);\n  dir(brl(c[1]) + '  ·  ' + pct(c[1], totD), W - M, y + 24, 24, NAVY);\n  rect(M, y + 34, W - M, y + 44, TRACK, 5);\n  rect(M, y + 34, M + Math.max(10, (W - 2 * M) * c[1] / maxC), y + 44, GREEN, 5);\n});\n\nconst y2 = 378 + cats.length * 58 + 26;\ntxt('COMO VOCÊ PAGOU', M, y2, 20, INK);\ntxt('ASSINATURAS ATIVAS', 567, y2, 20, INK);\nconst r0 = y2 + 30;\nconst maxP = pags.length ? pags[0][1] : 1;\npags.forEach((c, i) => {\n  const y = r0 + i * 56;\n  txt(corta(c[0], 20), M, y + 22, 22, NAVY);\n  dir(brl(c[1]) + ' · ' + pct(c[1], totD), 513, y + 22, 22, NAVY);\n  rect(M, y + 30, 513, y + 39, TRACK, 4);\n  rect(M, y + 30, M + Math.max(9, 459 * c[1] / maxP), y + 39, ORANGE, 4);\n});\nlet hRight = 56;\nif (!subs.length) { txt('Nenhuma assinatura cadastrada', 567, r0 + 22, 22, MUTED); }\nelse {\n  const mostra = subs.slice(0, 4);\n  mostra.forEach((s, i) => {\n    const y = r0 + i * 56;\n    txt(corta(s.nome, 20), 567, y + 22, 22, NAVY);\n    dir(brl(s.mensal), W - M, y + 22, 22, NAVY);\n    rect(567, y + 36, W - M, y + 37, TRACK, 0);\n  });\n  const yt = r0 + mostra.length * 56;\n  txt(subs.length > 4 ? 'Total (' + subs.length + ' assinaturas)' : 'Total por mês', 567, yt + 22, 22, INK);\n  dir(brl(totSubs), W - M, yt + 22, 22, INK);\n  hRight = (mostra.length + 1) * 56;\n}\nconst y3 = r0 + Math.max(pags.length * 56, hRight) + 30;\n\ntxt('MAIORES GASTOS', M, y3, 20, INK);\nmaiores.forEach((t, i) => {\n  const y = y3 + 26 + i * 58;\n  const cat = nomeCat(t.categoria);\n  const desc = String(t.descricao || '').trim();\n  const texto = desc ? (desc.length <= 26 ? desc + ' · ' + cat : corta(desc, 38)) : cat;\n  txt(t.dt.toFormat('dd/LL'), M, y + 26, 22, MUTED);\n  txt(texto, M + 90, y + 26, 24, NAVY);\n  dir(brl(t.v), W - M, y + 26, 24, NAVY);\n  rect(M, y + 42, W - M, y + 43, TRACK, 0);\n});\nconst yF = y3 + 26 + maiores.length * 58 + 40;\ntxt('Gerado pelo Dyno em ' + agora.toFormat('dd/LL/yyyy HH:mm') + ' · com base nos lançamentos feitos por você', M, yF, 18, MUTED);\nconst altura = Math.min(1500, yF + 36);\n\nwhile (D.length < 40) D.push({ c: '#00000000', a: 0, b: 0, e: 1, f: 1, r: 0 });\nwhile (T.length < 60) T.push({ t: '.', s: 10, k: '#00000000', x: 0, y: 0 });\nconst NL = String.fromCharCode(10);\nconst caption = '📊 Seu dashboard — ' + rotulo + NL + 'Gastos: ' + brl(totD) + ' · Receitas: ' + brl(totR) + ' · Saldo: ' + brl(totR - totD);\nreturn [{ json: { vazio: false, numero, caption, altura, d: D.slice(0, 40), t: T.slice(0, 60) } }];"
-      },
       "id": "a61ce9a0-cc91-43cb-9113-51eaec89489c",
       "name": "Montar dashboard",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        672,
-        304
-      ]
+        660,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const TZ = 'America/Sao_Paulo';\nconst pedido = $('Receber pedido').first().json;\nconst autor = pedido.autor || 'Daniel';\nconst numero = pedido.numero;\nconst linhas = n => { try { return $(n).all().map(i => i.json).filter(r => r && r.id !== undefined && r.id !== null); } catch (e) { return []; } };\nconst MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];\nconst cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;\nconst BONITO = { alimentacao: 'Alimentação', educacao: 'Educação', saude: 'Saúde', vestuario: 'Vestuário', servicos: 'Serviços', transporte: 'Transporte', moradia: 'Moradia', lazer: 'Lazer', contas: 'Contas', assinaturas: 'Assinaturas', mercado: 'Mercado', outros: 'Outros', presentes: 'Presentes', viagem: 'Viagem', pets: 'Pets', beleza: 'Beleza', impostos: 'Impostos', investimentos: 'Investimentos' };\nconst nomeCat = c => { const k = String(c || 'outros').toLowerCase().trim(); return BONITO[k] || cap(k); };\nconst agora = DateTime.now().setZone(TZ);\nlet ini, fim, rotulo;\nconst p = String(pedido.periodo || 'mes').toLowerCase();\nif (p === 'mes_passado') { ini = agora.minus({ months: 1 }).startOf('month'); fim = agora.startOf('month').minus({ milliseconds: 1 }); rotulo = cap(MESES[ini.month - 1]) + ' de ' + ini.year; }\nelse if (p === 'semana') { ini = agora.startOf('week'); fim = agora.endOf('day'); rotulo = 'Semana de ' + ini.toFormat('dd/LL') + ' a ' + agora.toFormat('dd/LL'); }\nelse if (p === 'ultimos_30' || p === '30d') { ini = agora.minus({ days: 29 }).startOf('day'); fim = agora.endOf('day'); rotulo = 'Últimos 30 dias'; }\nelse { ini = agora.startOf('month'); fim = agora.endOf('day'); rotulo = cap(MESES[agora.month - 1]) + ' de ' + agora.year; }\n\nconst milhar = s => { let o = ''; for (let i = 0; i < s.length; i++) { if (i > 0 && (s.length - i) % 3 === 0) o += '.'; o += s[i]; } return o; };\nconst brl = v => { const n = Math.abs(Number(v || 0)).toFixed(2).split('.'); return (Number(v) < 0 ? '-' : '') + 'R$ ' + milhar(n[0]) + ',' + n[1]; };\nconst semAcento = s => String(s || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9 ]/g, '');\nconst forma = f => {\n  const s = semAcento(f);\n  if (!s.trim()) return 'Não informado';\n  if (s.includes('cred')) return 'Cartão de crédito';\n  if (s.includes('deb')) return 'Cartão de débito';\n  if (s.includes('pix')) return 'Pix';\n  if (s.includes('dinh') || s.includes('especie')) return 'Dinheiro';\n  if (s.includes('boleto')) return 'Boleto';\n  if (s.includes('cart')) return 'Cartão';\n  return cap(String(f).trim().slice(0, 24));\n};\n\nconst tx = linhas('Buscar transações')\n  .filter(t => (t.autor || 'Daniel') === autor)\n  .map(t => ({ ...t, dt: DateTime.fromISO(String(t.data || t.createdAt)).setZone(TZ), v: Number(t.valor) || 0 }))\n  .filter(t => t.dt.isValid && t.dt >= ini && t.dt <= fim);\nconst desp = tx.filter(t => t.tipo !== 'receita');\nconst rec = tx.filter(t => t.tipo === 'receita');\nconst totD = desp.reduce((s, t) => s + t.v, 0);\nconst totR = rec.reduce((s, t) => s + t.v, 0);\nif (!tx.length) {\n  return [{ json: { vazio: true, numero, texto: 'Ainda não encontrei lançamentos seus em ' + rotulo + ', então não tem o que mostrar no dashboard. Assim que você registrar gastos, eu monto para você.' } }];\n}\nconst agrupar = (lista, chave) => { const m = {}; for (const t of lista) { const k = chave(t); m[k] = (m[k] || 0) + t.v; } return Object.entries(m).sort((a, b) => b[1] - a[1]); };\nlet cats = agrupar(desp, t => nomeCat(t.categoria));\nif (cats.length > 6) { const resto = cats.slice(5).reduce((s, c) => s + c[1], 0); cats = cats.slice(0, 5).concat([['Outras', resto]]); }\nconst pags = agrupar(desp, t => forma(t.forma_pagamento)).slice(0, 5);\nconst maiores = desp.slice().sort((a, b) => b.v - a.v).slice(0, 4);\nconst subs = linhas('Buscar assinaturas').filter(s => (s.autor || 'Daniel') === autor && s.ativo !== false)\n  .map(s => ({ nome: String(s.nome || 'Assinatura'), mensal: (Number(s.valor) || 0) / (s.ciclo === 'anual' ? 12 : 1) }))\n  .sort((a, b) => b.mensal - a.mensal);\nconst totSubs = subs.reduce((s, x) => s + x.mensal, 0);\n\nconst W = 1080, M = 54;\nconst NAVY = '#1B1F3B', GREEN = '#14B37D', INK = '#0B6E4D', ORANGE = '#FF8A3D', MUTED = '#6B6F85', TRACK = '#EFE5D2', RED = '#C8402F';\nconst D = [], T = [];\nconst rect = (x1, y1, x2, y2, color, r) => D.push({ c: color, a: Math.round(x1), b: Math.round(y1), e: Math.round(x2), f: Math.round(y2), r: r || 0 });\nconst txt = (t, x, y, size, color) => T.push({ t: String(t), s: size, k: color, x: Math.round(x), y: Math.round(y) });\nconst larg = (s, size) => { let w = 0; for (const c of String(s)) w += /[0-9$]/.test(c) ? .556 : /[.,: ]/.test(c) ? .278 : c === '%' ? .889 : c === '-' ? .333 : /[A-Z]/.test(c) ? .68 : /[a-z]/.test(c) ? .5 : .55; return w * size; };\nconst dir = (t, xr, y, size, color) => txt(t, xr - larg(t, size), y, size, color);\nconst corta = (s, max) => { s = String(s); return s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s; };\nconst pct = (v, tot) => tot > 0 ? Math.round(v / tot * 100) + '%' : '0%';\n\nrect(0, 0, W, 150, NAVY, 0);\nrect(M, 76, M + 9, 94, GREEN, 2); rect(M + 18, 64, M + 27, 94, GREEN, 2); rect(M + 36, 52, M + 45, 94, GREEN, 2);\ntxt('Dyno', M + 66, 94, 46, '#FFF6EA');\ndir('Painel de ' + autor, W - M, 94, 24, '#C9CCDD');\ntxt('Dashboard financeiro · ' + rotulo, M, 132, 24, '#C9CCDD');\n\nconst kpis = [['GASTOS', brl(totD), NAVY], ['RECEITAS', brl(totR), NAVY], ['SALDO', brl(totR - totD), (totR - totD) >= 0 ? INK : RED]];\nkpis.forEach((k, i) => { const x = M + i * 330; rect(x, 180, x + 312, 300, '#FFFFFF', 14); txt(k[0], x + 22, 216, 20, MUTED); txt(k[1], x + 22, 270, 38, k[2]); });\n\ntxt('ONDE VOCÊ MAIS GASTOU', M, 346, 20, INK);\nconst maxC = cats.length ? cats[0][1] : 1;\ncats.forEach((c, i) => {\n  const y = 378 + i * 58;\n  txt(corta(c[0], 28), M, y + 24, 24, NAVY);\n  dir(brl(c[1]) + '  ·  ' + pct(c[1], totD), W - M, y + 24, 24, NAVY);\n  rect(M, y + 34, W - M, y + 44, TRACK, 5);\n  rect(M, y + 34, M + Math.max(10, (W - 2 * M) * c[1] / maxC), y + 44, GREEN, 5);\n});\n\nconst y2 = 378 + cats.length * 58 + 26;\ntxt('COMO VOCÊ PAGOU', M, y2, 20, INK);\ntxt('ASSINATURAS ATIVAS', 567, y2, 20, INK);\nconst r0 = y2 + 30;\nconst maxP = pags.length ? pags[0][1] : 1;\npags.forEach((c, i) => {\n  const y = r0 + i * 56;\n  txt(corta(c[0], 20), M, y + 22, 22, NAVY);\n  dir(brl(c[1]) + ' · ' + pct(c[1], totD), 513, y + 22, 22, NAVY);\n  rect(M, y + 30, 513, y + 39, TRACK, 4);\n  rect(M, y + 30, M + Math.max(9, 459 * c[1] / maxP), y + 39, ORANGE, 4);\n});\nlet hRight = 56;\nif (!subs.length) { txt('Nenhuma assinatura cadastrada', 567, r0 + 22, 22, MUTED); }\nelse {\n  const mostra = subs.slice(0, 4);\n  mostra.forEach((s, i) => {\n    const y = r0 + i * 56;\n    txt(corta(s.nome, 20), 567, y + 22, 22, NAVY);\n    dir(brl(s.mensal), W - M, y + 22, 22, NAVY);\n    rect(567, y + 36, W - M, y + 37, TRACK, 0);\n  });\n  const yt = r0 + mostra.length * 56;\n  txt(subs.length > 4 ? 'Total (' + subs.length + ' assinaturas)' : 'Total por mês', 567, yt + 22, 22, INK);\n  dir(brl(totSubs), W - M, yt + 22, 22, INK);\n  hRight = (mostra.length + 1) * 56;\n}\nconst y3 = r0 + Math.max(pags.length * 56, hRight) + 30;\n\ntxt('MAIORES GASTOS', M, y3, 20, INK);\nmaiores.forEach((t, i) => {\n  const y = y3 + 26 + i * 58;\n  const cat = nomeCat(t.categoria);\n  const desc = String(t.descricao || '').trim();\n  const texto = desc ? (desc.length <= 26 ? desc + ' · ' + cat : corta(desc, 38)) : cat;\n  txt(t.dt.toFormat('dd/LL'), M, y + 26, 22, MUTED);\n  txt(texto, M + 90, y + 26, 24, NAVY);\n  dir(brl(t.v), W - M, y + 26, 24, NAVY);\n  rect(M, y + 42, W - M, y + 43, TRACK, 0);\n});\nconst yF = y3 + 26 + maiores.length * 58 + 40;\ntxt('Gerado pelo Dyno em ' + agora.toFormat('dd/LL/yyyy HH:mm') + ' · com base nos lançamentos feitos por você', M, yF, 18, MUTED);\nconst altura = Math.min(1500, yF + 36);\n\nwhile (D.length < 40) D.push({ c: '#00000000', a: 0, b: 0, e: 1, f: 1, r: 0 });\nwhile (T.length < 60) T.push({ t: '.', s: 10, k: '#00000000', x: 0, y: 0 });\nconst NL = String.fromCharCode(10);\nconst caption = '📊 Seu dashboard — ' + rotulo + NL + 'Gastos: ' + brl(totD) + ' · Receitas: ' + brl(totR) + ' · Saldo: ' + brl(totR - totD);\nreturn [{ json: { vazio: false, numero, caption, altura, d: D.slice(0, 40), t: T.slice(0, 60) } }];"
+      }
     },
     {
+      "id": "c7ed3473-f253-45da-a661-e59cb8592d99",
+      "name": "Sem lançamentos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        300
+      ],
       "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           },
           "conditions": [
             {
@@ -111,1100 +66,1075 @@
             }
           ],
           "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "c7ed3473-f253-45da-a661-e59cb8592d99",
-      "name": "Sem lançamentos?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        880,
-        304
-      ]
+        }
+      }
     },
     {
+      "id": "934acaa9-3d5e-4a74-8c91-53e642e7e444",
+      "name": "Avisar que não há dados",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1100,
+        180
+      ],
       "parameters": {
         "method": "POST",
         "url": "={{ $env.EVOLUTION_URL }}/message/sendText/pesquisa-aereo",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
+        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: \"\\u200B*Dyno:* \" + $json.texto, delay: 600 }) }}",
         "options": {
           "timeout": 20000
         }
       },
-      "id": "934acaa9-3d5e-4a74-8c91-53e642e7e444",
-      "name": "Avisar que não há dados",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        1104,
-        192
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "z2JC1dDh1D3EEQ2b",
-          "name": "Evolution pesquisa-aereo"
-        }
-      },
-      "disabled": true,
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "disabled": true
     },
     {
-      "parameters": {
-        "operation": "multiStep",
-        "operations": {
-          "operations": [
-            {
-              "operation": "create",
-              "backgroundColor": "#FFF6EA",
-              "width": 1080,
-              "height": 1500
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[0].c}}",
-              "startPositionX": "={{$json.d[0].a}}",
-              "startPositionY": "={{$json.d[0].b}}",
-              "endPositionX": "={{$json.d[0].e}}",
-              "endPositionY": "={{$json.d[0].f}}",
-              "cornerRadius": "={{$json.d[0].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[1].c}}",
-              "startPositionX": "={{$json.d[1].a}}",
-              "startPositionY": "={{$json.d[1].b}}",
-              "endPositionX": "={{$json.d[1].e}}",
-              "endPositionY": "={{$json.d[1].f}}",
-              "cornerRadius": "={{$json.d[1].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[2].c}}",
-              "startPositionX": "={{$json.d[2].a}}",
-              "startPositionY": "={{$json.d[2].b}}",
-              "endPositionX": "={{$json.d[2].e}}",
-              "endPositionY": "={{$json.d[2].f}}",
-              "cornerRadius": "={{$json.d[2].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[3].c}}",
-              "startPositionX": "={{$json.d[3].a}}",
-              "startPositionY": "={{$json.d[3].b}}",
-              "endPositionX": "={{$json.d[3].e}}",
-              "endPositionY": "={{$json.d[3].f}}",
-              "cornerRadius": "={{$json.d[3].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[4].c}}",
-              "startPositionX": "={{$json.d[4].a}}",
-              "startPositionY": "={{$json.d[4].b}}",
-              "endPositionX": "={{$json.d[4].e}}",
-              "endPositionY": "={{$json.d[4].f}}",
-              "cornerRadius": "={{$json.d[4].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[5].c}}",
-              "startPositionX": "={{$json.d[5].a}}",
-              "startPositionY": "={{$json.d[5].b}}",
-              "endPositionX": "={{$json.d[5].e}}",
-              "endPositionY": "={{$json.d[5].f}}",
-              "cornerRadius": "={{$json.d[5].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[6].c}}",
-              "startPositionX": "={{$json.d[6].a}}",
-              "startPositionY": "={{$json.d[6].b}}",
-              "endPositionX": "={{$json.d[6].e}}",
-              "endPositionY": "={{$json.d[6].f}}",
-              "cornerRadius": "={{$json.d[6].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[7].c}}",
-              "startPositionX": "={{$json.d[7].a}}",
-              "startPositionY": "={{$json.d[7].b}}",
-              "endPositionX": "={{$json.d[7].e}}",
-              "endPositionY": "={{$json.d[7].f}}",
-              "cornerRadius": "={{$json.d[7].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[8].c}}",
-              "startPositionX": "={{$json.d[8].a}}",
-              "startPositionY": "={{$json.d[8].b}}",
-              "endPositionX": "={{$json.d[8].e}}",
-              "endPositionY": "={{$json.d[8].f}}",
-              "cornerRadius": "={{$json.d[8].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[9].c}}",
-              "startPositionX": "={{$json.d[9].a}}",
-              "startPositionY": "={{$json.d[9].b}}",
-              "endPositionX": "={{$json.d[9].e}}",
-              "endPositionY": "={{$json.d[9].f}}",
-              "cornerRadius": "={{$json.d[9].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[10].c}}",
-              "startPositionX": "={{$json.d[10].a}}",
-              "startPositionY": "={{$json.d[10].b}}",
-              "endPositionX": "={{$json.d[10].e}}",
-              "endPositionY": "={{$json.d[10].f}}",
-              "cornerRadius": "={{$json.d[10].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[11].c}}",
-              "startPositionX": "={{$json.d[11].a}}",
-              "startPositionY": "={{$json.d[11].b}}",
-              "endPositionX": "={{$json.d[11].e}}",
-              "endPositionY": "={{$json.d[11].f}}",
-              "cornerRadius": "={{$json.d[11].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[12].c}}",
-              "startPositionX": "={{$json.d[12].a}}",
-              "startPositionY": "={{$json.d[12].b}}",
-              "endPositionX": "={{$json.d[12].e}}",
-              "endPositionY": "={{$json.d[12].f}}",
-              "cornerRadius": "={{$json.d[12].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[13].c}}",
-              "startPositionX": "={{$json.d[13].a}}",
-              "startPositionY": "={{$json.d[13].b}}",
-              "endPositionX": "={{$json.d[13].e}}",
-              "endPositionY": "={{$json.d[13].f}}",
-              "cornerRadius": "={{$json.d[13].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[14].c}}",
-              "startPositionX": "={{$json.d[14].a}}",
-              "startPositionY": "={{$json.d[14].b}}",
-              "endPositionX": "={{$json.d[14].e}}",
-              "endPositionY": "={{$json.d[14].f}}",
-              "cornerRadius": "={{$json.d[14].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[15].c}}",
-              "startPositionX": "={{$json.d[15].a}}",
-              "startPositionY": "={{$json.d[15].b}}",
-              "endPositionX": "={{$json.d[15].e}}",
-              "endPositionY": "={{$json.d[15].f}}",
-              "cornerRadius": "={{$json.d[15].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[16].c}}",
-              "startPositionX": "={{$json.d[16].a}}",
-              "startPositionY": "={{$json.d[16].b}}",
-              "endPositionX": "={{$json.d[16].e}}",
-              "endPositionY": "={{$json.d[16].f}}",
-              "cornerRadius": "={{$json.d[16].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[17].c}}",
-              "startPositionX": "={{$json.d[17].a}}",
-              "startPositionY": "={{$json.d[17].b}}",
-              "endPositionX": "={{$json.d[17].e}}",
-              "endPositionY": "={{$json.d[17].f}}",
-              "cornerRadius": "={{$json.d[17].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[18].c}}",
-              "startPositionX": "={{$json.d[18].a}}",
-              "startPositionY": "={{$json.d[18].b}}",
-              "endPositionX": "={{$json.d[18].e}}",
-              "endPositionY": "={{$json.d[18].f}}",
-              "cornerRadius": "={{$json.d[18].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[19].c}}",
-              "startPositionX": "={{$json.d[19].a}}",
-              "startPositionY": "={{$json.d[19].b}}",
-              "endPositionX": "={{$json.d[19].e}}",
-              "endPositionY": "={{$json.d[19].f}}",
-              "cornerRadius": "={{$json.d[19].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[20].c}}",
-              "startPositionX": "={{$json.d[20].a}}",
-              "startPositionY": "={{$json.d[20].b}}",
-              "endPositionX": "={{$json.d[20].e}}",
-              "endPositionY": "={{$json.d[20].f}}",
-              "cornerRadius": "={{$json.d[20].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[21].c}}",
-              "startPositionX": "={{$json.d[21].a}}",
-              "startPositionY": "={{$json.d[21].b}}",
-              "endPositionX": "={{$json.d[21].e}}",
-              "endPositionY": "={{$json.d[21].f}}",
-              "cornerRadius": "={{$json.d[21].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[22].c}}",
-              "startPositionX": "={{$json.d[22].a}}",
-              "startPositionY": "={{$json.d[22].b}}",
-              "endPositionX": "={{$json.d[22].e}}",
-              "endPositionY": "={{$json.d[22].f}}",
-              "cornerRadius": "={{$json.d[22].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[23].c}}",
-              "startPositionX": "={{$json.d[23].a}}",
-              "startPositionY": "={{$json.d[23].b}}",
-              "endPositionX": "={{$json.d[23].e}}",
-              "endPositionY": "={{$json.d[23].f}}",
-              "cornerRadius": "={{$json.d[23].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[24].c}}",
-              "startPositionX": "={{$json.d[24].a}}",
-              "startPositionY": "={{$json.d[24].b}}",
-              "endPositionX": "={{$json.d[24].e}}",
-              "endPositionY": "={{$json.d[24].f}}",
-              "cornerRadius": "={{$json.d[24].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[25].c}}",
-              "startPositionX": "={{$json.d[25].a}}",
-              "startPositionY": "={{$json.d[25].b}}",
-              "endPositionX": "={{$json.d[25].e}}",
-              "endPositionY": "={{$json.d[25].f}}",
-              "cornerRadius": "={{$json.d[25].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[26].c}}",
-              "startPositionX": "={{$json.d[26].a}}",
-              "startPositionY": "={{$json.d[26].b}}",
-              "endPositionX": "={{$json.d[26].e}}",
-              "endPositionY": "={{$json.d[26].f}}",
-              "cornerRadius": "={{$json.d[26].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[27].c}}",
-              "startPositionX": "={{$json.d[27].a}}",
-              "startPositionY": "={{$json.d[27].b}}",
-              "endPositionX": "={{$json.d[27].e}}",
-              "endPositionY": "={{$json.d[27].f}}",
-              "cornerRadius": "={{$json.d[27].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[28].c}}",
-              "startPositionX": "={{$json.d[28].a}}",
-              "startPositionY": "={{$json.d[28].b}}",
-              "endPositionX": "={{$json.d[28].e}}",
-              "endPositionY": "={{$json.d[28].f}}",
-              "cornerRadius": "={{$json.d[28].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[29].c}}",
-              "startPositionX": "={{$json.d[29].a}}",
-              "startPositionY": "={{$json.d[29].b}}",
-              "endPositionX": "={{$json.d[29].e}}",
-              "endPositionY": "={{$json.d[29].f}}",
-              "cornerRadius": "={{$json.d[29].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[30].c}}",
-              "startPositionX": "={{$json.d[30].a}}",
-              "startPositionY": "={{$json.d[30].b}}",
-              "endPositionX": "={{$json.d[30].e}}",
-              "endPositionY": "={{$json.d[30].f}}",
-              "cornerRadius": "={{$json.d[30].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[31].c}}",
-              "startPositionX": "={{$json.d[31].a}}",
-              "startPositionY": "={{$json.d[31].b}}",
-              "endPositionX": "={{$json.d[31].e}}",
-              "endPositionY": "={{$json.d[31].f}}",
-              "cornerRadius": "={{$json.d[31].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[32].c}}",
-              "startPositionX": "={{$json.d[32].a}}",
-              "startPositionY": "={{$json.d[32].b}}",
-              "endPositionX": "={{$json.d[32].e}}",
-              "endPositionY": "={{$json.d[32].f}}",
-              "cornerRadius": "={{$json.d[32].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[33].c}}",
-              "startPositionX": "={{$json.d[33].a}}",
-              "startPositionY": "={{$json.d[33].b}}",
-              "endPositionX": "={{$json.d[33].e}}",
-              "endPositionY": "={{$json.d[33].f}}",
-              "cornerRadius": "={{$json.d[33].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[34].c}}",
-              "startPositionX": "={{$json.d[34].a}}",
-              "startPositionY": "={{$json.d[34].b}}",
-              "endPositionX": "={{$json.d[34].e}}",
-              "endPositionY": "={{$json.d[34].f}}",
-              "cornerRadius": "={{$json.d[34].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[35].c}}",
-              "startPositionX": "={{$json.d[35].a}}",
-              "startPositionY": "={{$json.d[35].b}}",
-              "endPositionX": "={{$json.d[35].e}}",
-              "endPositionY": "={{$json.d[35].f}}",
-              "cornerRadius": "={{$json.d[35].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[36].c}}",
-              "startPositionX": "={{$json.d[36].a}}",
-              "startPositionY": "={{$json.d[36].b}}",
-              "endPositionX": "={{$json.d[36].e}}",
-              "endPositionY": "={{$json.d[36].f}}",
-              "cornerRadius": "={{$json.d[36].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[37].c}}",
-              "startPositionX": "={{$json.d[37].a}}",
-              "startPositionY": "={{$json.d[37].b}}",
-              "endPositionX": "={{$json.d[37].e}}",
-              "endPositionY": "={{$json.d[37].f}}",
-              "cornerRadius": "={{$json.d[37].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[38].c}}",
-              "startPositionX": "={{$json.d[38].a}}",
-              "startPositionY": "={{$json.d[38].b}}",
-              "endPositionX": "={{$json.d[38].e}}",
-              "endPositionY": "={{$json.d[38].f}}",
-              "cornerRadius": "={{$json.d[38].r}}"
-            },
-            {
-              "operation": "draw",
-              "color": "={{$json.d[39].c}}",
-              "startPositionX": "={{$json.d[39].a}}",
-              "startPositionY": "={{$json.d[39].b}}",
-              "endPositionX": "={{$json.d[39].e}}",
-              "endPositionY": "={{$json.d[39].f}}",
-              "cornerRadius": "={{$json.d[39].r}}"
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[0].t}}",
-              "fontSize": "={{$json.t[0].s}}",
-              "fontColor": "={{$json.t[0].k}}",
-              "positionX": "={{$json.t[0].x}}",
-              "positionY": "={{$json.t[0].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[1].t}}",
-              "fontSize": "={{$json.t[1].s}}",
-              "fontColor": "={{$json.t[1].k}}",
-              "positionX": "={{$json.t[1].x}}",
-              "positionY": "={{$json.t[1].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[2].t}}",
-              "fontSize": "={{$json.t[2].s}}",
-              "fontColor": "={{$json.t[2].k}}",
-              "positionX": "={{$json.t[2].x}}",
-              "positionY": "={{$json.t[2].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[3].t}}",
-              "fontSize": "={{$json.t[3].s}}",
-              "fontColor": "={{$json.t[3].k}}",
-              "positionX": "={{$json.t[3].x}}",
-              "positionY": "={{$json.t[3].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[4].t}}",
-              "fontSize": "={{$json.t[4].s}}",
-              "fontColor": "={{$json.t[4].k}}",
-              "positionX": "={{$json.t[4].x}}",
-              "positionY": "={{$json.t[4].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[5].t}}",
-              "fontSize": "={{$json.t[5].s}}",
-              "fontColor": "={{$json.t[5].k}}",
-              "positionX": "={{$json.t[5].x}}",
-              "positionY": "={{$json.t[5].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[6].t}}",
-              "fontSize": "={{$json.t[6].s}}",
-              "fontColor": "={{$json.t[6].k}}",
-              "positionX": "={{$json.t[6].x}}",
-              "positionY": "={{$json.t[6].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[7].t}}",
-              "fontSize": "={{$json.t[7].s}}",
-              "fontColor": "={{$json.t[7].k}}",
-              "positionX": "={{$json.t[7].x}}",
-              "positionY": "={{$json.t[7].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[8].t}}",
-              "fontSize": "={{$json.t[8].s}}",
-              "fontColor": "={{$json.t[8].k}}",
-              "positionX": "={{$json.t[8].x}}",
-              "positionY": "={{$json.t[8].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[9].t}}",
-              "fontSize": "={{$json.t[9].s}}",
-              "fontColor": "={{$json.t[9].k}}",
-              "positionX": "={{$json.t[9].x}}",
-              "positionY": "={{$json.t[9].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[10].t}}",
-              "fontSize": "={{$json.t[10].s}}",
-              "fontColor": "={{$json.t[10].k}}",
-              "positionX": "={{$json.t[10].x}}",
-              "positionY": "={{$json.t[10].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[11].t}}",
-              "fontSize": "={{$json.t[11].s}}",
-              "fontColor": "={{$json.t[11].k}}",
-              "positionX": "={{$json.t[11].x}}",
-              "positionY": "={{$json.t[11].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[12].t}}",
-              "fontSize": "={{$json.t[12].s}}",
-              "fontColor": "={{$json.t[12].k}}",
-              "positionX": "={{$json.t[12].x}}",
-              "positionY": "={{$json.t[12].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[13].t}}",
-              "fontSize": "={{$json.t[13].s}}",
-              "fontColor": "={{$json.t[13].k}}",
-              "positionX": "={{$json.t[13].x}}",
-              "positionY": "={{$json.t[13].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[14].t}}",
-              "fontSize": "={{$json.t[14].s}}",
-              "fontColor": "={{$json.t[14].k}}",
-              "positionX": "={{$json.t[14].x}}",
-              "positionY": "={{$json.t[14].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[15].t}}",
-              "fontSize": "={{$json.t[15].s}}",
-              "fontColor": "={{$json.t[15].k}}",
-              "positionX": "={{$json.t[15].x}}",
-              "positionY": "={{$json.t[15].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[16].t}}",
-              "fontSize": "={{$json.t[16].s}}",
-              "fontColor": "={{$json.t[16].k}}",
-              "positionX": "={{$json.t[16].x}}",
-              "positionY": "={{$json.t[16].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[17].t}}",
-              "fontSize": "={{$json.t[17].s}}",
-              "fontColor": "={{$json.t[17].k}}",
-              "positionX": "={{$json.t[17].x}}",
-              "positionY": "={{$json.t[17].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[18].t}}",
-              "fontSize": "={{$json.t[18].s}}",
-              "fontColor": "={{$json.t[18].k}}",
-              "positionX": "={{$json.t[18].x}}",
-              "positionY": "={{$json.t[18].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[19].t}}",
-              "fontSize": "={{$json.t[19].s}}",
-              "fontColor": "={{$json.t[19].k}}",
-              "positionX": "={{$json.t[19].x}}",
-              "positionY": "={{$json.t[19].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[20].t}}",
-              "fontSize": "={{$json.t[20].s}}",
-              "fontColor": "={{$json.t[20].k}}",
-              "positionX": "={{$json.t[20].x}}",
-              "positionY": "={{$json.t[20].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[21].t}}",
-              "fontSize": "={{$json.t[21].s}}",
-              "fontColor": "={{$json.t[21].k}}",
-              "positionX": "={{$json.t[21].x}}",
-              "positionY": "={{$json.t[21].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[22].t}}",
-              "fontSize": "={{$json.t[22].s}}",
-              "fontColor": "={{$json.t[22].k}}",
-              "positionX": "={{$json.t[22].x}}",
-              "positionY": "={{$json.t[22].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[23].t}}",
-              "fontSize": "={{$json.t[23].s}}",
-              "fontColor": "={{$json.t[23].k}}",
-              "positionX": "={{$json.t[23].x}}",
-              "positionY": "={{$json.t[23].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[24].t}}",
-              "fontSize": "={{$json.t[24].s}}",
-              "fontColor": "={{$json.t[24].k}}",
-              "positionX": "={{$json.t[24].x}}",
-              "positionY": "={{$json.t[24].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[25].t}}",
-              "fontSize": "={{$json.t[25].s}}",
-              "fontColor": "={{$json.t[25].k}}",
-              "positionX": "={{$json.t[25].x}}",
-              "positionY": "={{$json.t[25].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[26].t}}",
-              "fontSize": "={{$json.t[26].s}}",
-              "fontColor": "={{$json.t[26].k}}",
-              "positionX": "={{$json.t[26].x}}",
-              "positionY": "={{$json.t[26].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[27].t}}",
-              "fontSize": "={{$json.t[27].s}}",
-              "fontColor": "={{$json.t[27].k}}",
-              "positionX": "={{$json.t[27].x}}",
-              "positionY": "={{$json.t[27].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[28].t}}",
-              "fontSize": "={{$json.t[28].s}}",
-              "fontColor": "={{$json.t[28].k}}",
-              "positionX": "={{$json.t[28].x}}",
-              "positionY": "={{$json.t[28].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[29].t}}",
-              "fontSize": "={{$json.t[29].s}}",
-              "fontColor": "={{$json.t[29].k}}",
-              "positionX": "={{$json.t[29].x}}",
-              "positionY": "={{$json.t[29].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[30].t}}",
-              "fontSize": "={{$json.t[30].s}}",
-              "fontColor": "={{$json.t[30].k}}",
-              "positionX": "={{$json.t[30].x}}",
-              "positionY": "={{$json.t[30].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[31].t}}",
-              "fontSize": "={{$json.t[31].s}}",
-              "fontColor": "={{$json.t[31].k}}",
-              "positionX": "={{$json.t[31].x}}",
-              "positionY": "={{$json.t[31].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[32].t}}",
-              "fontSize": "={{$json.t[32].s}}",
-              "fontColor": "={{$json.t[32].k}}",
-              "positionX": "={{$json.t[32].x}}",
-              "positionY": "={{$json.t[32].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[33].t}}",
-              "fontSize": "={{$json.t[33].s}}",
-              "fontColor": "={{$json.t[33].k}}",
-              "positionX": "={{$json.t[33].x}}",
-              "positionY": "={{$json.t[33].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[34].t}}",
-              "fontSize": "={{$json.t[34].s}}",
-              "fontColor": "={{$json.t[34].k}}",
-              "positionX": "={{$json.t[34].x}}",
-              "positionY": "={{$json.t[34].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[35].t}}",
-              "fontSize": "={{$json.t[35].s}}",
-              "fontColor": "={{$json.t[35].k}}",
-              "positionX": "={{$json.t[35].x}}",
-              "positionY": "={{$json.t[35].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[36].t}}",
-              "fontSize": "={{$json.t[36].s}}",
-              "fontColor": "={{$json.t[36].k}}",
-              "positionX": "={{$json.t[36].x}}",
-              "positionY": "={{$json.t[36].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[37].t}}",
-              "fontSize": "={{$json.t[37].s}}",
-              "fontColor": "={{$json.t[37].k}}",
-              "positionX": "={{$json.t[37].x}}",
-              "positionY": "={{$json.t[37].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[38].t}}",
-              "fontSize": "={{$json.t[38].s}}",
-              "fontColor": "={{$json.t[38].k}}",
-              "positionX": "={{$json.t[38].x}}",
-              "positionY": "={{$json.t[38].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[39].t}}",
-              "fontSize": "={{$json.t[39].s}}",
-              "fontColor": "={{$json.t[39].k}}",
-              "positionX": "={{$json.t[39].x}}",
-              "positionY": "={{$json.t[39].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[40].t}}",
-              "fontSize": "={{$json.t[40].s}}",
-              "fontColor": "={{$json.t[40].k}}",
-              "positionX": "={{$json.t[40].x}}",
-              "positionY": "={{$json.t[40].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[41].t}}",
-              "fontSize": "={{$json.t[41].s}}",
-              "fontColor": "={{$json.t[41].k}}",
-              "positionX": "={{$json.t[41].x}}",
-              "positionY": "={{$json.t[41].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[42].t}}",
-              "fontSize": "={{$json.t[42].s}}",
-              "fontColor": "={{$json.t[42].k}}",
-              "positionX": "={{$json.t[42].x}}",
-              "positionY": "={{$json.t[42].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[43].t}}",
-              "fontSize": "={{$json.t[43].s}}",
-              "fontColor": "={{$json.t[43].k}}",
-              "positionX": "={{$json.t[43].x}}",
-              "positionY": "={{$json.t[43].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[44].t}}",
-              "fontSize": "={{$json.t[44].s}}",
-              "fontColor": "={{$json.t[44].k}}",
-              "positionX": "={{$json.t[44].x}}",
-              "positionY": "={{$json.t[44].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[45].t}}",
-              "fontSize": "={{$json.t[45].s}}",
-              "fontColor": "={{$json.t[45].k}}",
-              "positionX": "={{$json.t[45].x}}",
-              "positionY": "={{$json.t[45].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[46].t}}",
-              "fontSize": "={{$json.t[46].s}}",
-              "fontColor": "={{$json.t[46].k}}",
-              "positionX": "={{$json.t[46].x}}",
-              "positionY": "={{$json.t[46].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[47].t}}",
-              "fontSize": "={{$json.t[47].s}}",
-              "fontColor": "={{$json.t[47].k}}",
-              "positionX": "={{$json.t[47].x}}",
-              "positionY": "={{$json.t[47].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[48].t}}",
-              "fontSize": "={{$json.t[48].s}}",
-              "fontColor": "={{$json.t[48].k}}",
-              "positionX": "={{$json.t[48].x}}",
-              "positionY": "={{$json.t[48].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[49].t}}",
-              "fontSize": "={{$json.t[49].s}}",
-              "fontColor": "={{$json.t[49].k}}",
-              "positionX": "={{$json.t[49].x}}",
-              "positionY": "={{$json.t[49].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[50].t}}",
-              "fontSize": "={{$json.t[50].s}}",
-              "fontColor": "={{$json.t[50].k}}",
-              "positionX": "={{$json.t[50].x}}",
-              "positionY": "={{$json.t[50].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[51].t}}",
-              "fontSize": "={{$json.t[51].s}}",
-              "fontColor": "={{$json.t[51].k}}",
-              "positionX": "={{$json.t[51].x}}",
-              "positionY": "={{$json.t[51].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[52].t}}",
-              "fontSize": "={{$json.t[52].s}}",
-              "fontColor": "={{$json.t[52].k}}",
-              "positionX": "={{$json.t[52].x}}",
-              "positionY": "={{$json.t[52].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[53].t}}",
-              "fontSize": "={{$json.t[53].s}}",
-              "fontColor": "={{$json.t[53].k}}",
-              "positionX": "={{$json.t[53].x}}",
-              "positionY": "={{$json.t[53].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[54].t}}",
-              "fontSize": "={{$json.t[54].s}}",
-              "fontColor": "={{$json.t[54].k}}",
-              "positionX": "={{$json.t[54].x}}",
-              "positionY": "={{$json.t[54].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[55].t}}",
-              "fontSize": "={{$json.t[55].s}}",
-              "fontColor": "={{$json.t[55].k}}",
-              "positionX": "={{$json.t[55].x}}",
-              "positionY": "={{$json.t[55].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[56].t}}",
-              "fontSize": "={{$json.t[56].s}}",
-              "fontColor": "={{$json.t[56].k}}",
-              "positionX": "={{$json.t[56].x}}",
-              "positionY": "={{$json.t[56].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[57].t}}",
-              "fontSize": "={{$json.t[57].s}}",
-              "fontColor": "={{$json.t[57].k}}",
-              "positionX": "={{$json.t[57].x}}",
-              "positionY": "={{$json.t[57].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[58].t}}",
-              "fontSize": "={{$json.t[58].s}}",
-              "fontColor": "={{$json.t[58].k}}",
-              "positionX": "={{$json.t[58].x}}",
-              "positionY": "={{$json.t[58].y}}",
-              "lineLength": 300
-            },
-            {
-              "operation": "text",
-              "text": "={{$json.t[59].t}}",
-              "fontSize": "={{$json.t[59].s}}",
-              "fontColor": "={{$json.t[59].k}}",
-              "positionX": "={{$json.t[59].x}}",
-              "positionY": "={{$json.t[59].y}}",
-              "lineLength": 300
-            }
-          ]
-        },
-        "options": {
-          "fileName": "dashboard-dyno.png",
-          "format": "png"
-        }
-      },
       "id": "6e40ebc4-965f-463c-9544-df4288fff86e",
       "name": "Desenhar dashboard",
       "type": "n8n-nodes-base.editImage",
       "typeVersion": 1,
       "position": [
-        1104,
-        432
-      ]
+        1100,
+        420
+      ],
+      "parameters": {
+        "operation": "multiStep",
+        "dataPropertyName": "data",
+        "operations": {
+          "operations": [
+            {
+              "backgroundColor": "#FFF6EA",
+              "height": 1500,
+              "operation": "create",
+              "width": 1080
+            },
+            {
+              "color": "={{$json.d[0].c}}",
+              "cornerRadius": "={{$json.d[0].r}}",
+              "endPositionX": "={{$json.d[0].e}}",
+              "endPositionY": "={{$json.d[0].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[0].a}}",
+              "startPositionY": "={{$json.d[0].b}}"
+            },
+            {
+              "color": "={{$json.d[1].c}}",
+              "cornerRadius": "={{$json.d[1].r}}",
+              "endPositionX": "={{$json.d[1].e}}",
+              "endPositionY": "={{$json.d[1].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[1].a}}",
+              "startPositionY": "={{$json.d[1].b}}"
+            },
+            {
+              "color": "={{$json.d[2].c}}",
+              "cornerRadius": "={{$json.d[2].r}}",
+              "endPositionX": "={{$json.d[2].e}}",
+              "endPositionY": "={{$json.d[2].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[2].a}}",
+              "startPositionY": "={{$json.d[2].b}}"
+            },
+            {
+              "color": "={{$json.d[3].c}}",
+              "cornerRadius": "={{$json.d[3].r}}",
+              "endPositionX": "={{$json.d[3].e}}",
+              "endPositionY": "={{$json.d[3].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[3].a}}",
+              "startPositionY": "={{$json.d[3].b}}"
+            },
+            {
+              "color": "={{$json.d[4].c}}",
+              "cornerRadius": "={{$json.d[4].r}}",
+              "endPositionX": "={{$json.d[4].e}}",
+              "endPositionY": "={{$json.d[4].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[4].a}}",
+              "startPositionY": "={{$json.d[4].b}}"
+            },
+            {
+              "color": "={{$json.d[5].c}}",
+              "cornerRadius": "={{$json.d[5].r}}",
+              "endPositionX": "={{$json.d[5].e}}",
+              "endPositionY": "={{$json.d[5].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[5].a}}",
+              "startPositionY": "={{$json.d[5].b}}"
+            },
+            {
+              "color": "={{$json.d[6].c}}",
+              "cornerRadius": "={{$json.d[6].r}}",
+              "endPositionX": "={{$json.d[6].e}}",
+              "endPositionY": "={{$json.d[6].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[6].a}}",
+              "startPositionY": "={{$json.d[6].b}}"
+            },
+            {
+              "color": "={{$json.d[7].c}}",
+              "cornerRadius": "={{$json.d[7].r}}",
+              "endPositionX": "={{$json.d[7].e}}",
+              "endPositionY": "={{$json.d[7].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[7].a}}",
+              "startPositionY": "={{$json.d[7].b}}"
+            },
+            {
+              "color": "={{$json.d[8].c}}",
+              "cornerRadius": "={{$json.d[8].r}}",
+              "endPositionX": "={{$json.d[8].e}}",
+              "endPositionY": "={{$json.d[8].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[8].a}}",
+              "startPositionY": "={{$json.d[8].b}}"
+            },
+            {
+              "color": "={{$json.d[9].c}}",
+              "cornerRadius": "={{$json.d[9].r}}",
+              "endPositionX": "={{$json.d[9].e}}",
+              "endPositionY": "={{$json.d[9].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[9].a}}",
+              "startPositionY": "={{$json.d[9].b}}"
+            },
+            {
+              "color": "={{$json.d[10].c}}",
+              "cornerRadius": "={{$json.d[10].r}}",
+              "endPositionX": "={{$json.d[10].e}}",
+              "endPositionY": "={{$json.d[10].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[10].a}}",
+              "startPositionY": "={{$json.d[10].b}}"
+            },
+            {
+              "color": "={{$json.d[11].c}}",
+              "cornerRadius": "={{$json.d[11].r}}",
+              "endPositionX": "={{$json.d[11].e}}",
+              "endPositionY": "={{$json.d[11].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[11].a}}",
+              "startPositionY": "={{$json.d[11].b}}"
+            },
+            {
+              "color": "={{$json.d[12].c}}",
+              "cornerRadius": "={{$json.d[12].r}}",
+              "endPositionX": "={{$json.d[12].e}}",
+              "endPositionY": "={{$json.d[12].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[12].a}}",
+              "startPositionY": "={{$json.d[12].b}}"
+            },
+            {
+              "color": "={{$json.d[13].c}}",
+              "cornerRadius": "={{$json.d[13].r}}",
+              "endPositionX": "={{$json.d[13].e}}",
+              "endPositionY": "={{$json.d[13].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[13].a}}",
+              "startPositionY": "={{$json.d[13].b}}"
+            },
+            {
+              "color": "={{$json.d[14].c}}",
+              "cornerRadius": "={{$json.d[14].r}}",
+              "endPositionX": "={{$json.d[14].e}}",
+              "endPositionY": "={{$json.d[14].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[14].a}}",
+              "startPositionY": "={{$json.d[14].b}}"
+            },
+            {
+              "color": "={{$json.d[15].c}}",
+              "cornerRadius": "={{$json.d[15].r}}",
+              "endPositionX": "={{$json.d[15].e}}",
+              "endPositionY": "={{$json.d[15].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[15].a}}",
+              "startPositionY": "={{$json.d[15].b}}"
+            },
+            {
+              "color": "={{$json.d[16].c}}",
+              "cornerRadius": "={{$json.d[16].r}}",
+              "endPositionX": "={{$json.d[16].e}}",
+              "endPositionY": "={{$json.d[16].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[16].a}}",
+              "startPositionY": "={{$json.d[16].b}}"
+            },
+            {
+              "color": "={{$json.d[17].c}}",
+              "cornerRadius": "={{$json.d[17].r}}",
+              "endPositionX": "={{$json.d[17].e}}",
+              "endPositionY": "={{$json.d[17].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[17].a}}",
+              "startPositionY": "={{$json.d[17].b}}"
+            },
+            {
+              "color": "={{$json.d[18].c}}",
+              "cornerRadius": "={{$json.d[18].r}}",
+              "endPositionX": "={{$json.d[18].e}}",
+              "endPositionY": "={{$json.d[18].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[18].a}}",
+              "startPositionY": "={{$json.d[18].b}}"
+            },
+            {
+              "color": "={{$json.d[19].c}}",
+              "cornerRadius": "={{$json.d[19].r}}",
+              "endPositionX": "={{$json.d[19].e}}",
+              "endPositionY": "={{$json.d[19].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[19].a}}",
+              "startPositionY": "={{$json.d[19].b}}"
+            },
+            {
+              "color": "={{$json.d[20].c}}",
+              "cornerRadius": "={{$json.d[20].r}}",
+              "endPositionX": "={{$json.d[20].e}}",
+              "endPositionY": "={{$json.d[20].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[20].a}}",
+              "startPositionY": "={{$json.d[20].b}}"
+            },
+            {
+              "color": "={{$json.d[21].c}}",
+              "cornerRadius": "={{$json.d[21].r}}",
+              "endPositionX": "={{$json.d[21].e}}",
+              "endPositionY": "={{$json.d[21].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[21].a}}",
+              "startPositionY": "={{$json.d[21].b}}"
+            },
+            {
+              "color": "={{$json.d[22].c}}",
+              "cornerRadius": "={{$json.d[22].r}}",
+              "endPositionX": "={{$json.d[22].e}}",
+              "endPositionY": "={{$json.d[22].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[22].a}}",
+              "startPositionY": "={{$json.d[22].b}}"
+            },
+            {
+              "color": "={{$json.d[23].c}}",
+              "cornerRadius": "={{$json.d[23].r}}",
+              "endPositionX": "={{$json.d[23].e}}",
+              "endPositionY": "={{$json.d[23].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[23].a}}",
+              "startPositionY": "={{$json.d[23].b}}"
+            },
+            {
+              "color": "={{$json.d[24].c}}",
+              "cornerRadius": "={{$json.d[24].r}}",
+              "endPositionX": "={{$json.d[24].e}}",
+              "endPositionY": "={{$json.d[24].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[24].a}}",
+              "startPositionY": "={{$json.d[24].b}}"
+            },
+            {
+              "color": "={{$json.d[25].c}}",
+              "cornerRadius": "={{$json.d[25].r}}",
+              "endPositionX": "={{$json.d[25].e}}",
+              "endPositionY": "={{$json.d[25].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[25].a}}",
+              "startPositionY": "={{$json.d[25].b}}"
+            },
+            {
+              "color": "={{$json.d[26].c}}",
+              "cornerRadius": "={{$json.d[26].r}}",
+              "endPositionX": "={{$json.d[26].e}}",
+              "endPositionY": "={{$json.d[26].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[26].a}}",
+              "startPositionY": "={{$json.d[26].b}}"
+            },
+            {
+              "color": "={{$json.d[27].c}}",
+              "cornerRadius": "={{$json.d[27].r}}",
+              "endPositionX": "={{$json.d[27].e}}",
+              "endPositionY": "={{$json.d[27].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[27].a}}",
+              "startPositionY": "={{$json.d[27].b}}"
+            },
+            {
+              "color": "={{$json.d[28].c}}",
+              "cornerRadius": "={{$json.d[28].r}}",
+              "endPositionX": "={{$json.d[28].e}}",
+              "endPositionY": "={{$json.d[28].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[28].a}}",
+              "startPositionY": "={{$json.d[28].b}}"
+            },
+            {
+              "color": "={{$json.d[29].c}}",
+              "cornerRadius": "={{$json.d[29].r}}",
+              "endPositionX": "={{$json.d[29].e}}",
+              "endPositionY": "={{$json.d[29].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[29].a}}",
+              "startPositionY": "={{$json.d[29].b}}"
+            },
+            {
+              "color": "={{$json.d[30].c}}",
+              "cornerRadius": "={{$json.d[30].r}}",
+              "endPositionX": "={{$json.d[30].e}}",
+              "endPositionY": "={{$json.d[30].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[30].a}}",
+              "startPositionY": "={{$json.d[30].b}}"
+            },
+            {
+              "color": "={{$json.d[31].c}}",
+              "cornerRadius": "={{$json.d[31].r}}",
+              "endPositionX": "={{$json.d[31].e}}",
+              "endPositionY": "={{$json.d[31].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[31].a}}",
+              "startPositionY": "={{$json.d[31].b}}"
+            },
+            {
+              "color": "={{$json.d[32].c}}",
+              "cornerRadius": "={{$json.d[32].r}}",
+              "endPositionX": "={{$json.d[32].e}}",
+              "endPositionY": "={{$json.d[32].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[32].a}}",
+              "startPositionY": "={{$json.d[32].b}}"
+            },
+            {
+              "color": "={{$json.d[33].c}}",
+              "cornerRadius": "={{$json.d[33].r}}",
+              "endPositionX": "={{$json.d[33].e}}",
+              "endPositionY": "={{$json.d[33].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[33].a}}",
+              "startPositionY": "={{$json.d[33].b}}"
+            },
+            {
+              "color": "={{$json.d[34].c}}",
+              "cornerRadius": "={{$json.d[34].r}}",
+              "endPositionX": "={{$json.d[34].e}}",
+              "endPositionY": "={{$json.d[34].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[34].a}}",
+              "startPositionY": "={{$json.d[34].b}}"
+            },
+            {
+              "color": "={{$json.d[35].c}}",
+              "cornerRadius": "={{$json.d[35].r}}",
+              "endPositionX": "={{$json.d[35].e}}",
+              "endPositionY": "={{$json.d[35].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[35].a}}",
+              "startPositionY": "={{$json.d[35].b}}"
+            },
+            {
+              "color": "={{$json.d[36].c}}",
+              "cornerRadius": "={{$json.d[36].r}}",
+              "endPositionX": "={{$json.d[36].e}}",
+              "endPositionY": "={{$json.d[36].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[36].a}}",
+              "startPositionY": "={{$json.d[36].b}}"
+            },
+            {
+              "color": "={{$json.d[37].c}}",
+              "cornerRadius": "={{$json.d[37].r}}",
+              "endPositionX": "={{$json.d[37].e}}",
+              "endPositionY": "={{$json.d[37].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[37].a}}",
+              "startPositionY": "={{$json.d[37].b}}"
+            },
+            {
+              "color": "={{$json.d[38].c}}",
+              "cornerRadius": "={{$json.d[38].r}}",
+              "endPositionX": "={{$json.d[38].e}}",
+              "endPositionY": "={{$json.d[38].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[38].a}}",
+              "startPositionY": "={{$json.d[38].b}}"
+            },
+            {
+              "color": "={{$json.d[39].c}}",
+              "cornerRadius": "={{$json.d[39].r}}",
+              "endPositionX": "={{$json.d[39].e}}",
+              "endPositionY": "={{$json.d[39].f}}",
+              "operation": "draw",
+              "primitive": "rectangle",
+              "startPositionX": "={{$json.d[39].a}}",
+              "startPositionY": "={{$json.d[39].b}}"
+            },
+            {
+              "fontColor": "={{$json.t[0].k}}",
+              "fontSize": "={{$json.t[0].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[0].x}}",
+              "positionY": "={{$json.t[0].y}}",
+              "text": "={{$json.t[0].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[1].k}}",
+              "fontSize": "={{$json.t[1].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[1].x}}",
+              "positionY": "={{$json.t[1].y}}",
+              "text": "={{$json.t[1].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[2].k}}",
+              "fontSize": "={{$json.t[2].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[2].x}}",
+              "positionY": "={{$json.t[2].y}}",
+              "text": "={{$json.t[2].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[3].k}}",
+              "fontSize": "={{$json.t[3].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[3].x}}",
+              "positionY": "={{$json.t[3].y}}",
+              "text": "={{$json.t[3].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[4].k}}",
+              "fontSize": "={{$json.t[4].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[4].x}}",
+              "positionY": "={{$json.t[4].y}}",
+              "text": "={{$json.t[4].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[5].k}}",
+              "fontSize": "={{$json.t[5].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[5].x}}",
+              "positionY": "={{$json.t[5].y}}",
+              "text": "={{$json.t[5].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[6].k}}",
+              "fontSize": "={{$json.t[6].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[6].x}}",
+              "positionY": "={{$json.t[6].y}}",
+              "text": "={{$json.t[6].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[7].k}}",
+              "fontSize": "={{$json.t[7].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[7].x}}",
+              "positionY": "={{$json.t[7].y}}",
+              "text": "={{$json.t[7].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[8].k}}",
+              "fontSize": "={{$json.t[8].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[8].x}}",
+              "positionY": "={{$json.t[8].y}}",
+              "text": "={{$json.t[8].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[9].k}}",
+              "fontSize": "={{$json.t[9].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[9].x}}",
+              "positionY": "={{$json.t[9].y}}",
+              "text": "={{$json.t[9].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[10].k}}",
+              "fontSize": "={{$json.t[10].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[10].x}}",
+              "positionY": "={{$json.t[10].y}}",
+              "text": "={{$json.t[10].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[11].k}}",
+              "fontSize": "={{$json.t[11].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[11].x}}",
+              "positionY": "={{$json.t[11].y}}",
+              "text": "={{$json.t[11].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[12].k}}",
+              "fontSize": "={{$json.t[12].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[12].x}}",
+              "positionY": "={{$json.t[12].y}}",
+              "text": "={{$json.t[12].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[13].k}}",
+              "fontSize": "={{$json.t[13].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[13].x}}",
+              "positionY": "={{$json.t[13].y}}",
+              "text": "={{$json.t[13].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[14].k}}",
+              "fontSize": "={{$json.t[14].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[14].x}}",
+              "positionY": "={{$json.t[14].y}}",
+              "text": "={{$json.t[14].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[15].k}}",
+              "fontSize": "={{$json.t[15].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[15].x}}",
+              "positionY": "={{$json.t[15].y}}",
+              "text": "={{$json.t[15].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[16].k}}",
+              "fontSize": "={{$json.t[16].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[16].x}}",
+              "positionY": "={{$json.t[16].y}}",
+              "text": "={{$json.t[16].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[17].k}}",
+              "fontSize": "={{$json.t[17].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[17].x}}",
+              "positionY": "={{$json.t[17].y}}",
+              "text": "={{$json.t[17].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[18].k}}",
+              "fontSize": "={{$json.t[18].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[18].x}}",
+              "positionY": "={{$json.t[18].y}}",
+              "text": "={{$json.t[18].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[19].k}}",
+              "fontSize": "={{$json.t[19].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[19].x}}",
+              "positionY": "={{$json.t[19].y}}",
+              "text": "={{$json.t[19].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[20].k}}",
+              "fontSize": "={{$json.t[20].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[20].x}}",
+              "positionY": "={{$json.t[20].y}}",
+              "text": "={{$json.t[20].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[21].k}}",
+              "fontSize": "={{$json.t[21].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[21].x}}",
+              "positionY": "={{$json.t[21].y}}",
+              "text": "={{$json.t[21].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[22].k}}",
+              "fontSize": "={{$json.t[22].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[22].x}}",
+              "positionY": "={{$json.t[22].y}}",
+              "text": "={{$json.t[22].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[23].k}}",
+              "fontSize": "={{$json.t[23].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[23].x}}",
+              "positionY": "={{$json.t[23].y}}",
+              "text": "={{$json.t[23].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[24].k}}",
+              "fontSize": "={{$json.t[24].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[24].x}}",
+              "positionY": "={{$json.t[24].y}}",
+              "text": "={{$json.t[24].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[25].k}}",
+              "fontSize": "={{$json.t[25].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[25].x}}",
+              "positionY": "={{$json.t[25].y}}",
+              "text": "={{$json.t[25].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[26].k}}",
+              "fontSize": "={{$json.t[26].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[26].x}}",
+              "positionY": "={{$json.t[26].y}}",
+              "text": "={{$json.t[26].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[27].k}}",
+              "fontSize": "={{$json.t[27].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[27].x}}",
+              "positionY": "={{$json.t[27].y}}",
+              "text": "={{$json.t[27].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[28].k}}",
+              "fontSize": "={{$json.t[28].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[28].x}}",
+              "positionY": "={{$json.t[28].y}}",
+              "text": "={{$json.t[28].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[29].k}}",
+              "fontSize": "={{$json.t[29].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[29].x}}",
+              "positionY": "={{$json.t[29].y}}",
+              "text": "={{$json.t[29].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[30].k}}",
+              "fontSize": "={{$json.t[30].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[30].x}}",
+              "positionY": "={{$json.t[30].y}}",
+              "text": "={{$json.t[30].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[31].k}}",
+              "fontSize": "={{$json.t[31].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[31].x}}",
+              "positionY": "={{$json.t[31].y}}",
+              "text": "={{$json.t[31].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[32].k}}",
+              "fontSize": "={{$json.t[32].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[32].x}}",
+              "positionY": "={{$json.t[32].y}}",
+              "text": "={{$json.t[32].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[33].k}}",
+              "fontSize": "={{$json.t[33].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[33].x}}",
+              "positionY": "={{$json.t[33].y}}",
+              "text": "={{$json.t[33].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[34].k}}",
+              "fontSize": "={{$json.t[34].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[34].x}}",
+              "positionY": "={{$json.t[34].y}}",
+              "text": "={{$json.t[34].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[35].k}}",
+              "fontSize": "={{$json.t[35].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[35].x}}",
+              "positionY": "={{$json.t[35].y}}",
+              "text": "={{$json.t[35].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[36].k}}",
+              "fontSize": "={{$json.t[36].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[36].x}}",
+              "positionY": "={{$json.t[36].y}}",
+              "text": "={{$json.t[36].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[37].k}}",
+              "fontSize": "={{$json.t[37].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[37].x}}",
+              "positionY": "={{$json.t[37].y}}",
+              "text": "={{$json.t[37].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[38].k}}",
+              "fontSize": "={{$json.t[38].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[38].x}}",
+              "positionY": "={{$json.t[38].y}}",
+              "text": "={{$json.t[38].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[39].k}}",
+              "fontSize": "={{$json.t[39].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[39].x}}",
+              "positionY": "={{$json.t[39].y}}",
+              "text": "={{$json.t[39].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[40].k}}",
+              "fontSize": "={{$json.t[40].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[40].x}}",
+              "positionY": "={{$json.t[40].y}}",
+              "text": "={{$json.t[40].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[41].k}}",
+              "fontSize": "={{$json.t[41].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[41].x}}",
+              "positionY": "={{$json.t[41].y}}",
+              "text": "={{$json.t[41].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[42].k}}",
+              "fontSize": "={{$json.t[42].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[42].x}}",
+              "positionY": "={{$json.t[42].y}}",
+              "text": "={{$json.t[42].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[43].k}}",
+              "fontSize": "={{$json.t[43].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[43].x}}",
+              "positionY": "={{$json.t[43].y}}",
+              "text": "={{$json.t[43].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[44].k}}",
+              "fontSize": "={{$json.t[44].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[44].x}}",
+              "positionY": "={{$json.t[44].y}}",
+              "text": "={{$json.t[44].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[45].k}}",
+              "fontSize": "={{$json.t[45].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[45].x}}",
+              "positionY": "={{$json.t[45].y}}",
+              "text": "={{$json.t[45].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[46].k}}",
+              "fontSize": "={{$json.t[46].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[46].x}}",
+              "positionY": "={{$json.t[46].y}}",
+              "text": "={{$json.t[46].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[47].k}}",
+              "fontSize": "={{$json.t[47].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[47].x}}",
+              "positionY": "={{$json.t[47].y}}",
+              "text": "={{$json.t[47].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[48].k}}",
+              "fontSize": "={{$json.t[48].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[48].x}}",
+              "positionY": "={{$json.t[48].y}}",
+              "text": "={{$json.t[48].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[49].k}}",
+              "fontSize": "={{$json.t[49].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[49].x}}",
+              "positionY": "={{$json.t[49].y}}",
+              "text": "={{$json.t[49].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[50].k}}",
+              "fontSize": "={{$json.t[50].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[50].x}}",
+              "positionY": "={{$json.t[50].y}}",
+              "text": "={{$json.t[50].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[51].k}}",
+              "fontSize": "={{$json.t[51].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[51].x}}",
+              "positionY": "={{$json.t[51].y}}",
+              "text": "={{$json.t[51].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[52].k}}",
+              "fontSize": "={{$json.t[52].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[52].x}}",
+              "positionY": "={{$json.t[52].y}}",
+              "text": "={{$json.t[52].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[53].k}}",
+              "fontSize": "={{$json.t[53].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[53].x}}",
+              "positionY": "={{$json.t[53].y}}",
+              "text": "={{$json.t[53].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[54].k}}",
+              "fontSize": "={{$json.t[54].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[54].x}}",
+              "positionY": "={{$json.t[54].y}}",
+              "text": "={{$json.t[54].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[55].k}}",
+              "fontSize": "={{$json.t[55].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[55].x}}",
+              "positionY": "={{$json.t[55].y}}",
+              "text": "={{$json.t[55].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[56].k}}",
+              "fontSize": "={{$json.t[56].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[56].x}}",
+              "positionY": "={{$json.t[56].y}}",
+              "text": "={{$json.t[56].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[57].k}}",
+              "fontSize": "={{$json.t[57].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[57].x}}",
+              "positionY": "={{$json.t[57].y}}",
+              "text": "={{$json.t[57].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[58].k}}",
+              "fontSize": "={{$json.t[58].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[58].x}}",
+              "positionY": "={{$json.t[58].y}}",
+              "text": "={{$json.t[58].t}}"
+            },
+            {
+              "fontColor": "={{$json.t[59].k}}",
+              "fontSize": "={{$json.t[59].s}}",
+              "lineLength": 300,
+              "operation": "text",
+              "positionX": "={{$json.t[59].x}}",
+              "positionY": "={{$json.t[59].y}}",
+              "text": "={{$json.t[59].t}}"
+            }
+          ]
+        },
+        "options": {
+          "format": "png",
+          "fileName": "dashboard-dyno.png"
+        }
+      }
     },
     {
-      "parameters": {
-        "jsCode": "const buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst base = $('Montar dashboard').first().json;\nreturn [{ json: { numero: base.numero, caption: base.caption, b64: buf.toString('base64') } }];"
-      },
       "id": "0a065801-d5d7-41eb-8845-4d26bf2030d8",
       "name": "Imagem para envio",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1328,
-        432
-      ]
+        1320,
+        420
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst base = $('Ocultar valores (demo)').first().json;\nreturn [{ json: { numero: base.numero, caption: base.caption, b64: buf.toString('base64') } }];"
+      }
     },
     {
+      "id": "a115a23d-d2ce-42bd-8474-8131eefa6de5",
+      "name": "Enviar dashboard (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1540,
+        420
+      ],
       "parameters": {
         "method": "POST",
         "url": "={{ $env.EVOLUTION_URL }}/message/sendMedia/pesquisa-aereo",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
+        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ number: $json.numero, mediatype: \"image\", mimetype: \"image/png\", caption: $json.caption, media: $json.b64, fileName: \"dashboard-dyno.png\", delay: 800 }) }}",
         "options": {
           "timeout": 60000
         }
       },
-      "id": "a115a23d-d2ce-42bd-8474-8131eefa6de5",
-      "name": "Enviar dashboard (WhatsApp)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        1552,
-        432
-      ],
       "retryOnFail": true,
       "maxTries": 2,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "z2JC1dDh1D3EEQ2b",
-          "name": "Evolution pesquisa-aereo"
-        }
-      },
-      "disabled": true,
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "disabled": true
     },
     {
-      "parameters": {
-        "operation": "crop",
-        "width": 1080,
-        "height": "={{ $('Montar dashboard').first().json.altura }}",
-        "options": {
-          "fileName": "dashboard-dyno.png",
-          "format": "png"
-        }
-      },
       "id": "d2d9ee35-4e87-4eab-9093-10ff153f3f77",
       "name": "Cortar altura",
       "type": "n8n-nodes-base.editImage",
       "typeVersion": 1,
       "position": [
-        1216,
-        432
-      ]
+        1210,
+        420
+      ],
+      "parameters": {
+        "dataPropertyName": "data",
+        "height": "={{ $('Montar dashboard').first().json.altura }}",
+        "operation": "crop",
+        "options": {
+          "fileName": "dashboard-dyno.png",
+          "format": "png"
+        },
+        "positionX": 0,
+        "positionY": 0,
+        "width": 1080
+      }
     },
     {
-      "parameters": {
-        "conditions": {
-          "combinator": "and",
-          "conditions": [
-            {
-              "leftValue": "={{ $('Receber pedido').first().json.instancia }}",
-              "operator": {
-                "operation": "equals",
-                "type": "string"
-              },
-              "rightValue": "dyno"
-            }
-          ],
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
-          }
-        },
-        "options": {}
-      },
       "id": "bfeb1e36-b1f1-4f7b-953a-66ae58d5aa43",
       "name": "Via Dyno? Avisar que não há dados",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        912,
-        256
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: \"​*Dyno:* \" + $json.texto, delay: 600 }) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
-      "id": "be1fec0a-6569-4aaa-bf77-dc3e44553d23",
-      "name": "Avisar que não há dados (Dyno)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        1104,
-        320
+        900,
+        250
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
-        }
-      }
-    },
-    {
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -1221,95 +1151,164 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
+        }
+      }
+    },
+    {
+      "id": "be1fec0a-6569-4aaa-bf77-dc3e44553d23",
+      "name": "Avisar que não há dados (Dyno)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1100,
+        320
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: \"​*Dyno:* \" + $json.texto, delay: 600 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
         },
-        "options": {}
-      },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno"
+      }
+    },
+    {
       "id": "b033326c-0afe-42bd-8002-642baedcaeb7",
       "name": "Via Dyno? Enviar dashboard (WhatsApp)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1344,
-        496
-      ]
+        1340,
+        490
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Receber pedido').first().json.instancia }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "dyno"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        }
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendMedia/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $json.numero, mediatype: \"image\", mimetype: \"image/png\", caption: $json.caption, media: $json.b64, fileName: \"dashboard-dyno.png\", delay: 800 }) }}",
-        "options": {
-          "timeout": 60000
-        }
-      },
       "id": "6df0032b-fa05-4698-8086-5c332833927a",
       "name": "Enviar dashboard (WhatsApp) (Dyno)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1552,
+        1540,
         560
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, mediatype: \"image\", mimetype: \"image/png\", caption: $json.caption, media: $json.b64, fileName: \"dashboard-dyno.png\", delay: 800 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendMedia/dyno"
+      }
+    },
+    {
+      "id": "5b0e54d6-14f1-4e75-98fe-32b29119418d",
+      "name": "Buscar transações",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_transacoes?' + 'order=data.desc&limit=5000&data=gte.' + encodeURIComponent($now.minus({ days: 75 }).toISO()) }}"
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "0a82992a-de48-45a3-ba57-5513efdb8f85",
+      "name": "Buscar assinaturas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_assinaturas?' + 'order=id&limit=5000' + '&' + 'ativo=is.true' }}"
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "a35d6abb-07ea-467b-b501-264e2515cd76",
+      "name": "Ocultar valores (demo)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        770,
+        460
+      ],
+      "parameters": {
+        "jsCode": "// 09/10: modo demonstração (só o administrador): troca os valores em R$ por \"R$ •••\" na imagem e na legenda.\nconst ped = $('Receber pedido').first().json || {};\nconst j = $input.first().json;\nif (ped.ocultar !== true || j.vazio) return $input.all();\nconst RE = /-?R\\$\\s?[\\d.]+,\\d{2}/g;\nconst t = (j.t || []).map(x => ({ ...x, t: String(x.t).replace(RE, 'R$ •••') }));\nconst caption = String(j.caption || '').replace(RE, 'R$ •••') + String.fromCharCode(10) + '_(valores ocultos para demonstração)_';\nreturn [{ json: { ...j, t, caption } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
       }
     }
   ],
   "connections": {
-    "Receber pedido": {
-      "main": [
-        [
-          {
-            "node": "Buscar transações",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Buscar transações": {
-      "main": [
-        [
-          {
-            "node": "Buscar assinaturas",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Buscar assinaturas": {
-      "main": [
-        [
-          {
-            "node": "Montar dashboard",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Montar dashboard": {
-      "main": [
-        [
-          {
-            "node": "Sem lançamentos?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Sem lançamentos?": {
       "main": [
         [
@@ -1396,23 +1395,63 @@
           }
         ]
       ]
+    },
+    "Receber pedido": {
+      "main": [
+        [
+          {
+            "node": "Buscar transações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar transações": {
+      "main": [
+        [
+          {
+            "node": "Buscar assinaturas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar assinaturas": {
+      "main": [
+        [
+          {
+            "node": "Montar dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar dashboard": {
+      "main": [
+        [
+          {
+            "node": "Ocultar valores (demo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ocultar valores (demo)": {
+      "main": [
+        [
+          {
+            "node": "Sem lançamentos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": true,
-    "errorWorkflow": "5UUmuzItIYDsd3AG",
-    "timezone": "America/Sao_Paulo"
-  },
-  "versionId": "cb71378d-075c-4bac-91e0-894d4a5e461b",
-  "meta": {
-    "aiBuilderAssisted": true,
-    "builderVariant": "mcp",
-    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
-  },
-  "nodeGroups": [],
-  "id": "qHNQDuOeWVg7EyZq",
-  "tags": []
+  "tags": [],
+  "versionId": "faefdf75-fab7-4d52-94e3-3fa3a30eb798"
 }

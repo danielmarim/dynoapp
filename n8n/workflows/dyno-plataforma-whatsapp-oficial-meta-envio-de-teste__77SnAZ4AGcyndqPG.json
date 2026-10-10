@@ -1,0 +1,99 @@
+{
+  "id": "77SnAZ4AGcyndqPG",
+  "name": "Dyno Plataforma | WhatsApp oficial (Meta) — envio de teste",
+  "description": "Envia uma mensagem de texto de teste pela API oficial (número +55 11 93501-4008). Só execução manual, não publicado.",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "saveManualExecutions": true,
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "id": "c106d08e-3b33-4bf0-9e01-678dd946ee54",
+      "name": "Envio de teste",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-meta-wa-teste",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "7a15f11f-f800-41fd-b61b-9d59c1a6a50b"
+    },
+    {
+      "id": "48962292-5fa4-46f0-b78e-4f8851e55f28",
+      "name": "Enviar texto (Cloud API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v26.0/1405532732623905/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: \"whatsapp\", to: String($json.body.to || \"\"), type: \"text\", text: { body: String($json.body.texto || \"\") } }) }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "1f46406d-b55e-429b-a550-d9b7c8b3ce3a",
+      "name": "Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json; return [{ json: { http: r.statusCode, body: r.body } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Envio de teste": {
+      "main": [
+        [
+          {
+            "node": "Enviar texto (Cloud API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar texto (Cloud API)": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "19875dc8-4c43-49ca-bc9f-e1d6f2fc6113"
+}

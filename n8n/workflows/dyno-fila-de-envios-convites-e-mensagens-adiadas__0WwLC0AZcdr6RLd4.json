@@ -1,0 +1,204 @@
+{
+  "id": "0WwLC0AZcdr6RLd4",
+  "name": "Dyno | Fila de envios (convites e mensagens adiadas)",
+  "description": "Envia pelo WhatsApp do Dyno o que está na fila dyno_envios (convites feitos por clientes, mensagens automáticas adiadas porque a pessoa estava conversando). Roda a cada minuto e na hora, por webhook do Supabase.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all"
+  },
+  "nodes": [
+    {
+      "id": "cfc453e2-f78f-4e44-a68e-3ca66f887851",
+      "name": "A cada minuto",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "4656e9e4-a975-460c-ac5d-d97976be2b67",
+      "name": "Supabase: pegar fila",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        240,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_envios_pegar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "{\"p_max\": 20}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "9033ca0f-1ccc-4feb-8aa9-0244fa0a007b",
+      "name": "Separar mensagens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        100
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const out = [];\nfor (const it of $input.all()) {\n  const j = it.json;\n  const lista = Array.isArray(j) ? j : (Array.isArray(j.data) ? j.data : (j && j.id ? [j] : []));\n  for (const m of lista) {\n    if (!m || !m.id || !m.numero || !m.texto) continue;\n    const cab = m.voz === 'dina' ? '*⏰ Dina*\\n' : m.voz === 'dyno' ? '*💰 Dyno*\\n' : '';\n    out.push({ json: { id: m.id, numero: String(m.numero), texto: String.fromCharCode(8203) + cab + String(m.texto) } });\n  }\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "5ad2bd51-e5f6-4440-8be7-243cf63bb64e",
+      "name": "WhatsApp: enviar (Dyno)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        720,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: $json.texto, delay: 1200 }) }}",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2500
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "ca923688-d327-48f0-a6d6-069b753a7d58",
+      "name": "Supabase: marcar envio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        960,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_envios_marcar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_id: $('Separar mensagens').item.json.id, p_resposta: ($json && typeof $json === 'object') ? $json : { error: 'sem resposta' } }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "3c75195d-7ead-4d3c-8059-4f330d2e2e2a",
+      "name": "Disparo imediato (Supabase)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        220
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-fila-envios",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "ed5c79e0-8787-46a0-ac2e-01edc531173c"
+    }
+  ],
+  "connections": {
+    "A cada minuto": {
+      "main": [
+        [
+          {
+            "node": "Supabase: pegar fila",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: pegar fila": {
+      "main": [
+        [
+          {
+            "node": "Separar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar mensagens": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp: enviar (Dyno)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp: enviar (Dyno)": {
+      "main": [
+        [
+          {
+            "node": "Supabase: marcar envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Disparo imediato (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Supabase: pegar fila",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "2b56028e-08a3-40ca-a9ea-1dd0dc57d588"
+}

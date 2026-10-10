@@ -1,0 +1,152 @@
+{
+  "id": "Yw7mI0ybOITBwJoQ",
+  "name": "Dyno Plataforma | Jev modo sombra",
+  "description": "Modo sombra do Jev: recebe a mensagem e a decisão do cérebro, pergunta ao Jev (intenção, voz, simples) e grava a comparação em dyno_ia_sombra. Não responde ao usuário.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "nodes": [
+    {
+      "id": "ce39f873-aa4e-4d6f-8e15-5ea7aa4fa7f5",
+      "name": "Receber mensagem",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "5557efbb-6046-421a-86bf-eaf9d98b1e7d",
+      "name": "Montar decisão",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 08/10: categorias ajustadas — 'outro' entra em 'conversa'; compromissos/agenda contam como lembrete; listas/notas contam como tarefa.\nconst e = $input.first().json || {};\nconst texto = String(e.texto_usuario || '').slice(0, 1500);\nif (!texto.trim()) return [];\nconst tipos = (Array.isArray(e.acoes) ? e.acoes : []).map(a => String((a && a.tipo) || ''));\nconst grupo = t => /registrar_transacao|apagar_transacao|editar_ultimo|desfazer_ultimo/.test(t) ? 'gasto'\n  : /conta|assinatura|recorrente|recebivel/.test(t) ? 'conta'\n  : /lembrete|compromisso|agenda/.test(t) ? 'lembrete'\n  : /tarefa|nota|lista|projeto/.test(t) ? 'tarefa'\n  : 'conversa';\nlet intencao = 'conversa';\nif (tipos.length) { const gs = tipos.map(grupo); intencao = ['gasto', 'conta', 'lembrete', 'tarefa', 'conversa'].find(o => gs.includes(o)); }\nconst questions = {\n  intencao: { type: 'choice', instructions: 'O que a pessoa quer com esta mensagem enviada ao assistente pessoal no WhatsApp? Escolha pelo pedido principal.', criteria: {\n    gasto: 'Registrar, corrigir ou apagar um gasto, compra, pagamento feito ou dinheiro recebido (inclui foto de cupom ou comprovante)',\n    conta: 'Cadastrar, pagar, mudar ou cancelar uma conta a pagar, boleto, parcela, assinatura ou valor a receber',\n    lembrete: 'Criar, confirmar, adiar ou cancelar um lembrete, compromisso ou evento de agenda com dia ou horario',\n    tarefa: 'Criar, concluir ou mudar uma tarefa, lista ou item de lista, ou uma anotacao',\n    conversa: 'Qualquer outra coisa: pergunta, consulta de gastos ou agenda, saudacao, agradecimento, orcamento, carro, rastreio, cambio, memoria ou conversa'\n  } },\n  voz: { type: 'choice', instructions: 'Qual assistente deve responder?', criteria: {\n    dyno: 'Dinheiro: gastos, receitas, contas, orcamento, extrato, relatorios financeiros, cambio, plano e conta do Dyno, saudacoes',\n    dina: 'Agenda e rotina: lembretes, compromissos, tarefas, listas, horarios, rastreio de encomendas, carro'\n  } },\n  simples: { type: 'noul', instructions: 'A mensagem e simples o bastante para um modelo pequeno responder sem raciocinio?', criteria: {\n    'true': 'Mensagem curta e direta, com uma unica acao obvia (ex.: registrar um gasto, agradecer, confirmar)',\n    'false': 'Pede analise, varias acoes, contexto, duvida ou calculo'\n  } }\n};\nreturn [{ json: { tarefa: 'decisao', origem: 'sombra_cerebro', autor: e.autor || null, decisao: { state: { mensagem: texto, tem_imagem: !!e.imagem, tem_pdf: !!e.pdf }, questions }, _atual: { voz: e.voz || 'dyno', intencao } } }];"
+      }
+    },
+    {
+      "id": "7bc67e96-356a-40a8-98ce-8049c80ee175",
+      "name": "Perguntar ao Jev (camada)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "mOXAwF2cZ8zbYs2j"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "c77dd79f-030d-46aa-b21e-051812c32501",
+      "name": "Comparar com o cérebro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const a = $('Montar decisão').first().json;\nconst r = $input.first().json || {};\nif (r.provedor === 'desligado') return [];\nconst j = r.json || {};\nconst v = (k, c) => (j[k] && j[k][c] !== undefined) ? j[k][c] : null;\nreturn [{ json: { p: { autor: a.autor, voz_atual: a._atual.voz, intencao_atual: a._atual.intencao, voz_jev: v('voz', 'valor'), voz_conf: v('voz', 'confianca'), intencao_jev: v('intencao', 'valor'), intencao_conf: v('intencao', 'confianca'), simples_jev: v('simples', 'valor'), simples_prob: v('simples', 'probabilidade'), ms: r.ms || null, erro: r.ok ? null : String(r.erro || r.motivo || 'falha') } } }];"
+      }
+    },
+    {
+      "id": "837d19ae-6347-49d5-a605-52415979f099",
+      "name": "Registrar sombra",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_ia_sombra_registrar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: $json.p }) }}",
+        "options": {
+          "timeout": 8000
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Receber mensagem": {
+      "main": [
+        [
+          {
+            "node": "Montar decisão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar decisão": {
+      "main": [
+        [
+          {
+            "node": "Perguntar ao Jev (camada)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perguntar ao Jev (camada)": {
+      "main": [
+        [
+          {
+            "node": "Comparar com o cérebro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comparar com o cérebro": {
+      "main": [
+        [
+          {
+            "node": "Registrar sombra",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "5cb138f7-46b2-4b04-a3c8-378829c4d6c6"
+}

@@ -1,0 +1,282 @@
+{
+  "id": "4PxjXIdBeGXBk1hK",
+  "name": "Dyno | Pluggy connect token (site)",
+  "description": "Página /conectar-banco: valida o link de uso único e devolve o connect token da Pluggy para abrir o widget.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false
+  },
+  "nodes": [
+    {
+      "id": "706c212c-e92f-4201-afb5-06c839646cde",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "authentication": "headerAuth",
+        "httpMethod": "POST",
+        "options": {},
+        "path": "dyno-site-banco",
+        "responseMode": "responseNode"
+      },
+      "webhookId": "9db1d79a-a5bc-46be-bdd2-9e1f910a9919"
+    },
+    {
+      "id": "024dc2ed-7d71-4113-8b67-cdaaec5b171b",
+      "name": "Supabase: validar link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p_codigo: String(($json.body || {}).codigo || '') }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_pluggy_link_validar"
+      }
+    },
+    {
+      "id": "94918e2a-358e-4fda-a7c2-d7441d9bc394",
+      "name": "Link válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.ok }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "78032365-f84b-4c9c-b20b-d246c719a198",
+      "name": "Pluggy: auth",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        -100
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "url": "https://api.pluggy.ai/auth"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "17a946f9-f6ca-4a53-90d3-54ce7fe0a43a",
+      "name": "Pluggy: connect token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        -100
+      ],
+      "parameters": {
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "={{ $json.apiKey || '' }}"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify({ options: { clientUserId: $('Supabase: validar link').first().json.usuario_id, avoidDuplicates: true, webhookUrl: 'https://n8n.srv1825327.hstgr.cloud/webhook/pluggy-<SEGREDO-REMOVIDO>' } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "https://api.pluggy.ai/connect_token"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "0cb54c2d-3a72-4b08-bd2e-34e8bc22b60c",
+      "name": "Montar resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "// Só o token de conexão (vale 30 min, escopo do widget) vai para o navegador.\nconst SANDBOX = true; // fase de testes: mostra o banco simulado da Pluggy\nconst t = $input.first().json || {};\nconst v = $('Supabase: validar link').first().json;\nif (!t.accessToken) return [{ json: { ok: false, erro: 'indisponivel' } }];\nreturn [{ json: { ok: true, token: t.accessToken, nome: v.nome || '', sandbox: SANDBOX } }];",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "a436683f-f6fc-4968-aa1c-fe63c34968eb",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        },
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      }
+    },
+    {
+      "id": "71ec5979-18f7-44e0-98ae-9a0794acb7ba",
+      "name": "Link recusado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json || {};\nreturn [{ json: { ok: false, erro: r.erro || 'link_invalido' } }];",
+        "mode": "runOnceForAllItems"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Supabase: validar link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: validar link": {
+      "main": [
+        [
+          {
+            "node": "Link válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Link válido?": {
+      "main": [
+        [
+          {
+            "node": "Pluggy: auth",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Link recusado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pluggy: auth": {
+      "main": [
+        [
+          {
+            "node": "Pluggy: connect token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pluggy: connect token": {
+      "main": [
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar resposta": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Link recusado": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "972b502e-9e6b-46f6-a03e-1d586cd4693d"
+}

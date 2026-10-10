@@ -1,10 +1,17 @@
 {
+  "id": "WNefuC4RhAAfS3Vs",
   "name": "Dyno | Enviar convite pelo admin (WhatsApp)",
+  "description": "Daniel pede no WhatsApp um convite com nome e número; cria o convite no Supabase, envia boas-vindas direto à pessoa e confirma ao Daniel.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
   "nodes": [
     {
-      "parameters": {
-        "inputSource": "passthrough"
-      },
       "id": "6a349779-dff9-44cc-a6df-0215bb534cc7",
       "name": "Receber pedido",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
@@ -12,21 +19,12 @@
       "position": [
         0,
         0
-      ]
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_convite_enviar",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ p_nome: String($json.nome || ''), p_numero: String($json.numero_convidado || '') }) }}",
-        "options": {
-          "timeout": 15000
-        }
-      },
       "id": "aae6454c-feea-4dff-bb7f-0ae68261d4ed",
       "name": "Supabase: criar convite",
       "type": "n8n-nodes-base.httpRequest",
@@ -35,16 +33,31 @@
         240,
         0
       ],
-      "executeOnce": true,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qgXgW9Cfnyoli06W",
-          "name": "Supabase_Dyno"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p_nome: String($json.nome || ''), p_numero: String($json.numero_convidado || ''), p_nivel: $json.nivel ? String($json.nivel) : null, p_gratis_ate: $json.gratis_ate ? String($json.gratis_ate) : null }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_convite_enviar_plano"
       },
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "executeOnce": true
     },
     {
+      "id": "8c2ad410-733a-4750-a9c2-a60d10342e16",
+      "name": "Convite criado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -62,67 +75,51 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "8c2ad410-733a-4750-a9c2-a60d10342e16",
-      "name": "Convite criado?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        480,
-        0
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "jsCode": "const r = $input.first().json;\nconst ped = $('Receber pedido').first().json || {};\nconst NL = String.fromCharCode(10);\nconst nome = r.nome ? ', ' + r.nome : '';\nconst site = ped.origem === 'site';\nconst abertura = site\n  ? 'Seu pedido para o *Beta fechado* do Dyno foi *aprovado*! 🎉'\n  : 'Recebi uma solicitação de convite para você feita pelo CEO *Daniel Marim*. Seja muito bem-vindo! 🎉';\nconst t = 'Olá' + nome + '! 👋' + NL + 'Aqui é o *Dyno*, assessor pessoal no WhatsApp.' + NL + NL +\n  abertura + NL + NL +\n  'Com o Dyno você anota gastos por texto, áudio ou foto, recebe lembretes que insistem até você confirmar e organiza tarefas e contas a pagar, tudo por aqui.' + NL + NL +\n  '📲 Antes de começar, siga o *@dynoapp.ia* no Instagram para receber dicas e novidades do Beta: https://instagram.com/dynoapp.ia' + NL + NL +\n  'No Beta você tem *60 dias grátis*. Para ativar, é só responder *QUERO*. Seu convite (código ' + r.codigo + ') vale até ' + r.expira + '.' + NL + NL +\n  (site ? 'Salve este número nos seus contatos como *Dyno* para não perder as mensagens.' : 'Se não tiver interesse, é só ignorar esta mensagem.');\nreturn [{ json: { number: r.numero, text: String.fromCharCode(8203) + t, delay: 1200 } }];"
-      },
       "id": "a4eee799-6eb8-4ff7-913a-154015a644e7",
       "name": "Montar boas-vindas",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         720,
-        -128
-      ]
+        -120
+      ],
+      "parameters": {
+        "jsCode": "// 09/10/2026: convite pode vir com plano (nivel) e período grátis até uma data (gratis_ate), pedidos pelo admin.\nconst r = $input.first().json;\nconst ped = $('Receber pedido').first().json || {};\nconst NL = String.fromCharCode(10);\nconst nome = r.nome ? ', ' + r.nome : '';\nconst site = ped.origem === 'site';\nconst abertura = site\n  ? 'Seu pedido para o *Beta fechado* do Dyno foi *aprovado*! 🎉'\n  : 'Recebi uma solicitação de convite para você feita pelo CEO *Daniel Marim*. Seja muito bem-vindo! 🎉';\nlet oferta = 'No Beta você tem *60 dias grátis*.';\nif (r.gratis_ate && r.nivel_nome) oferta = 'Seu convite é do plano *' + r.nivel_nome + '*, grátis até *' + r.gratis_ate + '*.';\nelse if (r.gratis_ate) oferta = 'Seu acesso é grátis até *' + r.gratis_ate + '*.';\nelse if (r.nivel_nome) oferta = 'Seu convite é do plano *' + r.nivel_nome + '*, com *60 dias grátis*.';\nconst t = 'Olá' + nome + '! 👋' + NL + 'Aqui é o *Dyno*, assessor pessoal no WhatsApp.' + NL + NL +\n  abertura + NL + NL +\n  'Com o Dyno você anota gastos por texto, áudio ou foto, recebe lembretes que insistem até você confirmar e organiza tarefas e contas a pagar, tudo por aqui.' + NL + NL +\n  '📲 Antes de começar, siga o *@dynoapp.ia* no Instagram para receber dicas e novidades do Beta: https://instagram.com/dynoapp.ia' + NL + NL +\n  oferta + ' Para ativar, é só responder *QUERO*. Seu convite (código ' + r.codigo + ') vale até ' + r.expira + '.' + NL + NL +\n  (site ? 'Salve este número nos seus contatos como *Dyno* para não perder as mensagens.' : 'Se não tiver interesse, é só ignorar esta mensagem.');\nreturn [{ json: { number: r.numero, text: String.fromCharCode(8203) + t, delay: 1200 } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $json.number, text: $json.text, delay: $json.delay }) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "89afc64a-6aad-4127-b035-f99ac5312d32",
       "name": "Enviar ao convidado",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
         960,
-        -128
+        -120
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: $json.number, text: $json.text, delay: $json.delay }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno"
       },
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": {
-        "jsCode": "const ped = $('Receber pedido').first().json;\nconst r = $('Supabase: criar convite').first().json || {};\nlet envio = null;\ntry { envio = $('Enviar ao convidado').first().json; } catch (e) { envio = null; }\nconst fmt = n => { const l = String(n || '').slice(2); return '+55 (' + l.slice(0, 2) + ') ' + (l.length === 11 ? l.slice(2, 7) + '-' + l.slice(7) : l.slice(2, 6) + '-' + l.slice(6)); };\nlet t;\nif (r.ok === true) {\n  if (envio && envio.key && !envio.error) {\n    t = '✅ Convite enviado para *' + (r.nome_completo || 'a pessoa') + '* (' + fmt(r.numero) + '). Código ' + r.codigo + ', válido até ' + r.expira + '. Quando a pessoa responder, eu começo o cadastro com ela.' + (r.reenvio ? ' (O convite já existia; reenviei a mensagem.)' : '') + ' Vagas restantes: ' + r.vagas_restantes + '.';\n  } else {\n    t = '⚠️ Criei o convite ' + r.codigo + ' para ' + (r.nome_completo || 'a pessoa') + ', mas não consegui entregar a mensagem no ' + fmt(r.numero) + '. Confira se o número tem WhatsApp. Se preferir, encaminhe este link: https://wa.me/5511939497178?text=' + r.codigo;\n  }\n} else if (r.erro === 'ja_cadastrado') {\n  t = 'ℹ️ Esse número já tem cadastro no Dyno (' + (r.nome || 'sem nome') + ', status ' + r.status + '). Não enviei convite.';\n} else if (r.erro === 'numero_invalido') {\n  t = '❌ Não entendi o número. Mande com DDD (ex.: 11 91234-5678) ou compartilhe o contato.';\n} else if (r.erro === 'sem_vagas') {\n  t = '❌ As vagas do piloto acabaram. Não enviei convite.';\n} else {\n  t = '❌ Não consegui criar o convite agora. Tente de novo em alguns minutos.';\n}\nreturn [{ json: { number: ped.numero_admin, text: String.fromCharCode(8203) + '*Dyno:* ' + t } }];"
-      },
       "id": "feecf797-eee9-4837-9119-0e05d4d579c8",
       "name": "Montar resposta ao admin",
       "type": "n8n-nodes-base.code",
@@ -130,21 +127,14 @@
       "position": [
         1200,
         0
-      ]
+      ],
+      "parameters": {
+        "jsCode": "const ped = $('Receber pedido').first().json;\nconst r = $('Supabase: criar convite').first().json || {};\nlet envio = null;\ntry { envio = $('Enviar ao convidado').first().json; } catch (e) { envio = null; }\nconst fmt = n => { const l = String(n || '').slice(2); return '+55 (' + l.slice(0, 2) + ') ' + (l.length === 11 ? l.slice(2, 7) + '-' + l.slice(7) : l.slice(2, 6) + '-' + l.slice(6)); };\nconst extra = (r.nivel_nome ? ' Plano *' + r.nivel_nome + '*' : '') + (r.gratis_ate ? (r.nivel_nome ? ',' : ' Acesso') + ' grátis até *' + r.gratis_ate + '*' : '') + ((r.nivel_nome || r.gratis_ate) ? ' (vale quando a pessoa concluir o cadastro).' : '');\nlet t;\nif (r.ok === true) {\n  if (envio && envio.key && !envio.error) {\n    t = '✅ Convite enviado para *' + (r.nome_completo || 'a pessoa') + '* (' + fmt(r.numero) + '). Código ' + r.codigo + ', válido até ' + r.expira + '.' + extra + ' Quando a pessoa responder, eu começo o cadastro com ela.' + (r.reenvio ? ' (O convite já existia; reenviei a mensagem.)' : '') + ' Vagas restantes: ' + r.vagas_restantes + '.';\n  } else {\n    t = '⚠️ Criei o convite ' + r.codigo + ' para ' + (r.nome_completo || 'a pessoa') + extra + ', mas não consegui entregar a mensagem no ' + fmt(r.numero) + '. Confira se o número tem WhatsApp. Se preferir, encaminhe este link: https://wa.me/5511939497178?text=' + r.codigo;\n  }\n} else if (r.erro === 'ja_cadastrado') {\n  t = 'ℹ️ Esse número já tem cadastro no Dyno (' + (r.nome || 'sem nome') + ', status ' + r.status + '). Não enviei convite. Para mudar o plano dele use *admin plano*; para o período grátis, *admin estender*.';\n} else if (r.erro === 'data_invalida') {\n  t = '❌ Não entendi a data do período grátis. Mande uma data futura, por exemplo: convite Premium grátis até 01/12/2026. Não enviei convite.';\n} else if (r.erro === 'numero_invalido') {\n  t = '❌ Não entendi o número. Mande com DDD (ex.: 11 91234-5678) ou compartilhe o contato.';\n} else if (r.erro === 'sem_vagas') {\n  t = '❌ As vagas do piloto acabaram. Não enviei convite.';\n} else {\n  t = '❌ Não consegui criar o convite agora. Tente de novo em alguns minutos.';\n}\nreturn [{ json: { number: ped.numero_admin, text: String.fromCharCode(8203) + '*Dyno:* ' + t } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $json.number, text: $json.text, delay: 800 }) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "6b3e8e10-31d9-4e00-a84f-6fcb46a79158",
       "name": "Enviar ao admin",
       "type": "n8n-nodes-base.httpRequest",
@@ -153,14 +143,21 @@
         1440,
         0
       ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: $json.number, text: $json.text, delay: 800 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno"
+      },
       "retryOnFail": true,
-      "maxTries": 2,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
-        }
-      }
+      "maxTries": 2
     }
   ],
   "connections": {
@@ -238,22 +235,6 @@
       ]
     }
   },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": true,
-    "errorWorkflow": "5UUmuzItIYDsd3AG",
-    "timezone": "America/Sao_Paulo",
-    "callerPolicy": "workflowsFromSameOwner"
-  },
-  "versionId": "7b82d965-b76a-4152-9282-f37c02db52b5",
-  "meta": {
-    "aiBuilderAssisted": true,
-    "builderVariant": "mcp",
-    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
-  },
-  "nodeGroups": [],
-  "id": "WNefuC4RhAAfS3Vs",
-  "tags": []
+  "tags": [],
+  "versionId": "3d352388-8250-4e9c-9b29-0b761c1aaaaa"
 }

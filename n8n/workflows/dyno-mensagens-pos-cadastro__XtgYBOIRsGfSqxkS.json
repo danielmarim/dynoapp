@@ -1,0 +1,175 @@
+{
+  "id": "XtgYBOIRsGfSqxkS",
+  "name": "Dyno | Mensagens pós-cadastro",
+  "description": "A cada 5 min envia mensagens programadas (dyno_pos_cadastro) para quem concluiu o cadastro há 3+ min e marca como enviadas.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "saveDataSuccessExecution": "none",
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo"
+  },
+  "nodes": [
+    {
+      "id": "8710e4bd-e335-45f0-9439-5dc8b3b97508",
+      "name": "A cada 5 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "0b4daef4-1fd9-49db-b8a9-7d138ec096f2",
+      "name": "Pendentes (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_pos_cadastro_pendentes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3
+    },
+    {
+      "id": "9e2a0af0-187c-4609-b55c-3ad3fce3d2d4",
+      "name": "Um por mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// O n8n já separa a lista da RPC em itens; aceita também a lista inteira num item.\nconst out = [];\nfor (const i of $input.all()) {\n  const j = i.json || {};\n  const lista = Array.isArray(j) ? j : (Array.isArray(j.dyno_pos_cadastro_pendentes) ? j.dyno_pos_cadastro_pendentes : (j.id ? [j] : []));\n  for (const x of lista) if (x && x.id && x.numero && x.texto) out.push({ json: x });\n}\nreturn out;\n"
+      }
+    },
+    {
+      "id": "20e21ccf-2347-4c3f-8dca-5bfa572b99e6",
+      "name": "Enviar (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: String.fromCharCode(8203) + '*⏰ Dina*' + String.fromCharCode(10) + $json.texto, delay: 1200 }) }}",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 3000
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "id": "2629f212-073e-471d-afcd-e5b50c7b473e",
+      "name": "Marcar enviado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_pos_cadastro_marcar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_id: $('Um por mensagem').all()[$itemIndex].json.id, p_numero: $('Um por mensagem').all()[$itemIndex].json.numero, p_autor: $('Um por mensagem').all()[$itemIndex].json.autor, p_texto: '*⏰ Dina*' + String.fromCharCode(10) + $('Um por mensagem').all()[$itemIndex].json.texto }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3
+    }
+  ],
+  "connections": {
+    "A cada 5 minutos": {
+      "main": [
+        [
+          {
+            "node": "Pendentes (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pendentes (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Um por mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Um por mensagem": {
+      "main": [
+        [
+          {
+            "node": "Enviar (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar (WhatsApp)": {
+      "main": [
+        [
+          {
+            "node": "Marcar enviado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "363bf087-eac2-4500-86fa-8df4605b2943"
+}

@@ -1,7 +1,24 @@
 {
+  "id": "2mEE5d9YWcgutRbD",
   "name": "Dyno | Agentes diários (assinaturas e manutenções)",
+  "description": "Dyno: todo dia 09:00 avisa no grupo assinaturas que vão renovar, manutenções da casa/carro perto do prazo e pede o km do carro uma vez por mês.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "timezone": "America/Sao_Paulo",
+    "errorWorkflow": "5UUmuzItIYDsd3AG"
+  },
   "nodes": [
     {
+      "id": "96b431f4-0346-4a88-a42d-496532632481",
+      "name": "Todo dia 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        300
+      ],
       "parameters": {
         "rule": {
           "interval": [
@@ -11,49 +28,19 @@
             }
           ]
         }
-      },
-      "id": "96b431f4-0346-4a88-a42d-496532632481",
-      "name": "Todo dia 09:00",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.3,
-      "position": [
-        0,
-        304
-      ]
+      }
     },
     {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "BhTS13DGVIPZ39LS",
-          "cachedResultName": "assessor_assinaturas"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "ativo",
-              "condition": "isTrue"
-            }
-          ]
-        },
-        "returnAll": true
-      },
-      "id": "3e1757b0-b61d-404d-a051-0c505c55fb20",
-      "name": "Assinaturas ativas",
+      "id": "b44c2f95-6fce-44e5-867d-6420759a74df",
+      "name": "Manutenções ativas",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        224,
-        304
+        440,
+        300
       ],
-      "executeOnce": true,
-      "alwaysOutputData": true
-    },
-    {
       "parameters": {
+        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -72,19 +59,20 @@
         },
         "returnAll": true
       },
-      "id": "b44c2f95-6fce-44e5-867d-6420759a74df",
-      "name": "Manutenções ativas",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        448,
-        304
-      ],
       "executeOnce": true,
       "alwaysOutputData": true
     },
     {
+      "id": "038545fc-6cf8-48fb-a322-50fbcc4d306f",
+      "name": "Veículos ativos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        300
+      ],
       "parameters": {
+        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -103,32 +91,34 @@
         },
         "returnAll": true
       },
-      "id": "038545fc-6cf8-48fb-a322-50fbcc4d306f",
-      "name": "Veículos ativos",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        672,
-        304
-      ],
       "executeOnce": true,
       "alwaysOutputData": true
     },
     {
-      "parameters": {
-        "jsCode": "// Agentes diários: assinaturas (aviso 2 dias antes), manutenções (data/km; anuais 15 dias antes) e pedido de km mensal.\nconst TZ = 'America/Sao_Paulo';\nconst GRUPO = '120363412854461070@g.us';\nconst hoje = DateTime.now().setZone(TZ).startOf('day');\nconst agoraISO = DateTime.now().toUTC().toISO();\nconst rows = n => { try { return $(n).all().map(i => i.json).filter(r => r && r.id != null); } catch (e) { return []; } };\nconst dia = v => v ? DateTime.fromISO(String(v)).setZone(TZ).startOf('day') : null;\nconst brl = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');\nconst quando = d => { const n = Math.round(d.diff(hoje, 'days').days); return n === 0 ? 'hoje' : n === 1 ? 'amanhã' : n <= 6 ? d.setLocale('pt-BR').toFormat(\"cccc (dd/LL)\") : d.toFormat('dd/LL/yyyy'); };\nconst kmFmt = n => Math.round(n).toLocaleString('pt-BR');\nconst out = [];\nconst msgs = {}; // autor -> linhas\nconst add = (autor, linha) => { (msgs[autor] = msgs[autor] || []).push(linha); };\n\n// Assinaturas\nfor (const a of rows('Assinaturas ativas')) {\n  const autor = a.autor || 'Daniel';\n  let p = dia(a.proxima_cobranca);\n  if (!p) continue;\n  let mudou = false;\n  while (p < hoje) { p = p.plus(a.ciclo === 'anual' ? { years: 1 } : { months: 1 }); mudou = true; }\n  let avisado = mudou ? '' : String(a.avisado_para || '');\n  const dias = Math.round(p.diff(hoje, 'days').days);\n  if (dias >= 0 && dias <= 2 && avisado !== p.toISODate()) {\n    add(autor, '🔁 A assinatura *' + a.nome + '*' + (a.valor ? ' (' + brl(a.valor) + ')' : '') + ' renova ' + quando(p) + '. Ainda está usando? Se não, cancela no app e me avisa que eu tiro da lista.');\n    avisado = p.toISODate(); mudou = true;\n  }\n  if (mudou) out.push({ json: { tipo: 'upd_assin', id: a.id, proxima_cobranca: p.toUTC().toISO(), avisado_para: avisado } });\n}\n\n// Veículos: km estimado\nconst veics = rows('Veículos ativos');\nconst kmEst = v => (v && v.km_atual != null) ? v.km_atual + (Number(v.km_por_dia) || 0) * Math.max(0, hoje.diff(dia(v.km_data) || hoje, 'days').days) : null;\n\n// Manutenções\nfor (const m of rows('Manutenções ativas')) {\n  const autor = m.autor || 'Daniel';\n  const ultimo = dia(m.ultimo_aviso);\n  if (ultimo && hoje.diff(ultimo, 'days').days < 7) continue;\n  const pd = dia(m.proxima_data);\n  const vs = veics.filter(v => (v.autor || 'Daniel') === autor);\n  const v = vs.find(x => String(x.apelido || '').toLowerCase() === String(m.bem || '').toLowerCase()) || (vs.length === 1 && ['carro', 'moto'].includes(String(m.bem)) ? vs[0] : null);\n  const est = kmEst(v);\n  const anual = (!m.intervalo_dias && !m.intervalo_km) || Number(m.intervalo_dias) >= 300;\n  const janela = anual ? 15 : 7;\n  const porData = pd && pd.diff(hoje, 'days').days <= janela;\n  const porKm = m.proxima_km && est != null && est >= m.proxima_km - 500;\n  if (!porData && !porKm) continue;\n  const partes = [];\n  if (pd) partes.push(pd < hoje ? 'venceu em ' + pd.toFormat('dd/LL') : 'prevista p/ ' + quando(pd));\n  if (m.proxima_km) partes.push('aos ' + kmFmt(m.proxima_km) + ' km' + (est != null ? ' (pelas minhas contas o ' + (m.bem || 'carro') + ' está com ~' + kmFmt(est) + ' km)' : ''));\n  add(autor, '🔧 *' + m.item + '*' + (m.bem ? ' do ' + m.bem : '') + ': ' + partes.join(' ou ') + '. Já resolveu? Me avisa (com ' + (m.proxima_km ? 'km e ' : '') + 'valor, se tiver) que eu registro e calculo a próxima.');\n  out.push({ json: { tipo: 'upd_manut', id: m.id, ultimo_aviso: agoraISO } });\n}\n\n// Pedido de km (a cada 30 dias)\nfor (const v of veics) {\n  const autor = v.autor || 'Daniel';\n  const kd = dia(v.km_data);\n  const up = dia(v.ultimo_pedido_km);\n  if (kd && hoje.diff(kd, 'days').days < 30) continue;\n  if (up && hoje.diff(up, 'days').days < 30) continue;\n  add(autor, '🚗 Qual a quilometragem do ' + (v.apelido || 'carro') + ' hoje? É só me mandar o número que eu acompanho as manutenções.');\n  out.push({ json: { tipo: 'upd_veic', id: v.id, ultimo_pedido_km: agoraISO } });\n}\n\nfor (const [autor, linhas] of Object.entries(msgs)) {\n  out.push({ json: { tipo: 'msg', numero: GRUPO, autor, texto: autor + ', uns lembretes rápidos:\\n' + linhas.join('\\n') } });\n}\nreturn out;\n"
-      },
       "id": "48a17e40-4d69-4a75-808b-ef6c0fbfcc4e",
       "name": "Montar avisos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         880,
-        304
-      ]
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Agentes diários: assinaturas (aviso 2 dias antes; anuais 7 dias antes), manutenções (data/km; anuais 15 dias antes) e pedido de km mensal.\nconst TZ = 'America/Sao_Paulo';\nconst GRUPO = '120363412854461070@g.us';\nconst hoje = DateTime.now().setZone(TZ).startOf('day');\nconst agoraISO = DateTime.now().toUTC().toISO();\nconst rows = n => { try { return $(n).all().map(i => i.json).filter(r => r && r.id != null); } catch (e) { return []; } };\nconst dia = v => v ? DateTime.fromISO(String(v)).setZone(TZ).startOf('day') : null;\nconst brl = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');\nconst quando = d => { const n = Math.round(d.diff(hoje, 'days').days); return n === 0 ? 'hoje' : n === 1 ? 'amanhã' : n <= 6 ? d.setLocale('pt-BR').toFormat(\"cccc (dd/LL)\") : d.toFormat('dd/LL/yyyy'); };\nconst kmFmt = n => Math.round(n).toLocaleString('pt-BR');\nconst out = [];\nconst msgs = {}; // autor -> linhas\nconst add = (autor, linha) => { (msgs[autor] = msgs[autor] || []).push(linha); };\n\n// Assinaturas\nfor (const a of rows('Assinaturas ativas')) {\n  const autor = a.autor || 'Daniel';\n  let p = dia(a.proxima_cobranca);\n  if (!p) continue;\n  let mudou = false;\n  while (p < hoje) { p = p.plus(a.ciclo === 'anual' ? { years: 1 } : { months: 1 }); mudou = true; }\n  let avisado = mudou ? '' : String(a.avisado_para || '');\n  const dias = Math.round(p.diff(hoje, 'days').days);\n  const janela = a.ciclo === 'anual' ? 7 : 2;\n  if (dias >= 0 && dias <= janela && avisado !== p.toISODate()) {\n    add(autor, '🔁 A assinatura ' + (a.ciclo === 'anual' ? 'anual ' : '') + '*' + a.nome + '*' + (a.valor ? ' (' + brl(a.valor) + ')' : '') + ' renova ' + quando(p) + '. Ainda está usando? Se não, cancela no app e me avisa que eu tiro da lista.');\n    avisado = p.toISODate(); mudou = true;\n  }\n  if (mudou) out.push({ json: { tipo: 'upd_assin', id: a.id, proxima_cobranca: p.toUTC().toISO(), avisado_para: avisado } });\n}\n\n// Veículos: km estimado\nconst veics = rows('Veículos ativos');\nconst kmEst = v => (v && v.km_atual != null) ? v.km_atual + (Number(v.km_por_dia) || 0) * Math.max(0, hoje.diff(dia(v.km_data) || hoje, 'days').days) : null;\n\n// Manutenções\nfor (const m of rows('Manutenções ativas')) {\n  const autor = m.autor || 'Daniel';\n  const ultimo = dia(m.ultimo_aviso);\n  if (ultimo && hoje.diff(ultimo, 'days').days < 7) continue;\n  const pd = dia(m.proxima_data);\n  const vs = veics.filter(v => (v.autor || 'Daniel') === autor);\n  const v = vs.find(x => String(x.apelido || '').toLowerCase() === String(m.bem || '').toLowerCase()) || (vs.length === 1 && ['carro', 'moto'].includes(String(m.bem)) ? vs[0] : null);\n  const est = kmEst(v);\n  const anual = (!m.intervalo_dias && !m.intervalo_km) || Number(m.intervalo_dias) >= 300;\n  const janela = anual ? 15 : 7;\n  const porData = pd && pd.diff(hoje, 'days').days <= janela;\n  const porKm = m.proxima_km && est != null && est >= m.proxima_km - 500;\n  if (!porData && !porKm) continue;\n  const partes = [];\n  if (pd) partes.push(pd < hoje ? 'venceu em ' + pd.toFormat('dd/LL') : 'prevista p/ ' + quando(pd));\n  if (m.proxima_km) partes.push('aos ' + kmFmt(m.proxima_km) + ' km' + (est != null ? ' (pelas minhas contas o ' + (m.bem || 'carro') + ' está com ~' + kmFmt(est) + ' km)' : ''));\n  add(autor, '🔧 *' + m.item + '*' + (m.bem ? ' do ' + m.bem : '') + ': ' + partes.join(' ou ') + '. Já resolveu? Me avisa (com ' + (m.proxima_km ? 'km e ' : '') + 'valor, se tiver) que eu registro e calculo a próxima.');\n  out.push({ json: { tipo: 'upd_manut', id: m.id, ultimo_aviso: agoraISO } });\n}\n\n// Pedido de km (a cada 30 dias)\nfor (const v of veics) {\n  const autor = v.autor || 'Daniel';\n  const kd = dia(v.km_data);\n  const up = dia(v.ultimo_pedido_km);\n  if (kd && hoje.diff(kd, 'days').days < 30) continue;\n  if (up && hoje.diff(up, 'days').days < 30) continue;\n  add(autor, '🚗 Qual a quilometragem do ' + (v.apelido || 'carro') + ' hoje? É só me mandar o número que eu acompanho as manutenções.');\n  out.push({ json: { tipo: 'upd_veic', id: v.id, ultimo_pedido_km: agoraISO } });\n}\n\nfor (const [autor, linhas] of Object.entries(msgs)) {\n  out.push({ json: { tipo: 'msg', numero: GRUPO, autor, texto: autor + ', uns lembretes rápidos:\\n' + linhas.join('\\n') } });\n}\nreturn out;\n"
+      }
     },
     {
+      "id": "57ff36c3-1838-46a0-b554-79bfcc783cef",
+      "name": "Separar avisos",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1100,
+        300
+      ],
       "parameters": {
+        "mode": "rules",
         "rules": {
           "values": [
             {
@@ -147,12 +137,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "msg"
+              "outputKey": "msg",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -170,12 +159,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "upd_assin"
+              "outputKey": "upd_assin",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -193,12 +181,11 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "upd_manut"
+              "outputKey": "upd_manut",
+              "renameOutput": true
             },
             {
               "conditions": {
@@ -216,194 +203,50 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 }
               },
-              "renameOutput": true,
-              "outputKey": "upd_veic"
+              "outputKey": "upd_veic",
+              "renameOutput": true
             }
           ]
-        },
-        "options": {}
-      },
-      "id": "57ff36c3-1838-46a0-b554-79bfcc783cef",
-      "name": "Separar avisos",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
-      "position": [
-        1104,
-        304
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: \"​*Dyno:* \" + $json.texto }) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "a904d199-9107-4844-af50-a5159da2f9cf",
       "name": "Enviar aviso (WhatsApp)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1344,
-        128
+        1340,
+        120
       ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: \"​*Dyno:* \" + $json.texto }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno"
+      },
       "retryOnFail": true,
-      "maxTries": 2,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
-        }
-      }
+      "maxTries": 2
     },
     {
-      "parameters": {
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_mensagens",
-          "mode": "id",
-          "value": "6AuPgkHFMhGhazoN"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "schema": [
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "telefone",
-              "id": "telefone",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "papel",
-              "id": "papel",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "texto",
-              "id": "texto",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "autor",
-              "id": "autor",
-              "required": false,
-              "type": "string"
-            }
-          ],
-          "value": {
-            "autor": "=Assessor:{{ $('Separar avisos').item.json.autor }}",
-            "papel": "assistente",
-            "telefone": "={{ $('Separar avisos').item.json.numero }}",
-            "texto": "={{ $('Separar avisos').item.json.texto }}"
-          }
-        },
-        "options": {}
-      },
-      "id": "116d4b6d-2afb-4969-bb89-f14b354535a1",
-      "name": "Salvar aviso no histórico",
+      "id": "d7880ba4-84c1-4b78-8e98-068199e67581",
+      "name": "Atualizar manutenção",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1584,
-        128
-      ]
-    },
-    {
+        1340,
+        480
+      ],
       "parameters": {
-        "operation": "update",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_assinaturas",
-          "mode": "id",
-          "value": "BhTS13DGVIPZ39LS"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyValue": "={{ $json.id }}"
-            }
-          ]
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "schema": [
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "proxima_cobranca",
-              "id": "proxima_cobranca",
-              "required": false,
-              "type": "dateTime"
-            },
-            {
-              "canBeUsedToMatch": true,
-              "defaultMatch": false,
-              "display": true,
-              "displayName": "avisado_para",
-              "id": "avisado_para",
-              "required": false,
-              "type": "string"
-            }
-          ],
-          "value": {
-            "avisado_para": "={{ $json.avisado_para }}",
-            "proxima_cobranca": "={{ $json.proxima_cobranca }}"
-          }
-        },
-        "options": {}
-      },
-      "id": "88d1145a-6aee-44fa-9fac-edea8a48e340",
-      "name": "Atualizar assinatura",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1344,
-        304
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "update",
-        "dataTableId": {
-          "__rl": true,
-          "cachedResultName": "assessor_manutencoes",
-          "mode": "id",
-          "value": "eB1McqY3kZqdeLTU"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyValue": "={{ $json.id }}"
-            }
-          ]
-        },
         "columns": {
           "mappingMode": "defineBelow",
           "schema": [
@@ -421,34 +264,36 @@
             "ultimo_aviso": "={{ $json.ultimo_aviso }}"
           }
         },
-        "options": {}
-      },
-      "id": "d7880ba4-84c1-4b78-8e98-068199e67581",
-      "name": "Atualizar manutenção",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1344,
-        480
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "update",
         "dataTableId": {
           "__rl": true,
-          "cachedResultName": "assessor_veiculos",
+          "cachedResultName": "assessor_manutencoes",
           "mode": "id",
-          "value": "L6ojMtqlOZEhq5vc"
+          "value": "eB1McqY3kZqdeLTU"
         },
-        "matchType": "allConditions",
         "filters": {
           "conditions": [
             {
+              "condition": "eq",
+              "keyName": "id",
               "keyValue": "={{ $json.id }}"
             }
           ]
         },
+        "matchType": "allConditions",
+        "operation": "update",
+        "resource": "row"
+      }
+    },
+    {
+      "id": "48018740-770a-4657-87b3-89adebec6a29",
+      "name": "Atualizar veículo",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1340,
+        660
+      ],
+      "parameters": {
         "columns": {
           "mappingMode": "defineBelow",
           "schema": [
@@ -466,87 +311,166 @@
             "ultimo_pedido_km": "={{ $json.ultimo_pedido_km }}"
           }
         },
-        "options": {}
-      },
-      "id": "48018740-770a-4657-87b3-89adebec6a29",
-      "name": "Atualizar veículo",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        1344,
-        672
-      ]
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_veiculos",
+          "mode": "id",
+          "value": "L6ojMtqlOZEhq5vc"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "eq",
+              "keyName": "id",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "update",
+        "resource": "row"
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_assessor_destinos",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{}",
-        "options": {
-          "timeout": 15000
-        }
-      },
       "id": "ae237a51-3460-4676-9946-c73e5dcde0a4",
       "name": "Supabase: destinos",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        784,
-        144
+        770,
+        140
       ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "{}",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_assessor_destinos"
+      },
+      "onError": "continueRegularOutput",
       "retryOnFail": true,
       "maxTries": 2,
       "alwaysOutputData": true,
-      "executeOnce": true,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qgXgW9Cfnyoli06W",
-          "name": "Supabase_Dyno"
-        }
-      },
-      "onError": "continueRegularOutput"
+      "executeOnce": true
     },
     {
-      "parameters": {
-        "jsCode": "// Família recebe no grupo; clientes do piloto no privado; quem não está no cadastro não recebe nada.\nconst FAMS = ['Daniel', 'Quézia', 'Eliezer'];\nconst GRUPO = '120363412854461070@g.us';\nlet dest = {};\ntry { dest = $('Supabase: destinos').first().json || {}; } catch (e) { dest = {}; }\nconst out = [];\nfor (const it of $input.all()) {\n  const j = it.json || {};\n  if (j.tipo !== 'msg') { out.push(it); continue; }\n  if (FAMS.includes(j.autor)) { out.push({ json: { ...j, numero: GRUPO } }); continue; }\n  const n = String(dest[j.autor] || '');\n  if (/^\\d{12,13}$/.test(n)) out.push({ json: { ...j, numero: n } });\n}\nreturn out;"
-      },
       "id": "21d8f143-2e96-4392-85c9-0a04b43cd547",
       "name": "Destino por pessoa",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        992,
-        144
-      ]
+        990,
+        140
+      ],
+      "parameters": {
+        "jsCode": "// Família recebe no grupo; clientes do piloto no privado; quem não está no cadastro não recebe nada.\nconst FAMS = ['Daniel', 'Quézia', 'Eliezer'];\nconst GRUPO = '120363412854461070@g.us';\nlet dest = {};\ntry { dest = $('Supabase: destinos').first().json || {}; } catch (e) { dest = {}; }\nconst out = [];\nfor (const it of $input.all()) {\n  const j = it.json || {};\n  if (j.tipo !== 'msg') { out.push(it); continue; }\n  if (FAMS.includes(j.autor)) { out.push({ json: { ...j, numero: GRUPO } }); continue; }\n  const n = String(dest[j.autor] || '');\n  if (/^\\d{12,13}$/.test(n)) out.push({ json: { ...j, numero: n } });\n}\nreturn out;",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "084293aa-62ff-4b04-b96b-d4883a7e6d07",
+      "name": "Salvar aviso no histórico",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1580,
+        120
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify({ telefone: String($('Separar avisos').item.json.numero), papel: 'assistente', texto: $('Separar avisos').item.json.texto, autor: 'Assessor:' + $('Separar avisos').item.json.autor }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_mensagens"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "8dcd1b1e-9c24-482f-ac41-c66b1dba14c2",
+      "name": "Assinaturas ativas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_assinaturas?' + 'order=id&limit=5000' + '&' + 'ativo=is.true' }}"
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "acf4c1e3-8797-4eb2-ac13-6033b40ffed5",
+      "name": "Atualizar assinatura",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1340,
+        300
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify({ \"avisado_para\": ($json.avisado_para), \"proxima_cobranca\": ((x) => x === undefined ? undefined : (x === '' ? null : x))(($json.proxima_cobranca)) }) }}",
+        "method": "PATCH",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "={{ 'https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_assinaturas?' + 'id=eq.' + encodeURIComponent(String(($json.id))) }}"
+      }
     }
   ],
   "connections": {
-    "Todo dia 09:00": {
-      "main": [
-        [
-          {
-            "node": "Assinaturas ativas",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Assinaturas ativas": {
-      "main": [
-        [
-          {
-            "node": "Manutenções ativas",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Manutenções ativas": {
       "main": [
         [
@@ -584,17 +508,6 @@
         [
           {
             "node": "Atualizar veículo",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Enviar aviso (WhatsApp)": {
-      "main": [
-        [
-          {
-            "node": "Salvar aviso no histórico",
             "type": "main",
             "index": 0
           }
@@ -644,23 +557,41 @@
           }
         ]
       ]
+    },
+    "Enviar aviso (WhatsApp)": {
+      "main": [
+        [
+          {
+            "node": "Salvar aviso no histórico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Todo dia 09:00": {
+      "main": [
+        [
+          {
+            "node": "Assinaturas ativas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assinaturas ativas": {
+      "main": [
+        [
+          {
+            "node": "Manutenções ativas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": true,
-    "timezone": "America/Sao_Paulo",
-    "errorWorkflow": "5UUmuzItIYDsd3AG"
-  },
-  "versionId": "0526facc-4e0f-44fd-831c-949dbb3e04be",
-  "meta": {
-    "aiBuilderAssisted": true,
-    "builderVariant": "mcp",
-    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
-  },
-  "nodeGroups": [],
-  "id": "2mEE5d9YWcgutRbD",
-  "tags": []
+  "tags": [],
+  "versionId": "85130c75-d15c-4131-9da9-a0534c36ef18"
 }

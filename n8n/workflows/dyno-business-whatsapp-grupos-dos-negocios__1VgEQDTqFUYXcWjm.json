@@ -1,0 +1,1385 @@
+{
+  "id": "1VgEQDTqFUYXcWjm",
+  "name": "Dyno Business | WhatsApp (grupos dos negócios)",
+  "description": "Dyno Business no grupo piloto: entende venda/compra por texto ou áudio, gera orçamento em PDF (Gotenberg) e responde no grupo.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "nodes": [
+    {
+      "id": "c8e0d1d2-0aaa-4c6e-b77a-a77245a03fde",
+      "name": "Entrada",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        96
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "9f06441c-7549-43ee-94ad-24e6b798d120",
+      "name": "É áudio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.audio === true }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "fbdbe071-227c-4792-be2f-40e5e8a8439f",
+      "name": "Baixar áudio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        32
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/chat/getBase64FromMediaMessage/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: { key: { id: $json.messageId } }, convertToMp4: false }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "aae07244-53cb-4c97-adb2-4557028f7e40",
+      "name": "Áudio em arquivo",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        32
+      ],
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "base64",
+        "options": {
+          "fileName": "audio.ogg",
+          "mimeType": "audio/ogg"
+        }
+      }
+    },
+    {
+      "id": "ee43edf6-0830-4adc-8c9b-f4f05d366eb0",
+      "name": "Transcrever áudio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        32
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "parameterType": "formData",
+              "name": "model",
+              "value": "gpt-4o-mini-transcribe"
+            },
+            {
+              "parameterType": "formData",
+              "name": "language",
+              "value": "pt"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "id": "977414a2-3fec-4505-8fe9-f426796b937c",
+      "name": "Texto final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Junta o texto da mensagem (ou a transcrição do áudio).\n// 08/10: foto com legenda (ex.: pedido de orçamento com foto do produto) chega aqui com a legenda como texto.\n// 08/10 (modo grupo): o texto leva o nome de quem falou (\"Felipe: ...\") para o Dyno entender a conversa.\n// 08/10 (noite): o que a IA de visão leu na imagem (tela do fatiador, produto) vai junto, porque o cérebro não vê a imagem.\nconst e = $('Entrada').first().json;\nlet texto = String(e.texto || '');\nif (e.audio) {\n  let t = '';\n  try { t = $('Transcrever áudio').first().json.text || ''; } catch (err) { t = ''; }\n  texto = t ? '[áudio] ' + t : (texto || '[áudio que não deu para transcrever]');\n} else if (e.imagem) {\n  let d = {};\n  try { d = $('É comprovante?').first().json.dados || {}; } catch (err) { d = {}; }\n  const tipo = String(d.tipo || '');\n  let lido = '';\n  if (tipo === 'fatiador') {\n    const fs = Array.isArray(d.filamentos) ? d.filamentos.filter(f => f && f.gramas) : [];\n    lido = ' [dados lidos da imagem (tela do fatiador): ' + fs.map(f => 'slot ' + (f.slot || '?') + (f.cor ? ' (' + f.cor + ')' : '') + ' = ' + f.gramas + ' g').join('; ') + (d.gramas_total ? '; total ' + d.gramas_total + ' g' : '') + (d.tempo_total ? '; tempo total ' + d.tempo_total : '') + ']';\n  } else if (d.descricao) {\n    lido = ' [a foto mostra: ' + String(d.descricao).slice(0, 300) + ']';\n  }\n  texto = (tipo === 'fatiador' ? '[enviou um print do fatiador, com esta legenda] ' : '[enviou uma foto do produto, com esta legenda] ') + texto + lido;\n}\nconst nome = String(e.autor || '').trim().split(/\\s+/)[0];\nif (nome) texto = nome + ': ' + texto;\nreturn [{ json: { jid: e.jid, autor: e.autor || '', texto: texto.slice(0, 4000) } }];\n"
+      }
+    },
+    {
+      "id": "861dd809-652b-4da6-8e98-ad44a9918580",
+      "name": "Contexto do negócio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1344,
+        96
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/biz_contexto",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_jid: $('Texto final').first().json.jid }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "32dfb771-160f-4881-8729-e5747b646cf8",
+      "name": "Montar prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const NL = String.fromCharCode(10);\nconst t = $('Texto final').first().json;\nconst c = $input.first().json || {};\nconst emp = c.empresa || {};\nconst agora = DateTime.now().setZone('America/Sao_Paulo').setLocale('pt-BR');\nconst sys = [\n  'Você é o Dyno Business, o assistente de vendas do negócio \"' + (emp.nome || 'do empreendedor') + '\" (' + (emp.nicho || 'nicho não informado') + ') no WhatsApp.',\n  'Objetivo: o empreendedor não perder nenhuma venda. Respostas curtas, em português do Brasil, tom profissional e amigável, com no máximo 2 emojis.',\n  'Este grupo é SÓ do negócio: nunca registre gasto pessoal aqui (o Dyno pessoal cuida disso em outra conversa).',\n  'Responda SEMPRE em JSON: {\"resposta\": \"texto para o WhatsApp\", \"acoes\": [ ... ]}.',\n  'AÇÕES (cada ação é um objeto com o campo \"tipo\", ex.: {\"tipo\":\"lancar_venda\",\"cliente\":\"Ana\",...}):',\n  '- lancar_venda {\"cliente\",\"cliente_whatsapp\",\"descricao\",\"detalhes\",\"endereco\",\"quantidade\",\"unidade\",\"valor_total\",\"sinal\",\"entrega\":\"AAAA-MM-DD\",\"obs\",\"status\":\"orcamento\"|\"aprovada\"}. CAMPOS SEPARADOS: \"cliente\" = só o NOME da pessoa (se só tiver o número, deixe \"cliente\" vazio e ponha o número em \"cliente_whatsapp\"; nunca invente nome). \"descricao\" = título curto do item (ex.: \"24 chaveiros personalizados\"). \"detalhes\" = descrição da solicitação: cores, modelos, letras, tamanhos, quantidades por variação etc., um grupo por linha (ex.: \"Azul: C 1, F 1\\nRosa: A 2, H 1\"). \"endereco\" = endereço de entrega completo (rua, número, bairro, cidade/CEP se houver). \"obs\" = só observações gerais (ex.: \"Entrega inclusa\"); NUNCA repita endereço nem detalhes em \"obs\". Padrão: \"orcamento\" (o sistema gera o PDF do orçamento para enviar ao cliente). Use \"aprovada\" quando disser que já fechou, vendeu ou recebeu.',\n  '- atualizar_venda {\"numero\", \"status\":\"aprovada\"|\"entregue\"|\"recebida\"|\"recusada\"|\"cancelada\", \"sinal\",\"recebido\",\"valor_total\",\"entrega\",\"motivo\",\"descricao\",\"quantidade\",\"unidade\",\"cliente\",\"cliente_whatsapp\",\"endereco\",\"detalhes\",\"obs\",\"limpar_nome\":true,\"limpar_endereco\":true}. Para CORRIGIR um orçamento envie só os campos que mudam (ex.: \"o nome do cliente do 1 é Ana\" → {\"tipo\":\"atualizar_venda\",\"numero\":1,\"cliente\":\"Ana\"}; \"muda o endereço do 1 para ...\" → endereco; \"troca a rosa K para 3\" → detalhes reescrito completo). Se a venda ainda é orçamento, o sistema reenvia o PDF corrigido. Ex.: \"o Fulano aprovou o 3\" → status aprovada; \"entreguei o 3\" → entregue; \"recebi o 3\" → recebida; \"recebi 20 de sinal no 3\" → sinal 20.',\n  '- gerar_orcamento {\"numero\"} para reenviar o PDF de uma venda (ex.: \"renova o orçamento 3\" também usa esta ação).',\n  '- enviar_orcamento {\"numero\" (opcional: sem número vale o orçamento que acabou de ser gerado), \"modo\":\"dyno\"|\"vendedor\", \"whatsapp\" (opcional)}. Depois de cada orçamento o sistema pergunta se o vendedor quer que o Dyno envie ao cliente para aprovação. Se ele disser que sim (\"sim\", \"envia\", \"manda pro cliente\") use modo \"dyno\"; se disser que ele mesmo envia (\"eu envio\", \"eu mando\", \"não precisa\") use modo \"vendedor\" (o sistema devolve a mensagem pronta para ele encaminhar). Se faltar o WhatsApp do cliente para o modo dyno, PERGUNTE o número antes.',\n  '- lembrar_cliente {\"numero\", \"modo\" opcional} quando o vendedor pedir para lembrar o cliente de um orçamento (\"lembra o cliente do 3\").',\n  '- lancar_compra {\"descricao\",\"fornecedor\",\"valor\",\"categoria\":\"material\"|\"embalagem\"|\"frete\"|\"equipamento\"|\"marketing\"|\"outros\",\"data\":\"AAAA-MM-DD\"} para compras do negócio.',\n  '- apagar_compra {\"id\"}; configurar_empresa {\"nome\",\"nicho\",\"unidade\",\"validade_dias\"}.',\n  '- configurar_pagamento {\"pix_chave\",\"pix_tipo\":\"cpf\"|\"cnpj\"|\"telefone\"|\"email\"|\"aleatoria\",\"pix_nome\" (nome do titular, opcional),\"pix_cidade\" (opcional),\"link_cartao\" (link de pagamento por cartão: InfinitePay, Mercado Pago, PagSeguro etc.),\"remover_cartao\":true}. Use quando o vendedor informar ou trocar a chave Pix ou o link do cartão. Se a chave tiver 11 números e ele não disse se é CPF ou celular, PERGUNTE antes.',\n  '- cobrar_cliente {\"numero\",\"modo\":\"dyno\"|\"vendedor\",\"whatsapp\" opcional}: manda ao cliente a cobrança (link com Pix copia e cola/QR e cartão). Use quando pedir \"cobrar 2\", \"manda o pix pro cliente\". modo \"vendedor\" quando ele mesmo vai mandar (o sistema devolve o texto pronto).',\n  '- registrar_pagamento {\"numero\",\"valor\" (opcional: sem valor = o que falta),\"forma\":\"pix\"|\"cartao\"|\"dinheiro\"|\"boleto\"}: quando o vendedor disser que recebeu (\"recebi do 2\", \"cliente pagou 30 no pix\"). Prefira esta ação a atualizar_venda para pagamentos.',\n  'REGRAS: valor_total é o total da venda (se disser preço unitário, multiplique pela quantidade). Se faltar o valor, PERGUNTE antes de lançar (nunca lance com 0). Cliente e data de entrega podem faltar. Converta datas relativas (\"dia 20\", \"sexta\") para AAAA-MM-DD a partir de hoje.',\n  'APROVAÇÃO ONLINE: cada orçamento tem um link (dynoapp.com.br/o?t=...) onde o cliente vê e aprova ou recusa; o sistema avisa aqui no grupo quando ele abre, aprova ou recusa, e de hora em hora acompanha quem não respondeu. Não invente status: use os campos aguardando_envio, envio, cliente_abriu_em e decidido_em do CONTEXTO.',\n  'NÃO escreva número de venda nem totais calculados na resposta ao lançar: o sistema acrescenta a confirmação com o número logo abaixo da sua resposta. Na resposta, só uma frase curta (ex.: \"Fechado! Lancei a venda.\" ou a pergunta que falta).',\n  'Para perguntas (quanto vendi, o que tenho para entregar, quem ainda me deve, orçamentos pendentes), responda usando o CONTEXTO, citando o número das vendas. Orçamento não é nota fiscal; se perguntarem, explique.',\n  'IMAGENS: você não vê imagens, mas o sistema já trata duas: (1) LOGO — imagem com a legenda \"logo\" vai no topo do orçamento em PDF (logo cadastrado: ' + (emp.tem_logo ? 'sim' : 'não') + '); (2) COMPROVANTE de pagamento — o sistema lê o valor e dá baixa sozinho na venda certa (se tiver dúvida, pergunta o número). Nunca prometa usar outras imagens.',\n  'PAGAMENTO: quando o cliente aprova, a página do orçamento mostra como pagar (Pix copia e cola/QR e link do cartão) e, se o Dyno enviou o orçamento, ele também manda a cobrança ao cliente. Pix configurado: ' + (emp.pix_chave ? 'sim (' + emp.pix_tipo + ')' : 'não') + '; cartão: ' + (emp.link_cartao ? 'sim' : 'não') + '. Se faltar, peça a chave Pix/link do cartão quando fizer sentido. O dinheiro vai direto para a conta do vendedor; o Dyno não cobra nem intermedia.',\n  'Hoje: ' + agora.toFormat(\"cccc, dd/LL/yyyy HH:mm\") + '.',\n].join(NL);\nconst ctx = { empresa: { nome: emp.nome, nicho: emp.nicho, unidade: emp.unidade, validade_orcamento_dias: emp.validade_orcamento_dias }, vendas_abertas: c.vendas_abertas, ultimas_fechadas: c.ultimas_fechadas, mes: c.mes, compras_mes: c.compras_mes, clientes: c.clientes };\nconst msgs = [{ role: 'system', content: sys }, { role: 'system', content: 'CONTEXTO: ' + JSON.stringify(ctx) }];\nfor (const h of (c.historico || [])) msgs.push({ role: h.papel === 'usuario' ? 'user' : 'assistant', content: String(h.texto || '') });\nmsgs.push({ role: 'user', content: t.texto });\nreturn [{ json: { payload: { model: 'gpt-6-luna', reasoning_effort: 'low', response_format: { type: 'json_object' }, messages: msgs } } }];\n"
+      }
+    },
+    {
+      "id": "8db0a4bd-5cd4-4f1c-8e1a-93683c18bb31",
+      "name": "OpenAI (Business)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1792,
+        96
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "id": "0367940c-11c1-4db3-9e04-f83c41c36783",
+      "name": "Interpretar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "let ia_ms = null; try { ia_ms = Date.now() - Number($('Complemento (modo grupo)').first().json._t0); if (!(ia_ms > 0 && ia_ms < 600000)) ia_ms = null; } catch (e) { ia_ms = null; }\nconst r = $input.first().json || {};\nlet obj = null;\ntry { obj = JSON.parse(r.choices[0].message.content); } catch (e) { obj = null; }\nconst resposta = obj ? String(obj.resposta || '') : 'Tive um problema para processar isso agora. Pode repetir?';\n// A IA às vezes usa \"acao\" ou \"type\" no lugar de \"tipo\": normaliza.\nconst acoes = (obj && Array.isArray(obj.acoes) ? obj.acoes : []).map(a => a && typeof a === 'object' ? Object.assign({}, a, { tipo: a.tipo || a.acao || a.type || a.action }) : null).filter(a => a && a.tipo).slice(0, 10);\n// 08/10 (modo grupo): o Dyno só fala quando faz sentido. Com ação executada sempre responde (confirmação do sistema).\nconst responder = !obj || acoes.length > 0 || (obj.responder !== false && String(obj.resposta || '').trim() !== '');\nreturn [{ json: { jid: $('Texto final').first().json.jid, resposta: responder ? resposta : '', acoes, responder, modelo: r.model || 'gpt-6-luna', uso: r.usage || {}, ia_ms } }];\n"
+      }
+    },
+    {
+      "id": "4faf2e07-e0b4-4280-8dce-540b4d3167b3",
+      "name": "Executar ações",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2240,
+        96
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/biz_acao",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: { jid: $json.jid, acoes: $json.acoes } }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "15f28e9b-44b8-4404-9a4a-1df4dc6db3f0",
+      "name": "Montar resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Junta a resposta da IA com a confirmação do que o sistema realmente fez.\nconst NL = String.fromCharCode(10);\nconst i = $('Interpretar').first().json;\nconst f = $input.first().json || {};\nconst brl = v => { const n = Number(v || 0); const [a, c] = Math.abs(n).toFixed(2).split('.'); return 'R$ ' + a.replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.') + ',' + c; };\nconst dbr = s => { if (!s) return ''; const p = String(s).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] : String(s); };\nconst hhmm = h => { const m = Math.round(Number(h || 0) * 60); return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };\nconst ST = { orcamento: '📝 orçamento', aprovada: '✅ aprovada', entregue: '📦 entregue', recebida: '💰 recebida', recusada: '❌ recusada', cancelada: '🚫 cancelada' };\nconst linhas = [];\nfor (const x of (f.feitos || [])) {\n  if (!x) continue;\n  if (!x.ok) { linhas.push('⚠️ Não consegui: ' + (x.motivo || x.tipo)); continue; }\n  const v = x.venda;\n  if (x.tipo === 'lancar_venda' && v) {\n    linhas.push('*Venda #' + v.numero + '* · ' + ST[v.status] + NL + (v.quantidade ? String(v.quantidade).replace('.', ',') + ' ' : '') + v.descricao + ' · ' + brl(v.valor_total) + (v.cliente_nome || v.cliente_whatsapp ? NL + '👤 ' + [v.cliente_nome, v.cliente_whatsapp].filter(Boolean).join(' · ') : '') + (v.endereco ? NL + '📍 ' + v.endereco : '') + (v.entrega_em ? NL + '🗓️ entrega ' + dbr(v.entrega_em) : '') + (Number(v.sinal) > 0 ? NL + '💵 sinal ' + brl(v.sinal) : '') + (x.gerar_pdf && v.status === 'orcamento' ? NL + '📄 Orçamento em PDF logo abaixo.' + NL + '🔗 Conferir: business.dynoapp.com.br/o?t=' + v.link_token + NL + NL + '📌 O orçamento fica aqui no grupo. Para mandar ao cliente, digite: *enviar para cliente ' + (v.cliente_nome || 'NOME') + '*' + (v.cliente_whatsapp ? '' : ' (e o WhatsApp dele)') + '.' : (x.gerar_pdf ? NL + '📄 PDF logo abaixo.' : '')));\n  } else if (x.tipo === 'atualizar_venda' && v) {\n    linhas.push('*Venda #' + v.numero + '* agora: ' + ST[v.status] + (Number(v.recebido) + Number(v.sinal) > 0 ? ' · recebido ' + brl(Number(v.recebido) + Number(v.sinal)) + ' de ' + brl(v.valor_total) : '') + (x.gerar_pdf ? NL + '📄 Orçamento corrigido logo abaixo.' + (v.status === 'orcamento' ? NL + '🔗 O link de aprovação continua o mesmo: business.dynoapp.com.br/o?t=' + v.link_token : '') : ''));\n  } else if (x.tipo === 'gerar_orcamento' && v) {\n    linhas.push('📄 Orçamento da venda #' + v.numero + ' logo abaixo.' + (v.status === 'orcamento' ? NL + '🔗 Link de aprovação: business.dynoapp.com.br/o?t=' + v.link_token + (v.enviado_cliente_em ? '' : NL + NL + '📌 Para mandar ao cliente, digite: *enviar para cliente ' + (v.cliente_nome || 'NOME') + '*.') : ''));\n  } else if ((x.tipo === 'enviar_orcamento' || x.tipo === 'lembrar_cliente') && v) {\n    const n4 = String(v.numero).padStart(4, '0');\n    if (x.modo === 'dyno') linhas.push((x.tipo === 'lembrar_cliente' ? '🔔 Lembrete do orçamento Nº ' + n4 + ' enviado' : '📤 Orçamento Nº ' + n4 + ' enviado') + ' para ' + (v.cliente_nome || 'o cliente') + ' (' + (v.cliente_whatsapp || '') + '). Te aviso aqui quando ele abrir e quando aprovar ou recusar.');\n    else linhas.push('Mensagem pronta para você encaminhar ao cliente 👇' + NL + NL + (x.texto_cliente || '') + NL + NL + '_Eu te aviso aqui quando ele abrir o link e quando aprovar ou recusar._');\n  } else if (x.tipo === 'lancar_compra') {\n    linhas.push('🧾 Compra lançada (#' + x.id + ') · ' + brl(x.valor));\n  } else if (x.tipo === 'apagar_compra') {\n    linhas.push('🗑️ Compra removida.');\n  } else if (x.tipo === 'configurar_empresa') {\n    linhas.push('⚙️ Dados do negócio atualizados.');\n  } else if (x.tipo === 'configurar_pagamento') {\n    const p = x.pagamento || {};\n    linhas.push('💳 Pagamento configurado.' + (p.pix_chave ? NL + 'Pix (' + p.pix_tipo + '): ' + p.pix_chave + ' · ' + (p.pix_nome || '') : NL + 'Pix: ainda sem chave.') + (p.link_cartao ? NL + 'Cartão: ' + p.link_cartao : NL + 'Cartão: sem link.') + NL + 'A partir de agora, quando o cliente aprovar, a página do orçamento mostra como pagar.');\n  } else if (x.tipo === 'cobrar_cliente') {\n    const n4 = String(x.numero).padStart(4, '0');\n    if (x.modo === 'dyno') linhas.push('💳 Cobrança do Nº ' + n4 + ' enviada ao cliente (' + brl((x.pagamento || {}).valor) + '). Quando ele mandar o comprovante aqui ou você me disser que recebeu, eu dou baixa.');\n    else linhas.push('Cobrança pronta para você encaminhar 👇' + NL + NL + (x.texto_cliente || '') + (x.pix ? NL + NL + '_Pix copia e cola (mande em mensagem separada):_' + NL + x.pix : ''));\n  } else if (x.tipo === 'calcular_custo') {\n    const pc = Number(x.pecas) > 1;\n    const multi = Array.isArray(x.filamentos) && x.filamentos.length > 1;\n    const L = ['🧮 *Custo de produção*' + (x.descricao ? ' · ' + x.descricao : ''),\n      '⏱️ ' + hhmm(x.horas) + ' · 🧵 ' + String(x.gramas).replace('.', ',') + ' g' + (multi ? '' : ' (' + brl(x.valor_kg) + '/kg)') + (pc ? ' · ' + x.pecas + ' peças' : ''),\n      '• Filamento: ' + brl(x.custo_filamento) + (multi ? ' (' + x.filamentos.length + ' cores)' : ''),\n      ...(multi ? x.filamentos.map(c => '   ◦ ' + c.cor + ': ' + String(c.gramas).replace('.', ',') + ' g × ' + brl(c.valor_kg) + '/kg = ' + brl(c.custo)) : []),\n      ...(Number(x.purga) > 0 ? ['• Desperdício multicolor (' + String(x.purga_pct).replace('.', ',') + '%): ' + brl(x.purga)] : []),\n      '• Energia: ' + brl(x.custo_energia) + ' (' + String(x.energia_kwh).replace('.', ',') + ' kWh)',\n      '• Desgaste da impressora: ' + brl(x.desgaste),\n      '• Peças que falham (' + String(x.falha_pct).replace('.', ',') + '%): ' + brl(x.falhas),\n      '• Mão de obra (' + hhmm(x.trabalho_h) + ' × ' + brl(x.hora_trabalho) + '/h' + (x.trabalho_padrao ? ', padrão' : '') + '): ' + brl(x.mao_de_obra),\n      '• Manutenção: ' + brl(x.manutencao),\n      ...((x.extras || []).map(e => '• ' + e.descricao + ': ' + brl(e.valor))),\n      '*Custo total de produção: ' + brl(x.custo_total) + '*' + (pc ? ' (' + brl(x.custo_peca) + '/peça)' : '')];\n    if (Array.isArray(x.simulacao) && x.simulacao.length) {\n      L.push('', '💰 *Simulação de preço de venda*');\n      for (const o of x.simulacao) L.push('• ' + brl(o.preco) + (pc ? ' (' + brl(o.preco_peca) + '/peça)' : '') + ' → lucro ' + brl(o.lucro) + ' · margem ' + String(o.margem_bruta).replace('.', ',') + '%');\n      if (x.sugerido) L.push('', '✅ *Preço sugerido: ' + brl(x.sugerido.preco) + '*' + ' · lucro ' + brl(x.sugerido.lucro) + ' · margem ' + String(x.sugerido.margem_bruta).replace('.', ',') + '%');\n    } else {\n      L.push('', '💰 *Opções de preço* (margem sobre o custo):');\n      for (const o of (x.opcoes || [])) L.push('• ' + String(o.margem).replace('.', ',') + '% → *' + brl(o.preco) + '* · lucro ' + brl(o.lucro));\n    }\n    linhas.push(L.join(NL));\n  } else if (x.tipo === 'configurar_calculo') {\n    const k = x.calc || {};\n    linhas.push('⚙️ Cálculo atualizado: ' + String(k.kw).replace('.', ',') + ' kW · ' + brl(k.tarifa_kwh) + '/kWh · manutenção ' + brl(k.manutencao) + (k.valor_kg ? ' · filamento ' + brl(k.valor_kg) + '/kg' : '') + ' · desgaste ' + brl(k.desgaste_hora) + '/h · multicolor +' + String(k.purga_pct).replace('.', ',') + '% · falhas ' + String(k.falha_pct).replace('.', ',') + '% · mão de obra ' + brl(k.hora_trabalho) + '/h (padrão ' + hhmm(k.trabalho_padrao_h) + ' por peça) · simulação a partir de ' + String(k.margem_minima).replace('.', ',') + '% e sugerido com ' + String(k.margem_alvo).replace('.', ',') + '%+ de margem.');\n  } else if (x.tipo === 'registrar_pagamento') {\n    linhas.push(x.quitou ? '💰 *Venda #' + x.numero + ' paga!* Recebido ' + brl(x.valor) + '.' : '💰 Recebido ' + brl(x.valor) + ' na venda #' + x.numero + (x.era_sinal ? ' (sinal)' : '') + '. Falta: ' + brl(x.falta) + '.');\n  }\n}\n// Cálculo 3D: um rodapé só e, com vários itens, o total.\nconst calcs = (f.feitos || []).filter(x => x && x.ok && x.tipo === 'calcular_custo');\nif (calcs.length > 1) {\n  const custo = calcs.reduce((s, x) => s + Number(x.custo_total || 0), 0);\n  const sug = calcs.reduce((s, x) => s + Number((x.sugerido || {}).preco || 0), 0);\n  linhas.push('🧾 *Total dos ' + calcs.length + ' itens* · custo ' + brl(custo) + (sug ? NL + '✅ Somando os sugeridos: *' + brl(sug) + '* · lucro ' + brl(sug - custo) + ' · margem ' + String(Math.round((sug - custo) / sug * 1000) / 10).replace('.', ',') + '%' : ''));\n}\nif (calcs.length) linhas.push('_Não inclui impostos, taxas de venda nem embalagem._' + NL + 'Me diga o preço de venda (ex.: *\"79,90\"*' + (calcs.length > 1 ? ', ou um preço para cada item' : '') + ') ou *\"o sugerido\"*, e para quem é — eu gero o orçamento aqui no grupo.');\nconst texto = [i.resposta.trim(), linhas.join(NL + NL)].filter(Boolean).join(NL + NL) || 'Pode deixar! ✅';\nreturn [{ json: { jid: i.jid, texto, envio: String.fromCharCode(8203) + '*💼 Dyno Business*' + NL + texto } }];\n"
+      }
+    },
+    {
+      "id": "d4d8ab84-947f-41e0-915f-34a512f2d396",
+      "name": "Enviar resposta (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2688,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.jid, text: $json.envio, delay: 800 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "id": "94266cd5-7e96-40d7-922a-bd612fba557d",
+      "name": "Registrar conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2912,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/biz_registrar_msgs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: { jid: $('Montar resposta').first().json.jid, msgs: [{ papel: 'usuario', texto: $('Texto final').first().json.texto }, { papel: 'assistente', texto: $('Montar resposta').first().json.texto }] } }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "2de593e2-7de3-4a35-8254-8dfa4dfb9019",
+      "name": "Uso IA (Business)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3136,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_ia_registrar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p: { autor: 'Business: ' + ($('Texto final').first().json.autor || 'piloto'), origem: 'business', tarefa: 'conversa', provedor: 'openai', modelo: $('Interpretar').first().json.modelo, uso: $('Interpretar').first().json.uso, ms: $('Interpretar').first().json.ia_ms || null } }) }}",
+        "options": {
+          "timeout": 8000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "22cf4ea8-f88c-47bc-ae9c-461d0f4c2f6c",
+      "name": "Montar PDFs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        192
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Monta o HTML do orçamento (um item por PDF) para o Gotenberg.\nconst out = [];\nconst f = ($('Executar ações').first().json || {});\nconst emp = f.empresa || {};\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst brl = v => { const n = Number(v || 0); const [i, c] = Math.abs(n).toFixed(2).split('.'); return 'R$ ' + i.replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.') + ',' + c; };\nconst dbr = s => { if (!s) return ''; const p = String(s).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(s); };\nconst hoje = DateTime.now().setZone('America/Sao_Paulo').toFormat('dd/LL/yyyy');\nfor (const x of (f.feitos || [])) {\n  if (!x || !x.ok || !x.gerar_pdf || !x.venda) continue;\n  const v = x.venda;\n  const n = String(v.numero).padStart(4, '0');\n  const qtd = v.quantidade ? Number(v.quantidade) : null;\n  const unit = qtd ? Number(v.valor_total) / qtd : null;\n  const html = `<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\"><style>\n  @page { size: A4; margin: 18mm 16mm; }\n  * { box-sizing: border-box; } body { font-family: \"Helvetica Neue\", Arial, sans-serif; color: #0B1A3A; margin: 0; font-size: 12pt; }\n  .top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #2FD47E; padding-bottom: 14px; }\n  .emp { font-size: 22pt; font-weight: 800; letter-spacing: -0.02em; } .nicho { color: #5B6B85; font-size: 10.5pt; margin-top: 4px; }\n  .doc { text-align: right; } .doc b { display: block; font-size: 15pt; } .doc span { color: #5B6B85; font-size: 10pt; display: block; margin-top: 3px; }\n  .box { margin-top: 22px; display: flex; gap: 16px; } .box > div { flex: 1; background: #F4F7FB; border-radius: 10px; padding: 12px 14px; }\n  .box small { display: block; color: #5B6B85; font-size: 9pt; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }\n  table { width: 100%; border-collapse: collapse; margin-top: 24px; } th { text-align: left; font-size: 9pt; color: #5B6B85; text-transform: uppercase; letter-spacing: .08em; border-bottom: 1px solid #D5DCE8; padding: 8px 6px; }\n  td { padding: 12px 6px; border-bottom: 1px solid #E6EBF2; } td.n, th.n { text-align: right; white-space: nowrap; }\n  .tot { margin-top: 18px; margin-left: auto; width: 46%; } .tot div { display: flex; justify-content: space-between; padding: 6px 0; }\n  .tot .g { font-size: 15pt; font-weight: 800; border-top: 2px solid #0B1A3A; margin-top: 6px; padding-top: 10px; }\n  .cl { margin-top: 2px; } .cl span { color: #5B6B85; font-size: 10pt; } .vazio { display: inline-block; width: 150px; border-bottom: 1px solid #9AA6BA; height: 12px; vertical-align: baseline; }\n  .box + .box { margin-top: 12px; }\n  .sol { margin-top: 26px; border: 1px solid #D5DCE8; border-radius: 10px; padding: 12px 14px; font-size: 11pt; line-height: 1.55; } .sol small { display: block; color: #5B6B85; font-size: 9pt; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }\n  .apr { margin-top: 22px; padding: 12px 14px; border: 1.5px dashed #2FD47E; border-radius: 10px; font-size: 10.5pt; color: #0B1A3A; word-break: break-all; }\n  .obs { margin-top: 18px; font-size: 10.5pt; color: #33415C; } .foot { position: fixed; bottom: 0; left: 0; right: 0; font-size: 8.5pt; color: #8A97AD; border-top: 1px solid #E6EBF2; padding-top: 8px; }\n  </style></head><body>\n  <div class=\"top\">${emp.logo ? `<div><img src=\"${emp.logo}\" style=\"height:70px;display:block\" alt=\"\"></div>` : `<div><div class=\"emp\">${esc(emp.nome || 'Meu negócio')}</div><div class=\"nicho\">${esc(emp.nicho || '')}</div></div>`}\n  <div class=\"doc\"><b>Orçamento Nº ${n}</b><span>Emitido em ${hoje}</span>${v.validade_em ? `<span>Válido até ${dbr(v.validade_em)}</span>` : ''}</div></div>\n  <div class=\"box\"><div><small>Cliente</small><div class=\"cl\"><span>Nome:</span> ${v.cliente_nome ? esc(v.cliente_nome) : '<i class=\"vazio\"></i>'}</div><div class=\"cl\"><span>WhatsApp:</span> ${v.cliente_whatsapp ? esc(v.cliente_whatsapp) : '<i class=\"vazio\"></i>'}</div></div><div><small>Entrega prevista</small>${v.entrega_em ? dbr(v.entrega_em) : 'A combinar'}</div></div>\n  <div class=\"box\"><div><small>Endereço de entrega</small>${v.endereco ? esc(v.endereco) : 'A combinar'}</div></div>\n  <table><thead><tr><th>Descrição</th><th class=\"n\">Qtd.</th><th class=\"n\">Valor unit.</th><th class=\"n\">Total</th></tr></thead>\n  <tbody><tr><td>${esc(v.descricao)}</td><td class=\"n\">${qtd ? esc(String(qtd).replace('.', ',')) + (v.unidade ? ' ' + esc(v.unidade) : '') : '—'}</td><td class=\"n\">${unit ? brl(unit) : '—'}</td><td class=\"n\">${brl(v.valor_total)}</td></tr></tbody></table>\n  <div class=\"tot\"><div><span>Subtotal</span><span>${brl(v.valor_total)}</span></div>${Number(v.sinal) > 0 ? `<div><span>Sinal</span><span>${brl(v.sinal)}</span></div><div><span>Restante</span><span>${brl(Number(v.valor_total) - Number(v.sinal))}</span></div>` : ''}<div class=\"g\"><span>Total</span><span>${brl(v.valor_total)}</span></div></div>\n  ${v.detalhes ? `<div class=\"sol\"><small>Descrição da solicitação</small><div>${esc(v.detalhes).replace(/\\n/g, '<br>')}</div></div>` : ''}\n  ${v.obs ? `<div class=\"obs\"><b>Observações:</b> ${esc(v.obs)}</div>` : ''}\n  ${v.status === 'orcamento' && v.link_token ? `<div class=\"apr\">Para aprovar e pagar este orçamento online (Pix ou cartão): <b>business.dynoapp.com.br/o?t=${esc(v.link_token)}</b></div>` : ''}\n  <div class=\"foot\">Orçamento sem valor fiscal. Gerado pelo Dyno Business.</div>\n  </body></html>`;\n  const bin = await this.helpers.prepareBinaryData(Buffer.from(html, 'utf8'), 'index.html', 'text/html');\n  const nomeArq = 'Orcamento-' + n + '-' + String(emp.nome || 'negocio').normalize('NFD').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.pdf';\n  out.push({ json: { numero: v.numero, arquivo: nomeArq, legenda: '📄 Orçamento Nº ' + n + (v.cliente_nome ? ' · ' + v.cliente_nome : (v.cliente_whatsapp ? ' · ' + v.cliente_whatsapp : '')) + ' · ' + brl(v.valor_total) }, binary: { index: bin } });\n}\nreturn out;\n"
+      }
+    },
+    {
+      "id": "fb777b74-408e-4ae6-ac8c-75e47231d39a",
+      "name": "Gotenberg: PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2912,
+        192
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://dyno-render:3000/forms/chromium/convert/html",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "index"
+            },
+            {
+              "name": "printBackground",
+              "value": "true"
+            },
+            {
+              "name": "preferCssPageSize",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "pdf"
+            }
+          },
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "id": "f91f3519-8baf-4c5d-a57b-3a2773150106",
+      "name": "PDF em base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        192
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const out = [];\nconst items = $input.all();\nfor (let k = 0; k < items.length; k++) {\n  const buf = await this.helpers.getBinaryDataBuffer(k, 'pdf');\n  const src = $('Montar PDFs').all()[k] ? $('Montar PDFs').all()[k].json : {};\n  out.push({ json: { jid: $('Texto final').first().json.jid, media: buf.toString('base64'), arquivo: src.arquivo || 'Orcamento.pdf', legenda: src.legenda || '' } });\n}\nreturn out;\n"
+      }
+    },
+    {
+      "id": "3048bf6d-f0ca-46c9-b7ca-161edfa2b964",
+      "name": "Enviar PDF (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3360,
+        192
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendMedia/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.jid, mediatype: \"document\", mimetype: \"application/pdf\", fileName: $json.arquivo, caption: $json.legenda, media: $json.media }) }}",
+        "options": {
+          "timeout": 60000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1500
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "id": "90bf10dc-56e8-48e7-9642-34ab27af17fc",
+      "name": "É imagem?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        120,
+        -260
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "img1",
+              "leftValue": "={{ $json.imagem === true }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "97cda884-d188-4578-b511-82eaa9ec5c85",
+      "name": "Baixar imagem",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        340,
+        -360
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ message: { key: { id: $json.messageId } }, convertToMp4: false }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/chat/getBase64FromMediaMessage/dyno"
+      }
+    },
+    {
+      "id": "5a05b300-40c4-43cd-a6b1-da653aa1308e",
+      "name": "Logo (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1440,
+        -440
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p: { jid: $('Entrada').first().json.jid, legenda: $('Entrada').first().json.texto || '', mime: $json.mimetype || 'image/jpeg', base64: $json.base64 || '' } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/biz_logo"
+      }
+    },
+    {
+      "id": "7520797d-c50f-4b09-bb88-787ed923e2c6",
+      "name": "Responder imagem",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1680,
+        -360
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: $('Entrada').first().json.jid, text: String.fromCharCode(8203) + '*💼 Dyno Business*' + String.fromCharCode(10) + ($json.texto || 'Recebi a imagem.'), delay: 600 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno"
+      }
+    },
+    {
+      "id": "ce3f271a-fb30-460a-8ed7-7d4f15e246bc",
+      "name": "Legenda é logo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        -360
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "lg1",
+              "leftValue": "={{ /logo/i.test(String($('Entrada').first().json.texto || '')) }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9db7a9a6-7488-4eaf-b88c-a84a4e7bc29e",
+      "name": "Ler imagem (IA)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        780,
+        -200
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5.6-luna', response_format: { type: 'json_object' }, messages: [ { role: 'system', content: 'Você classifica e lê imagens que um vendedor manda no grupo de WhatsApp do negócio dele (impressão 3D e outros). Responda só JSON: {\"tipo\":\"comprovante\"|\"logo\"|\"fatiador\"|\"produto\"|\"outro\",\"valor\":número ou null,\"pagador\":texto ou null,\"recebedor\":texto ou null,\"data\":\"AAAA-MM-DD\" ou null,\"forma\":\"pix\"|\"cartao\"|\"boleto\"|\"transferencia\"|null,\"descricao\":texto curto ou null,\"filamentos\":[{\"slot\":1,\"cor\":\"cor do quadradinho em português ou null\",\"gramas\":número total da linha (modelo + suporte)}] ou null,\"gramas_total\":número ou null,\"tempo_total\":\"5h38m\" ou null}. \"comprovante\" = comprovante/recibo de pagamento, Pix, transferência ou maquininha; \"valor\" = valor pago em reais (ex.: 30.5). \"fatiador\" = tela/print de fatiador 3D (Bambu Studio, Orca, Cura, Prusa) com filamentos, gramas e tempo: preencha filamentos (um por linha/slot, usando a coluna Total em gramas), gramas_total e tempo_total (tempo total de impressão). \"produto\" = foto de um produto/peça (descreva em descricao). Nunca invente: se não der para ler, use null.' }, { role: 'user', content: [ { type: 'text', text: 'Legenda: ' + String($('Entrada').first().json.texto || '(sem legenda)') }, { type: 'image_url', image_url: { url: 'data:' + ($('Baixar imagem').first().json.mimetype || 'image/jpeg') + ';base64,' + ($('Baixar imagem').first().json.base64 || '') } } ] } ] }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://api.openai.com/v1/chat/completions"
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "id": "74f68a86-4a96-4924-8fca-ca578d8c5fc8",
+      "name": "É comprovante?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "// Lê a resposta da IA de visão. Comprovante -> dá baixa; senão segue (pedido/fatiador -> cérebro; resto -> logo/mensagem padrão).\nlet d = {};\ntry { d = JSON.parse($input.first().json.choices[0].message.content); } catch (e) { d = {}; }\nconst leg = String($('Entrada').first().json.texto || '');\nconst comp = d.tipo === 'comprovante' || (/comprovante|paguei|pagamento|pago|pix/i.test(leg) && !['logo', 'fatiador', 'produto'].includes(d.tipo));\nreturn [{ json: { comprovante: !!comp, dados: d, base64: $('Baixar imagem').first().json.base64 || '', mimetype: $('Baixar imagem').first().json.mimetype || 'image/jpeg' } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "9550f718-3504-4cce-aecc-8116d1a0cae0",
+      "name": "Comprovante?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1220,
+        -200
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cp1",
+              "leftValue": "={{ $json.comprovante === true }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "0c943934-c3db-486c-b66f-b14bee7d99e6",
+      "name": "Comprovante (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1440,
+        -280
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p: { jid: $('Entrada').first().json.jid, legenda: $('Entrada').first().json.texto || '', dados: $json.dados || {} } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/biz_comprovante"
+      }
+    },
+    {
+      "id": "f57fb1d4-1eb6-42b9-a1cf-3daf98d07bf3",
+      "name": "Complemento (cálculo 3D)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        260
+      ],
+      "parameters": {
+        "jsCode": "// 08/10: calculadora de custo de impressão 3D + ajustes do prompt (domínio business e cobrança pelo Asaas).\nconst NL = String.fromCharCode(10);\nconst it = $input.first().json;\nconst p = it.payload;\nlet emp = {};\ntry { emp = $('Contexto do negócio').first().json.empresa || {}; } catch (e) { emp = {}; }\nconst kg = emp.calc_valor_kg ? 'R$ ' + String(emp.calc_valor_kg).replace('.', ',') + '/kg (último informado)' : 'AINDA NÃO INFORMADO: pergunte o valor do kg do filamento antes de calcular';\nconst precosCor = Object.keys(emp.calc_precos_cor || {}).length ? Object.entries(emp.calc_precos_cor).map(([c, v]) => c + ' R$ ' + String(v).replace('.', ',')).join(', ') : 'nenhum';\nconst ultimo = Array.isArray(emp.calc_ultimo) && emp.calc_ultimo.length ? emp.calc_ultimo.map(c => (c.descricao || 'item') + ' (custo R$ ' + String(c.custo_total).replace('.', ',') + ')').join(' + ') + (emp.calc_ultimo_em ? ' em ' + DateTime.fromISO(String(emp.calc_ultimo_em)).setZone('America/Sao_Paulo').toFormat('dd/LL HH:mm') : '') : 'nenhum';\nconst extra = [\n  '- calcular_custo {\"horas\",\"gramas\",\"valor_kg\" (opcional: sem ele usa o último informado),\"pecas\" (opcional, quantas peças saem dessa impressão),\"multicolor\":true quando a peça for multicolor/várias cores (soma o desperdício da troca de cor),\"trabalho_horas\" (opcional: tempo de trabalho manual do vendedor nessa peça — fatiar, tirar suporte, acabamento, pintura, embalar; sem ele usa o padrão),\"extras\":[{\"descricao\":\"Verniz\",\"valor\":10},{\"descricao\":\"Material de pintura\",\"valor\":5}] (opcional: custos a mais da peça, como verniz, tinta, ímã, chaveiro, embalagem especial),\"descricao\"}: custo de uma impressão 3D (filamento, desperdício multicolor, energia, desgaste da impressora, peças que falham, tempo de trabalho e manutenção) + extras, com simulação de preço de venda (preços terminados em ,90, lucro e margem bruta sobre o preço) e um preço sugerido. Use quando o vendedor mandar tempo de impressão e gramas (\"quanto cobro: 4h, 60g, filamento 120\"). Converta \"4h30\" em 4.5, \"4h15\" em 4.25 e \"1,2 kg\" em 1200 g; se vier ambíguo como \"4h3\", considere 4h30 e diga isso na resposta. Valor do kg: ' + kg + '. Se faltar tempo ou gramas, PERGUNTE. NÃO lance venda junto: só calcule. Na resposta, só uma frase curta: o sistema mostra a conta e as opções.',\n  '- MULTICOLOR COM PREÇO POR COR: use calcular_custo com \"filamentos\":[{\"cor\":\"azul\",\"gramas\":34.16,\"valor_kg\":89.99}, ...] (uma entrada por cor; gramas = total da cor, modelo + suporte) em vez de \"gramas\"/\"valor_kg\". Sem valor_kg numa cor, o sistema usa o último preço daquela cor. Preços por cor já informados: ' + precosCor + '. TELA DO FATIADOR (Bambu Studio/Orca): quando a mensagem trouxer [dados lidos da imagem], use as gramas TOTAIS de cada filamento e o tempo total dela; associe os slots às cores na ordem em que o vendedor listou os preços (slot 1 = primeira cor da lista, e assim por diante) ou pela cor lida na imagem, e diga na resposta qual cor ficou com cada slot.',\n  '- usar_calculo {\"preco\":valor de venda (ex.: 79.90) ou \"precos\":[um por item] ou \"sugerido\":true ou \"margem\":número sobre o custo (ex.: 180) ou \"margens\":[uma por item],\"cliente\",\"cliente_whatsapp\",\"endereco\",\"entrega\",\"obs\",\"descricao\" (opcional)}: gera o ORÇAMENTO (com PDF e link de aprovação) a partir do ÚLTIMO CÁLCULO de custo, com o preço que o vendedor escolher — qualquer valor, não só os da simulação. Use SEMPRE que, depois de um cálculo, ele responder com um preço (\"79,90\", \"vende por 85\"), \"o sugerido\" ou uma margem (\"180%\"). NUNCA chame calcular_custo de novo só para mudar o preço. Último cálculo guardado: ' + ultimo + '.',\n  '- PEDIDO DE ORÇAMENTO COM VÁRIOS ITENS e tempo/gramas por item (sem preço): faça UMA calcular_custo por item (descricao = item, pecas = quantidade do item). Guarde de cabeça o cliente e o WhatsApp informados. Quando o vendedor escolher (ex.: \"o sugerido\", \"79,90 no primeiro e 49,90 no segundo\", \"100%\"), use usar_calculo com preço(s)/sugerido/margem, cliente e cliente_whatsapp (o sistema soma os preços e monta os detalhes por item).',\n  '- configurar_calculo {\"kw\",\"tarifa_kwh\",\"manutencao\",\"valor_kg\",\"margens\":[50,100,...],\"desgaste_hora\" (R$ por hora de impressora),\"purga_pct\" (% de desperdício no multicolor),\"falha_pct\" (% de peças que falham),\"hora_trabalho\" (R$ por hora do trabalho manual),\"trabalho_padrao_horas\" (tempo manual padrão por peça),\"margem_minima\" (% da 1ª linha da simulação),\"margem_alvo\" (% mínima do preço sugerido)} para mudar os parâmetros (padrão: Bambu Lab A1 0,095 kW, R$ 0,679/kWh, manutenção R$ 1,50, desgaste R$ 1,00/h, multicolor +15%, falhas 8%, mão de obra R$ ' + String(emp.calc_hora_trabalho || 10).replace('.', ',') + '/h com 30 min por peça, simulação a partir de 40% de margem bruta e sugerido com pelo menos 55%).'\n].join(NL);\ntry {\n  const m0 = p.messages[0];\n  if (m0 && typeof m0.content === 'string') {\n    let s = m0.content;\n    const k = s.indexOf(NL + 'REGRAS: ');\n    s = k >= 0 ? s.slice(0, k) + NL + extra + s.slice(k) : s + NL + extra;\n    s = s.split('(dynoapp.com.br/o?t=').join('(business.dynoapp.com.br/o?t=');\n    if (emp.pag_asaas) {\n      s = s.replace(/\\nPAGAMENTO:[^\\n]*/, NL + 'PAGAMENTO (Asaas): quando o cliente aprova, o sistema gera dois links de pagamento do Asaas (Pix e cartão, este com parcelamento) que aparecem na página do orçamento; se o Dyno enviou o orçamento, ele também manda os links ao cliente. Quando o pagamento cai, o sistema dá baixa sozinho e avisa aqui (não precisa de comprovante). Para reenviar os links ao cliente use cobrar_cliente. Comprovante enviado no grupo também dá baixa. Não peça chave Pix nem link de cartão: o Asaas já está configurado.');\n    }\n    m0.content = s;\n  }\n} catch (e) {}\nreturn [{ json: it }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "a5d43ad2-6ca6-409b-a9b7-bf220a72adb2",
+      "name": "Legenda é pedido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        -120
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "lp1",
+              "leftValue": "={{ (String($('Entrada').first().json.texto || '').trim().length >= 15 && (($json.dados || {}).tipo !== 'logo')) || (($json.dados || {}).tipo === 'fatiador') }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8a910a68-5312-469a-afaa-1b4f5b03350b",
+      "name": "Complemento (modo grupo)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// 08/10: o Dyno participa do grupo como um integrante (sócio), não como bot que responde tudo.\n// 08/10 (noite): orçamento fica no grupo; só vai ao cliente com o comando \"enviar para cliente X\".\nconst NL = String.fromCharCode(10);\nconst it = $input.first().json;\nconst p = it.payload;\nconst regra = [\n  '',\n  'MODO GRUPO (o Dyno como integrante da equipe): neste grupo conversam pessoas do negócio (ex.: Daniel e Felipe). Cada mensagem chega como \"Nome: texto\". Leia e entenda TODA a conversa entre eles, mesmo quando não falarem com você.',\n  'Inclua no JSON o campo \"responder\": true ou false.',\n  '- responder = true quando: falarem com você (Dyno, \"você\", pergunta para o grupo que você sabe responder); pedirem uma ação ou informação do negócio; houver venda, orçamento, compra ou pagamento a registrar; ou você tiver uma contribuição realmente útil para o que estão discutindo (ideia de preço ou margem com base nos custos, alerta de prazo de entrega, cliente que ainda não pagou, número do mês que ajuda a decisão, sugestão prática de próximo passo, ideia de produto ou divulgação).',\n  '- responder = false quando: é conversa social ou combinado entre eles que não precisa de você; alguém só confirmou (\"ok\", \"beleza\", \"👍\"); você falou há pouco e não tem nada novo; ou sua fala seria só óbvia. Na dúvida, fique quieto. Com responder=false, deixe \"resposta\" vazia e \"acoes\" vazia.',\n  '- Quando participar espontaneamente: fale como um sócio atento, natural e curto (1 a 3 frases), chame a pessoa pelo nome, dê ideias concretas baseadas nos dados do CONTEXTO, sem repetir o que já disseram. Não se apresente nem explique o que você faz.',\n  '- Se a conversa indicar uma venda ou orçamento mas ninguém pediu para lançar, NÃO lance: pergunte \"Quer que eu lance?\" (ou ofereça calcular o preço). Só execute ações quando pedirem claramente.',\n  '- Respeite quem falou: \"Felipe: lança a venda\" é um pedido do Felipe; responda a ele.'\n].join(NL);\nconst envio = NL + '- enviar_orcamento {\"numero\",\"modo\":\"dyno\"|\"vendedor\",\"whatsapp\" (opcional)}: o orçamento FICA SÓ AQUI NO GRUPO até o vendedor dar o comando explícito \"enviar para cliente X\" (ou \"envia para o cliente X\", \"manda o orçamento para o X\"). Só então use modo \"dyno\" com o número do orçamento desse cliente (pelo CONTEXTO; se houver mais de um em aberto, o mais recente; se X for um número de WhatsApp, use-o em \"whatsapp\"). Se faltar o WhatsApp do cliente, PERGUNTE antes. NUNCA envie ao cliente por conta própria nem com \"sim\", \"ok\" ou \"envia\" soltos. Se o vendedor pedir a mensagem pronta para ele mesmo encaminhar, use modo \"vendedor\". O mesmo vale para cobrar_cliente e lembrar_cliente: só com pedido explícito.';\ntry {\n  const m0 = p.messages[0];\n  if (m0 && typeof m0.content === 'string') {\n    let s = m0.content.replace('{\"resposta\": \"texto para o WhatsApp\", \"acoes\": [ ... ]}', '{\"responder\": true|false, \"resposta\": \"texto para o WhatsApp\", \"acoes\": [ ... ]}');\n    s = s.replace(/\\n- enviar_orcamento[^\\n]*/, envio);\n    s = s.replace('Depois de cada orçamento o sistema pergunta se o vendedor quer que o Dyno envie ao cliente para aprovação.', 'Depois de cada orçamento o sistema só mostra o link no grupo.');\n    m0.content = s + regra;\n  }\n} catch (e) {}\nit._t0 = Date.now(); // 09/10: início da chamada à OpenAI (latência no painel)\nreturn [{ json: it }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "1a97b11a-b2d2-46e8-bba9-0b06d4888173",
+      "name": "Responder?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2576,
+        -120
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "rs1",
+              "leftValue": "={{ $('Interpretar').first().json.responder !== false }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "61075197-b983-4cc6-b6ac-855b80c18aea",
+      "name": "Registrar só a mensagem",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2912,
+        -200
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p: { jid: $('Texto final').first().json.jid, msgs: [{ papel: 'usuario', texto: $('Texto final').first().json.texto }] } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/biz_registrar_msgs"
+      }
+    },
+    {
+      "id": "81d2d887-359a-465b-b692-bab44c838e85",
+      "name": "Cadastro (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1232,
+        320
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p: { jid: $('Entrada').first().json.jid, texto: $('Entrada').first().json.audio ? String(($('Transcrever áudio').first().json || {}).text || '') : String($('Entrada').first().json.texto || ''), autor: $('Entrada').first().json.autor || '', participante: $('Entrada').first().json.participante || '' } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/biz_cadastro"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1e93e1c5-7b46-4b59-8463-a8518c64d212",
+      "name": "Cadastro concluído?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1456,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cad1",
+              "leftValue": "={{ $json.seguir !== false }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "61b130ae-f1ec-42d0-a819-3a7f9d584ffe",
+      "name": "Responder cadastro?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        440
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cad2",
+              "leftValue": "={{ String($json.texto || '').trim().length > 0 }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6e244204-302c-4d2e-8839-2e54efd25e9f",
+      "name": "Enviar cadastro (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1904,
+        440
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: $('Entrada').first().json.jid, text: String.fromCharCode(8203) + '*💼 Dyno Business*' + String.fromCharCode(10) + String($json.texto || ''), delay: 800 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno"
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "id": "c4b00720-0299-4f36-b976-68b69cc45ac1",
+      "name": "Nicho 3D?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        -120
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "n3d",
+              "leftValue": "={{ /3d|impress/i.test(String((($('Contexto do negócio').first().json || {}).empresa || {}).nicho || '')) }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6b2a564d-41a7-48fb-8903-12722f1955e0",
+      "name": "Complemento (domínio)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        -240
+      ],
+      "parameters": {
+        "jsCode": "// 10/10: negócios que não são de impressão 3D pulam a calculadora; só troca o domínio do link de aprovação.\nconst it = $input.first().json;\ntry {\n  const m0 = it.payload.messages[0];\n  if (m0 && typeof m0.content === 'string') m0.content = m0.content.split('(dynoapp.com.br/o?t=').join('(business.dynoapp.com.br/o?t=');\n} catch (e) {}\nreturn [{ json: it }];",
+        "mode": "runOnceForAllItems"
+      }
+    }
+  ],
+  "connections": {
+    "É áudio?": {
+      "main": [
+        [
+          {
+            "node": "Baixar áudio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Texto final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar áudio": {
+      "main": [
+        [
+          {
+            "node": "Áudio em arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Áudio em arquivo": {
+      "main": [
+        [
+          {
+            "node": "Transcrever áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcrever áudio": {
+      "main": [
+        [
+          {
+            "node": "Texto final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contexto do negócio": {
+      "main": [
+        [
+          {
+            "node": "Montar prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI (Business)": {
+      "main": [
+        [
+          {
+            "node": "Interpretar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpretar": {
+      "main": [
+        [
+          {
+            "node": "Executar ações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar ações": {
+      "main": [
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar resposta": {
+      "main": [
+        [
+          {
+            "node": "Montar PDFs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Responder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar resposta (WhatsApp)": {
+      "main": [
+        [
+          {
+            "node": "Registrar conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar conversa": {
+      "main": [
+        [
+          {
+            "node": "Uso IA (Business)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar PDFs": {
+      "main": [
+        [
+          {
+            "node": "Gotenberg: PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gotenberg: PDF": {
+      "main": [
+        [
+          {
+            "node": "PDF em base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF em base64": {
+      "main": [
+        [
+          {
+            "node": "Enviar PDF (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entrada": {
+      "main": [
+        [
+          {
+            "node": "É imagem?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É imagem?": {
+      "main": [
+        [
+          {
+            "node": "Baixar imagem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "É áudio?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Logo (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Responder imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar imagem": {
+      "main": [
+        [
+          {
+            "node": "Legenda é logo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Legenda é logo?": {
+      "main": [
+        [
+          {
+            "node": "Logo (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ler imagem (IA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler imagem (IA)": {
+      "main": [
+        [
+          {
+            "node": "É comprovante?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É comprovante?": {
+      "main": [
+        [
+          {
+            "node": "Comprovante?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comprovante?": {
+      "main": [
+        [
+          {
+            "node": "Comprovante (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Legenda é pedido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comprovante (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Responder imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Legenda é pedido?": {
+      "main": [
+        [
+          {
+            "node": "Texto final",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Logo (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complemento (cálculo 3D)": {
+      "main": [
+        [
+          {
+            "node": "Complemento (modo grupo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complemento (modo grupo)": {
+      "main": [
+        [
+          {
+            "node": "OpenAI (Business)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder?": {
+      "main": [
+        [
+          {
+            "node": "Enviar resposta (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar só a mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar só a mensagem": {
+      "main": [
+        [
+          {
+            "node": "Uso IA (Business)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto final": {
+      "main": [
+        [
+          {
+            "node": "Cadastro (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cadastro (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Cadastro concluído?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cadastro concluído?": {
+      "main": [
+        [
+          {
+            "node": "Contexto do negócio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder cadastro?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder cadastro?": {
+      "main": [
+        [
+          {
+            "node": "Enviar cadastro (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar prompt": {
+      "main": [
+        [
+          {
+            "node": "Nicho 3D?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nicho 3D?": {
+      "main": [
+        [
+          {
+            "node": "Complemento (cálculo 3D)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Complemento (domínio)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complemento (domínio)": {
+      "main": [
+        [
+          {
+            "node": "Complemento (modo grupo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "7cd451c2-7ce1-4158-a822-73126a495831"
+}

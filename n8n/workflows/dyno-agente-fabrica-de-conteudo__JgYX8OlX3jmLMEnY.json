@@ -1,0 +1,233 @@
+{
+  "id": "JgYX8OlX3jmLMEnY",
+  "name": "Dyno | Agente: fábrica de conteúdo",
+  "description": "Toda segunda 09:00: lê os números da semana (anonimizados), pede à IA 5 ideias de post/reel e manda ao Daniel no WhatsApp; guarda em dyno_conteudo_ideias.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all"
+  },
+  "nodes": [
+    {
+      "id": "1f7e6712-654f-4b2c-92c6-315d71acc01f",
+      "name": "Segunda 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "dcdb88fd-3993-489d-adcb-c345d25730b1",
+      "name": "Supabase: números da semana",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_conteudo_dados",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "{\"p_dias\": 7}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3
+    },
+    {
+      "id": "06dffb04-6094-4bde-af30-a86a8cb7ebbf",
+      "name": "Montar pedido à IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "\n// Fábrica de conteúdo (09/10/2026): 5 ideias de post/reel por semana a partir do uso real, anonimizado.\nconst d = $input.first().json || {};\nconst NL = String.fromCharCode(10);\nconst sistema = [\n  'Você é o estrategista de conteúdo do Dyno, um assessor pessoal no WhatsApp com duas vozes: o Dyno (dinheiro: gastos por texto, áudio ou foto do comprovante, contas a pagar, assinaturas, resumo do mês) e a Dina (lembretes que insistem até a pessoa confirmar, tarefas, listas, agenda). Instagram: @dynoapp.ia. Beta fechado com vagas limitadas, 60 dias grátis; entrada em dynoapp.com.br/beta.',\n  'Você recebe os números agregados da última semana e frases reais (anonimizadas) que os clientes mandaram. Crie conteúdo para Instagram/TikTok/Status que mostre o produto resolvendo problemas reais do dia a dia.',\n  'Devolva APENAS um JSON: {\"resumo_semana\": \"1 frase\", \"numeros_destaque\": [\"até 4 números prontos para usar em post, ex.: 112 gastos anotados sem abrir planilha\"], \"ideias\": [{\"formato\": \"reel|carrossel|post|stories\", \"titulo\": \"curto\", \"gancho\": \"primeira frase/3 primeiros segundos\", \"roteiro\": [\"passo ou cena 1\", \"...\"], \"legenda\": \"legenda pronta com no máximo 3 hashtags\", \"cta\": \"chamada final\", \"baseado_em\": \"qual dado ou frase inspirou\"}]}',\n  'Regras: exatamente 5 ideias, variando formatos (pelo menos 2 reels). Nunca use nomes, números de telefone ou valores que identifiquem alguém; as frases de clientes servem de inspiração e devem ser reescritas de forma genérica. Use os números agregados com honestidade (não aumente). Linguagem brasileira, leve, sem promessas financeiras e sem termos técnicos (IA, n8n, modelo). Mostre a conversa no WhatsApp como cena sempre que possível. Português do Brasil.'\n].join(NL);\nconst usuario = 'Números da semana (' + d.de + ' a ' + d.ate + '):' + NL + JSON.stringify(Object.assign({}, d, { exemplos: undefined, elogios: undefined })) + NL + NL +\n  'Frases reais de clientes (anonimizadas):' + NL + (d.exemplos || []).map(x => '- ' + x).join(NL) + NL + NL + 'Elogios:' + NL + (d.elogios || []).map(x => '- ' + x).join(NL);\nconst payload = { model: 'gpt-6-luna', response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sistema }, { role: 'user', content: usuario }] };\nreturn [{ json: { dados: d, payload } }];\n"
+      }
+    },
+    {
+      "id": "483293ee-7128-4752-a2f8-34357b71798f",
+      "name": "OpenAI: criar ideias",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "03fbca79-e86f-4510-a191-f27fb86d9042",
+      "name": "Montar mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "\nconst r = $input.first().json || {};\nconst base = $('Montar pedido à IA').first().json;\nconst NL = String.fromCharCode(10);\nlet j = {};\ntry { j = JSON.parse(String(r.choices[0].message.content || '{}')); } catch (e) { j = { resumo_semana: 'Não consegui interpretar a resposta da IA.', ideias: [] }; }\nconst ic = { reel: '🎬', carrossel: '🖼️', post: '📝', stories: '📱' };\nconst partes = ['🏭 *Fábrica de conteúdo · semana de ' + DateTime.now().setZone('America/Sao_Paulo').minus({ days: 7 }).toFormat('dd/LL') + '*', j.resumo_semana || ''];\nif (Array.isArray(j.numeros_destaque) && j.numeros_destaque.length) partes.push('*Números para usar:*' + NL + j.numeros_destaque.slice(0, 4).map(x => '• ' + x).join(NL));\n(Array.isArray(j.ideias) ? j.ideias : []).slice(0, 5).forEach((x, i) => {\n  partes.push((ic[String(x.formato || '').toLowerCase()] || '💡') + ' *' + (i + 1) + '. ' + (x.titulo || 'Ideia') + '* (' + (x.formato || '') + ')' + NL +\n    '*Gancho:* ' + (x.gancho || '') + NL +\n    (Array.isArray(x.roteiro) && x.roteiro.length ? '*Roteiro:*' + NL + x.roteiro.slice(0, 6).map((c, k) => (k + 1) + ') ' + c).join(NL) + NL : '') +\n    '*Legenda:* ' + (x.legenda || '') + NL + '*CTA:* ' + (x.cta || '') + (x.baseado_em ? NL + '_Baseado em: ' + x.baseado_em + '_' : ''));\n});\npartes.push('As ideias usam só números somados e frases reescritas, sem nomes. Revise antes de postar.');\nlet texto = partes.filter(Boolean).join(NL + NL);\nif (texto.length > 7000) texto = texto.slice(0, 6980) + '…';\nreturn [{ json: { gravar: { p: { de: base.dados.de, ate: base.dados.ate, dados: Object.assign({}, base.dados, { exemplos: undefined }), ideias: j, texto, modelo: r.model || 'gpt-6-luna' } },\n  uso: { p: { autor: 'Sistema', origem: 'fabrica_conteudo', tarefa: 'conteudo', provedor: 'openai', modelo: r.model || 'gpt-6-luna', uso: r.usage || {} } } } }];\n"
+      }
+    },
+    {
+      "id": "8fc20638-557b-48fd-afa9-7d7f6ac7f583",
+      "name": "Supabase: guardar e avisar Daniel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_conteudo_gravar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.gravar) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "3cca907a-cd78-4ade-b409-c71a0efc89e0",
+      "name": "Uso IA: conteúdo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_ia_registrar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Montar mensagem').first().json.uso) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Segunda 09:00": {
+      "main": [
+        [
+          {
+            "node": "Supabase: números da semana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: números da semana": {
+      "main": [
+        [
+          {
+            "node": "Montar pedido à IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar pedido à IA": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: criar ideias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: criar ideias": {
+      "main": [
+        [
+          {
+            "node": "Montar mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar mensagem": {
+      "main": [
+        [
+          {
+            "node": "Supabase: guardar e avisar Daniel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: guardar e avisar Daniel": {
+      "main": [
+        [
+          {
+            "node": "Uso IA: conteúdo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "4ed7ddbd-8963-4944-875f-29d96ba28ccc"
+}

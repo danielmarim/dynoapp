@@ -1,0 +1,173 @@
+{
+  "id": "tG8sWJ9sRx1RpoyV",
+  "name": "Dyno | Agentes de vendas: envio aprovado",
+  "description": "Envia pelo WhatsApp do Dyno só as mensagens de vendas que o Daniel aprovou (admin enviar N); marca como enviada e grava no histórico.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "id": "4a703f1d-c0b5-489e-b2c8-036cc7c3af25",
+      "name": "A cada minuto",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c074c157-d9e6-4ad3-8c39-b3b76b1b4365",
+      "name": "Supabase: fila aprovada",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_vendas_fila",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "db582009-981d-4d68-93e1-2792936cb46e",
+      "name": "Separar mensagens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "\nconst out = [];\nfor (const it of $input.all()) {\n  const j = it.json;\n  const lista = Array.isArray(j) ? j : (Array.isArray(j.data) ? j.data : (j && j.id ? [j] : []));\n  for (const m of lista) if (m && m.id && m.numero && m.texto) out.push({ json: { id: m.id, numero: String(m.numero), texto: String(m.texto) } });\n}\nreturn out;\n"
+      }
+    },
+    {
+      "id": "f86efe2a-72a8-4477-b1b5-db92d576e4bb",
+      "name": "WhatsApp: enviar (Dyno)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero, text: $json.texto }) }}",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 5000
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "056a8328-eabe-4125-88be-c7c08b9a0663",
+      "name": "Supabase: marcar envio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_vendas_enviada",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_id: $('Separar mensagens').item.json.id, p_ok: !$json.error && !!($json.key || $json.status) }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "A cada minuto": {
+      "main": [
+        [
+          {
+            "node": "Supabase: fila aprovada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: fila aprovada": {
+      "main": [
+        [
+          {
+            "node": "Separar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar mensagens": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp: enviar (Dyno)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp: enviar (Dyno)": {
+      "main": [
+        [
+          {
+            "node": "Supabase: marcar envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "ed727774-f756-4e56-98c6-87b4d577f0c8"
+}

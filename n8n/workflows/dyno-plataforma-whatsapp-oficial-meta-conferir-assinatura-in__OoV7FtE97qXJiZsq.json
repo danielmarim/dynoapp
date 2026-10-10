@@ -1,0 +1,90 @@
+{
+  "id": "OoV7FtE97qXJiZsq",
+  "name": "Dyno Plataforma | WhatsApp oficial (Meta) — conferir assinatura (interno)",
+  "description": "Uso interno do webhook da Meta: calcula o HMAC-SHA256 do corpo com a chave do app (vinda da credencial) e devolve só ok true/false. Não grava execuções.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "id": "fbae04b3-ff5a-42a1-878e-cb86c65eadbc",
+      "name": "Conferir assinatura",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-meta-wa-hmac",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "593a28a0-2746-44e1-80b9-aed7d3b2edd0"
+    },
+    {
+      "id": "39cc655f-f5fb-4f4d-8f1b-cdc961aa2c5b",
+      "name": "HMAC SHA256",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "value": "={{ String($json.body.corpo || \"\") }}",
+        "secret": "={{ String($json.headers[\"x-app-secret\"] || \"\") }}",
+        "dataPropertyName": "calc",
+        "encoding": "hex"
+      }
+    },
+    {
+      "id": "bf78c5f1-f78c-4710-a4c2-f908167e2e1e",
+      "name": "Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nconst temSegredo = String((j.headers || {})['x-app-secret'] || '').length >= 16;\nconst esperado = 'sha256=' + String(j.calc || '');\nconst recebido = String((j.body || {}).assinatura || '');\nconst ok = temSegredo && recebido.length === esperado.length && recebido === esperado;\nreturn [{ json: { ok } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Conferir assinatura": {
+      "main": [
+        [
+          {
+            "node": "HMAC SHA256",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HMAC SHA256": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "af6b03fb-a7d2-45d3-b343-298e8a38fb30"
+}

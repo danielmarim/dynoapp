@@ -1,0 +1,540 @@
+{
+  "id": "ssmh5caNcmvqPBSD",
+  "name": "Dyno Plataforma | Backup diário (Drive) e monitor externo",
+  "description": "Todo dia 03:40 salva uma cópia dos dados do Dyno no Google Drive (14 dias) e, a cada 10 min, avisa o Daniel sobre quedas registradas pelo vigia externo do Supabase.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "saveManualExecutions": false,
+    "saveDataSuccessExecution": "none",
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all"
+  },
+  "nodes": [
+    {
+      "id": "ea15db53-1cc9-4234-8d9c-b847b03baabb",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "ef6d1a21-6765-4cf0-8c69-b9132e173c64",
+      "name": "Todo dia 03:40",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "expression": "40 3 * * *",
+              "field": "cronExpression"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "21024b36-e0d2-425e-ba99-d2dce6160f4c",
+      "name": "Supabase: exportar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "{}",
+        "method": "POST",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_backup_export"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "executeOnce": true
+    },
+    {
+      "id": "0e0dd04c-a950-43c3-8c67-61e170e7ef81",
+      "name": "Tabela manutencoes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1240,
+        100
+      ],
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_manutencoes",
+          "mode": "id",
+          "value": "eB1McqY3kZqdeLTU"
+        },
+        "operation": "get",
+        "resource": "row",
+        "returnAll": true
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "47ea4ccc-34cc-47ae-b8f4-2164f4ac0139",
+      "name": "Tabela veiculos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1400,
+        100
+      ],
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_veiculos",
+          "mode": "id",
+          "value": "L6ojMtqlOZEhq5vc"
+        },
+        "operation": "get",
+        "resource": "row",
+        "returnAll": true
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "0e6fd064-4056-46b1-90f6-f5297afccc79",
+      "name": "Tabela extras",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1560,
+        100
+      ],
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_extras",
+          "mode": "id",
+          "value": "mJnt4Rop3vW3pcGI"
+        },
+        "operation": "get",
+        "resource": "row",
+        "returnAll": true
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "38ffcaa2-5ea6-4b33-9dde-0e7eb74924d6",
+      "name": "Tabela rotina",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2200,
+        100
+      ],
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "assessor_rotina",
+          "mode": "id",
+          "value": "NDqcLJBOkeDUUMXq"
+        },
+        "operation": "get",
+        "resource": "row",
+        "returnAll": true
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "ee3ef66d-2995-43bf-a782-4136947b1e13",
+      "name": "Montar arquivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2360,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const NOMES = [\"Tabela transacoes\", \"Tabela tarefas\", \"Tabela lembretes\", \"Tabela contas\", \"Tabela assinaturas\", \"Tabela manutencoes\", \"Tabela veiculos\", \"Tabela extras\", \"Tabela memorias\", \"Tabela orcamentos\", \"Tabela mensagens\", \"Tabela rotina\"];\nconst n8n = {};\nlet total = 0;\nfor (const n of NOMES) {\n  let rows = [];\n  try { rows = $(n).all().map(i => i.json).filter(r => r && r.id != null); } catch (e) { rows = []; }\n  n8n[n.replace('Tabela ', 'assessor_')] = rows; total += rows.length;\n}\nlet supa = {};\ntry { supa = $('Supabase: exportar').first().json || {}; } catch (e) { supa = {}; }\nconst agora = DateTime.now().setZone('America/Sao_Paulo');\nconst nome = 'dyno-backup-' + agora.toFormat('yyyy-LL-dd_HHmm') + '.json';\nconst conteudo = JSON.stringify({ gerado_em: agora.toISO(), aviso: 'Contém dados pessoais. Guardar só nesta pasta privada.', supabase: supa, n8n_data_tables: n8n });\nreturn [{ json: { nome, total, bytes: conteudo.length }, binary: { data: { data: Buffer.from(conteudo, 'utf8').toString('base64'), mimeType: 'application/json', fileName: nome } } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "7df18e4a-c8f0-4406-b4ad-9397759eca4b",
+      "name": "Drive: salvar backup",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2560,
+        100
+      ],
+      "parameters": {
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "cachedResultName": "Dyno - Backups (privado)",
+          "mode": "id",
+          "value": "1I4U6dXr_KLbwbGhGF09Lgtbs9Sq4SAVc"
+        },
+        "inputDataFieldName": "data",
+        "name": "={{ $json.nome }}",
+        "operation": "upload",
+        "options": {},
+        "resource": "file"
+      },
+      "retryOnFail": true,
+      "maxTries": 3
+    },
+    {
+      "id": "0050918f-ef9a-4645-8c85-7b026174414b",
+      "name": "Drive: backups existentes",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2760,
+        100
+      ],
+      "parameters": {
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "1I4U6dXr_KLbwbGhGF09Lgtbs9Sq4SAVc"
+          },
+          "whatToSearch": "files"
+        },
+        "operation": "search",
+        "options": {},
+        "queryString": "dyno-backup-",
+        "resource": "fileFolder",
+        "returnAll": true,
+        "searchMethod": "name"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "861df2c2-98c7-4aa9-ae66-3a714ba461c9",
+      "name": "Backups antigos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2960,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// Mantém os 14 backups mais recentes (pelo nome com data); os mais antigos vão para a lixeira do Drive\nconst arquivos = $input.all().map(i => i.json).filter(f => f && f.id && /^dyno-backup-\\d{4}-\\d{2}-\\d{2}_\\d{4}\\.json$/.test(String(f.name || '')));\narquivos.sort((a, b) => String(b.name).localeCompare(String(a.name)));\nconst remover = arquivos.slice(14);\nreturn remover.length ? remover.map(f => ({ json: { id: f.id, name: f.name } })) : [];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "2e137c42-882a-4d14-b4fb-7db429c88498",
+      "name": "Drive: mover antigo para lixeira",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3160,
+        100
+      ],
+      "parameters": {
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "operation": "deleteFile",
+        "options": {
+          "deletePermanently": false
+        },
+        "resource": "file"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "d0ac91fa-4cf2-475a-b159-dd18c3c412d6",
+      "name": "A cada 10 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        450
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b99f3ab1-c424-468d-9724-477d3aff2983",
+      "name": "Supabase: quedas registradas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        220,
+        450
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "{}",
+        "method": "POST",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_monitor_relatorio"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "df806c9a-d84c-400a-a971-040b60e27a11",
+      "name": "Teve queda?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        450
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ String($json.texto || '').length > 0 }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        }
+      }
+    },
+    {
+      "id": "94df5581-7acd-42b9-8559-f171cdaf5449",
+      "name": "Avisar Daniel (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        660,
+        450
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: '5511930851325', text: String.fromCharCode(8203) + $json.texto, delay: 500 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno"
+      },
+      "retryOnFail": true,
+      "maxTries": 3
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Supabase: exportar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Todo dia 03:40": {
+      "main": [
+        [
+          {
+            "node": "Supabase: exportar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela manutencoes": {
+      "main": [
+        [
+          {
+            "node": "Tabela veiculos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela veiculos": {
+      "main": [
+        [
+          {
+            "node": "Tabela extras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela rotina": {
+      "main": [
+        [
+          {
+            "node": "Montar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar arquivo": {
+      "main": [
+        [
+          {
+            "node": "Drive: salvar backup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: salvar backup": {
+      "main": [
+        [
+          {
+            "node": "Drive: backups existentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: backups existentes": {
+      "main": [
+        [
+          {
+            "node": "Backups antigos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backups antigos": {
+      "main": [
+        [
+          {
+            "node": "Drive: mover antigo para lixeira",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A cada 10 min": {
+      "main": [
+        [
+          {
+            "node": "Supabase: quedas registradas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: quedas registradas": {
+      "main": [
+        [
+          {
+            "node": "Teve queda?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Teve queda?": {
+      "main": [
+        [
+          {
+            "node": "Avisar Daniel (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: exportar": {
+      "main": [
+        [
+          {
+            "node": "Tabela manutencoes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela extras": {
+      "main": [
+        [
+          {
+            "node": "Tabela rotina",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "7684382c-b38d-4cc1-9c70-9f233babd3a5"
+}

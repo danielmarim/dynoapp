@@ -1,7 +1,7 @@
 {
-  "id": "BBRCGBQtIX8waiqL",
-  "name": "Dyno | Lembrete de cadastro incompleto",
-  "description": "A cada hora: lembra quem começou o cadastro do piloto e não terminou (máx. 4, a cada 6h, fora de 21h–8h) e manda ao Daniel lembretes prontos dos convites não usados.",
+  "id": "eMOWZy0KILgWO3uk",
+  "name": "Dyno | Agente: assinaturas",
+  "description": "Todo dia 09:15: acerta datas de cobrança, sugere assinaturas novas e mudanças de preço (AJUSTAR/IGNORAR), pergunta o dia que falta e aponta serviços repetidos.",
   "active": true,
   "settings": {
     "executionOrder": "v1",
@@ -13,8 +13,8 @@
   },
   "nodes": [
     {
-      "id": "e17d1f30-28d0-4bcf-9425-dbe9a45ee50d",
-      "name": "A cada hora",
+      "id": "8675774c-88ce-47c7-bf6b-abe44fc12d21",
+      "name": "Todo dia 09:15",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
@@ -25,16 +25,16 @@
         "rule": {
           "interval": [
             {
-              "field": "hours",
-              "hoursInterval": 1
+              "field": "cronExpression",
+              "expression": "15 9 * * *"
             }
           ]
         }
       }
     },
     {
-      "id": "2be7ba0c-084c-49d1-87c4-a0282d1777dc",
-      "name": "Supabase: lembretes de cadastro",
+      "id": "a31ba608-f779-4303-b8c5-058020c5f540",
+      "name": "Supabase: agente de assinaturas",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
@@ -43,7 +43,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_cadastro_lembretes",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_assin_agente",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -51,12 +51,14 @@
         "specifyBody": "json",
         "jsonBody": "{}",
         "options": {
-          "timeout": 20000
+          "timeout": 90000
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
     },
     {
-      "id": "dcb965ee-494f-428d-806c-b01a5281c8bd",
+      "id": "d0ff7516-458a-40ab-a32f-c03f9701d6b4",
       "name": "Separar mensagens",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -66,13 +68,12 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "language": "javaScript",
-        "jsCode": "const ZW = String.fromCharCode(8203);\nconst r = $input.first().json || {};\nconst msgs = Array.isArray(r.mensagens) ? r.mensagens : [];\nreturn msgs.filter(m => m && m.numero && m.texto).map(m => ({ json: { corpo: { number: String(m.numero), text: ZW + String(m.texto), delay: 1200 }, passo: m.passo } }));"
+        "jsCode": "// Agente de assinaturas (08/10/2026): uma mensagem por cliente que tem algo a ver; resumo ao Daniel só quando houver envio.\nconst ZW = String.fromCharCode(8203), NL = String.fromCharCode(10);\nconst lista = $input.all().map(i => i.json).filter(x => x && x.autor && x.numero && x.texto);\nconst out = lista.map(x => ({ json: { number: String(x.numero), text: ZW + x.texto, delay: 1200 } }));\nif (out.length) {\n  out.push({ json: { number: '5511930851325', text: ZW + '🔁 *Agente de assinaturas*' + NL + 'Mensagens enviadas para ' + lista.map(x => x.autor + (x.sugestoes ? ' (' + x.sugestoes + ' sugestão(ões))' : '')).join(', ') + '.', delay: 800 } });\n}\nreturn out;"
       }
     },
     {
-      "id": "ad03f525-074d-40e2-bfb2-e0e7423787d9",
-      "name": "Enviar lembrete (Dyno)",
+      "id": "4e253a4b-31d7-4894-a822-952d5ef3997d",
+      "name": "WhatsApp: enviar",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
@@ -87,33 +88,35 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "jsonBody": "={{ JSON.stringify($json) }}",
         "options": {
-          "timeout": 20000,
+          "timeout": 30000,
           "batching": {
             "batch": {
               "batchSize": 1,
-              "batchInterval": 4000
+              "batchInterval": 3000
             }
           }
         }
       },
+      "retryOnFail": true,
+      "maxTries": 2,
       "onError": "continueRegularOutput"
     }
   ],
   "connections": {
-    "A cada hora": {
+    "Todo dia 09:15": {
       "main": [
         [
           {
-            "node": "Supabase: lembretes de cadastro",
+            "node": "Supabase: agente de assinaturas",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Supabase: lembretes de cadastro": {
+    "Supabase: agente de assinaturas": {
       "main": [
         [
           {
@@ -128,7 +131,7 @@
       "main": [
         [
           {
-            "node": "Enviar lembrete (Dyno)",
+            "node": "WhatsApp: enviar",
             "type": "main",
             "index": 0
           }
@@ -137,5 +140,5 @@
     }
   },
   "tags": [],
-  "versionId": "eab95255-4624-4d1e-8ecc-6e676223675a"
+  "versionId": "16b129b4-257e-4ae1-95e9-01d3b1252dbb"
 }

@@ -1,0 +1,423 @@
+{
+  "id": "vHgQGdXOB5gmZS6V",
+  "name": "Dyno Plataforma | WhatsApp oficial (Meta) — webhook",
+  "description": "Recebe o webhook da API oficial do WhatsApp (Meta): responde a verificação (GET) e guarda os eventos (POST) em dyno_meta_wa_eventos.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "id": "82fab6af-cbad-4e11-8cc1-fbc820814ffa",
+      "name": "Meta: verificação (GET)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        96
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "dyno-meta-wa",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "4f00972b-d18f-4d04-92d4-64c190c4f8cc"
+    },
+    {
+      "id": "17c113b8-243d-4c75-a324-e4beed3403b9",
+      "name": "Conferir token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        96
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_meta_wa_verificar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ p_token: String($json.query[\"hub.verify_token\"] || \"\") }) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "84ece427-d4d2-450d-87b3-1de668636662",
+      "name": "Token confere?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ String($json.data).trim() }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "true"
+            },
+            {
+              "leftValue": "={{ $(\"Meta: verificação (GET)\").first().json.query[\"hub.mode\"] }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "subscribe"
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "7ee26b07-35ac-46ca-9403-cc6c6e5818ca",
+      "name": "Responder challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $(\"Meta: verificação (GET)\").first().json.query[\"hub.challenge\"] }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "0e7086d5-1c49-4305-9cb3-8170bf789fe7",
+      "name": "Recusar (403)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        192
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "forbidden",
+        "options": {
+          "responseCode": 403
+        }
+      }
+    },
+    {
+      "id": "94721ab0-01e4-4e86-8115-e9375237d6e6",
+      "name": "Meta: eventos (POST)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        416
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-meta-wa",
+        "responseMode": "onReceived",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "webhookId": "c4162fbc-6848-4d9e-9f6b-d500c741bc96"
+    },
+    {
+      "id": "8e73c07d-5604-4e9c-aa1a-4418063217f8",
+      "name": "Guardar evento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        880,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_meta_wa_evento",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ p: $('Corpo bruto').first().json.body || {} }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "9b22a619-2403-4c40-806c-1ab33e32305b",
+      "name": "Corpo bruto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const it = $input.first();\nlet corpo = '';\ntry { const buf = await this.helpers.getBinaryDataBuffer(0, 'data'); corpo = buf.toString('utf8'); } catch (e) { corpo = ''; }\nconst h = it.json.headers || {};\nreturn [{ json: { corpo, assinatura: String(h['x-hub-signature-256'] || ''), body: it.json.body || {} } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "9203515c-1ce4-4475-be66-25655463177a",
+      "name": "Conferir assinatura",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ corpo: $json.corpo, assinatura: $json.assinatura }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "http://localhost:5678/webhook/dyno-meta-wa-hmac"
+      }
+    },
+    {
+      "id": "0ead0522-f0eb-4891-8750-d43545e3cb75",
+      "name": "Assinatura válida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.ok === true }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "e3facf20-39a2-4cbb-a113-621174c97548",
+      "name": "Registrar rejeitado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        880,
+        420
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p: { rejeitado: true, motivo: 'assinatura_invalida', tamanho: String($('Corpo bruto').first().json.corpo || '').length } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_meta_wa_evento"
+      }
+    },
+    {
+      "id": "e51cf935-d0f0-4f85-85fb-61736ad3cc44",
+      "name": "Montar p/ cérebro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "jsCode": "// 09/10: traduz a mensagem da API oficial (Meta) para o formato da Evolution que o cérebro já entende. canal='meta' faz o cérebro responder pela ponte.\nconst b = $('Corpo bruto').first().json.body || {};\nconst out = [];\nfor (const e of (b.entry || [])) for (const c of (e.changes || [])) {\n  const v = c.value || {};\n  const contatos = v.contacts || [];\n  for (const m of (v.messages || [])) {\n    const nome = ((contatos.find(x => x.wa_id === m.from) || contatos[0] || {}).profile || {}).name || '';\n    let message = {}, messageType = 'conversation';\n    const t = String(m.type || '');\n    if (t === 'text') message = { conversation: (m.text || {}).body || '' };\n    else if (t === 'image') { message = { imageMessage: { caption: (m.image || {}).caption || '', mimetype: (m.image || {}).mime_type || 'image/jpeg' } }; messageType = 'imageMessage'; }\n    else if (t === 'audio') { message = { audioMessage: { mimetype: (m.audio || {}).mime_type || 'audio/ogg', ptt: !!(m.audio || {}).voice } }; messageType = 'audioMessage'; }\n    else if (t === 'document') { const d = m.document || {}; message = { documentMessage: { fileName: d.filename || 'documento', mimetype: d.mime_type || '', caption: d.caption || '' } }; messageType = 'documentMessage'; }\n    else if (t === 'location') { const l = m.location || {}; message = { locationMessage: { degreesLatitude: l.latitude, degreesLongitude: l.longitude, name: l.name || '', address: l.address || '' } }; messageType = 'locationMessage'; }\n    else if (t === 'button') message = { conversation: (m.button || {}).text || '' };\n    else if (t === 'interactive') { const i = m.interactive || {}; message = { conversation: (i.button_reply || {}).title || (i.list_reply || {}).title || '' }; }\n    else if (t === 'contacts') message = { conversation: (m.contacts || []).slice(0, 5).map(k => { const p = (k.phones || [])[0] || {}; return '[contato compartilhado: ' + ((k.name || {}).formatted_name || 'sem nome') + ' — ' + (p.wa_id ? '+' + p.wa_id : (p.phone || 'sem número')) + ']'; }).join(' ') };\n    else continue;\n    out.push({ json: { event: 'messages.upsert', instance: 'dyno', canal: 'meta', sender: String((v.metadata || {}).display_phone_number || '') + '@s.whatsapp.net', data: { key: { remoteJid: String(m.from) + '@s.whatsapp.net', fromMe: false, id: String(m.id || '') }, pushName: nome, message, messageType, messageTimestamp: Number(m.timestamp) || 0 } } });\n  }\n}\nreturn out;",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "59d8008d-bb9e-4409-9c86-339386a6317f",
+      "name": "Entregar ao cérebro",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1320,
+        200
+      ],
+      "parameters": {
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "http://localhost:5678/webhook/assessor-whatsapp"
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Meta: verificação (GET)": {
+      "main": [
+        [
+          {
+            "node": "Conferir token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir token": {
+      "main": [
+        [
+          {
+            "node": "Token confere?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token confere?": {
+      "main": [
+        [
+          {
+            "node": "Responder challenge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Recusar (403)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta: eventos (POST)": {
+      "main": [
+        [
+          {
+            "node": "Corpo bruto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Corpo bruto": {
+      "main": [
+        [
+          {
+            "node": "Conferir assinatura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir assinatura": {
+      "main": [
+        [
+          {
+            "node": "Assinatura válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assinatura válida?": {
+      "main": [
+        [
+          {
+            "node": "Guardar evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar rejeitado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar evento": {
+      "main": [
+        [
+          {
+            "node": "Montar p/ cérebro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar p/ cérebro": {
+      "main": [
+        [
+          {
+            "node": "Entregar ao cérebro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "51fe154d-bc05-4504-8e66-a81e02292581"
+}

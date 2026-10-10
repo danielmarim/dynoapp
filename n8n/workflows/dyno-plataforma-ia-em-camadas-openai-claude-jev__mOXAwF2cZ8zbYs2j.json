@@ -1,5 +1,18 @@
 {
-  "name": "Dyno | IA em camadas (OpenAI, Claude, Jev)",
+  "id": "mOXAwF2cZ8zbYs2j",
+  "name": "Dyno Plataforma | IA em camadas (OpenAI, Claude, Jev)",
+  "description": "Camada única de IA do Dyno: escolhe OpenAI, Claude ou Jev pela configuração no Supabase (dyno_config ia_*), converte o pedido para cada API e usa OpenAI como reserva se o Claude falhar.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner",
+    "binaryMode": "separate"
+  },
   "nodes": [
     {
       "parameters": {
@@ -35,13 +48,7 @@
         224,
         288
       ],
-      "executeOnce": true,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qgXgW9Cfnyoli06W",
-          "name": "Supabase_Dyno"
-        }
-      }
+      "executeOnce": true
     },
     {
       "parameters": {
@@ -66,7 +73,7 @@
                   "caseSensitive": true,
                   "leftValue": "",
                   "typeValidation": "strict",
-                  "version": 2
+                  "version": 1
                 },
                 "conditions": [
                   {
@@ -75,8 +82,7 @@
                       "type": "string",
                       "operation": "equals"
                     },
-                    "rightValue": "openai",
-                    "id": "67895057-e7e3-4b1c-949e-9ac2edd8d6f0"
+                    "rightValue": "openai"
                   }
                 ],
                 "combinator": "and"
@@ -88,7 +94,7 @@
                   "caseSensitive": true,
                   "leftValue": "",
                   "typeValidation": "strict",
-                  "version": 2
+                  "version": 1
                 },
                 "conditions": [
                   {
@@ -97,8 +103,7 @@
                       "type": "string",
                       "operation": "equals"
                     },
-                    "rightValue": "claude",
-                    "id": "e36dc808-56fe-4292-b8d4-b8285624154c"
+                    "rightValue": "claude"
                   }
                 ],
                 "combinator": "and"
@@ -110,7 +115,7 @@
                   "caseSensitive": true,
                   "leftValue": "",
                   "typeValidation": "strict",
-                  "version": 2
+                  "version": 1
                 },
                 "conditions": [
                   {
@@ -119,8 +124,7 @@
                       "type": "string",
                       "operation": "equals"
                     },
-                    "rightValue": "jev",
-                    "id": "20668044-603e-4f9d-89f5-1b2478338433"
+                    "rightValue": "jev"
                   }
                 ],
                 "combinator": "and"
@@ -146,14 +150,23 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/chat/completions",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": false,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ \"Bearer \" + $env.OPENAI_API_KEY }}"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.openai) }}",
         "options": {
           "timeout": 240000
-        }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "70637f32-cbe5-4d9a-a224-b402a3c6f594",
       "name": "OpenAI",
@@ -163,12 +176,6 @@
         896,
         0
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "6jzmZOmpNvQFufRa",
-          "name": "openai-dyno"
-        }
-      },
       "onError": "continueErrorOutput"
     },
     {
@@ -214,12 +221,6 @@
         896,
         192
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "J3HH91m1w8lE8P20",
-          "name": "anthropic-dyno"
-        }
-      },
       "onError": "continueErrorOutput"
     },
     {
@@ -243,26 +244,29 @@
         896,
         384
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "iVvXmDvq6hDDkKXN",
-          "name": "jev-typesafe"
-        }
-      },
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/chat/completions",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": false,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ \"Bearer \" + $env.OPENAI_API_KEY }}"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($('Montar pedido').first().json.openai) }}",
         "options": {
           "timeout": 240000
-        }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "477ac273-0d47-454f-b2d6-6bcda925db44",
       "name": "Reserva (OpenAI)",
@@ -270,29 +274,11 @@
       "typeVersion": 4.3,
       "position": [
         896,
-        608
+        672
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "6jzmZOmpNvQFufRa",
-          "name": "openai-dyno"
-        }
-      },
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_ia_registrar",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ p: { autor: $('Receber pedido').first().json.autor || null, origem: $('Receber pedido').first().json.origem || 'camada', tarefa: $('Montar pedido').first().json.tarefa, provedor: $json.provedor, modelo: $json.modelo, uso: $json.uso || {}, ms: $json.ms } }) }}",
-        "options": {
-          "timeout": 8000
-        }
-      },
       "id": "be83eab2-0ff4-409c-972f-28561ab04370",
       "name": "Registrar uso",
       "type": "n8n-nodes-base.httpRequest",
@@ -301,18 +287,22 @@
         1344,
         384
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qgXgW9Cfnyoli06W",
-          "name": "Supabase_Dyno"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p: { autor: $('Receber pedido').first().json.autor || null, origem: $('Receber pedido').first().json.origem || 'camada', tarefa: $('Montar pedido').first().json.tarefa, provedor: $json.provedor, modelo: $json.modelo, uso: $json.uso || {}, ms: $json.ms } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 8000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_ia_registrar"
       },
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": {
-        "jsCode": "return $('Normalizar resposta').all();"
-      },
       "id": "79195b8b-7067-4b91-8faf-f4fc47b0434b",
       "name": "Devolver resposta",
       "type": "n8n-nodes-base.code",
@@ -320,7 +310,10 @@
       "position": [
         1568,
         384
-      ]
+      ],
+      "parameters": {
+        "jsCode": "return $('Normalizar resposta').all();"
+      }
     }
   ],
   "connections": {
@@ -470,24 +463,6 @@
       ]
     }
   },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": true,
-    "errorWorkflow": "5UUmuzItIYDsd3AG",
-    "timezone": "America/Sao_Paulo",
-    "saveDataErrorExecution": "all",
-    "saveDataSuccessExecution": "none",
-    "callerPolicy": "workflowsFromSameOwner"
-  },
-  "versionId": "05da99df-66a6-41a3-ba8e-e3b67e277a53",
-  "meta": {
-    "aiBuilderAssisted": true,
-    "builderVariant": "mcp",
-    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
-  },
-  "nodeGroups": [],
-  "id": "mOXAwF2cZ8zbYs2j",
-  "tags": []
+  "tags": [],
+  "versionId": "f9056662-c70d-4c0b-b2ed-dcdcde91d4d0"
 }

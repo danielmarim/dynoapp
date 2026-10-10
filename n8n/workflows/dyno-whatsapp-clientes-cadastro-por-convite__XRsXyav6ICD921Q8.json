@@ -1,72 +1,86 @@
 {
+  "id": "XRsXyav6ICD921Q8",
   "name": "Dyno | WhatsApp clientes (cadastro por convite)",
+  "description": "Cadastro do piloto pelo WhatsApp do Dyno: convite, nome, e-mail, aceite; cria assinatura no Asaas e envia o link de pagamento.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
   "nodes": [
     {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "dyno-whatsapp",
-        "options": {}
-      },
       "id": "ca652936-c1a3-4f66-9f01-6a8fd4e3bc40",
       "name": "Recebe WhatsApp (Dyno)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
         0,
-        304
+        300
       ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dyno-whatsapp",
+        "options": {}
+      },
       "webhookId": "9ffa81c5-6441-491c-85d7-88c4174c9d7f"
     },
     {
-      "parameters": {
-        "jsCode": "const ZW = String.fromCharCode(8203);\nconst raw = $input.first().json.body || $input.first().json;\nconst evento = String(raw.event || '').toLowerCase().replace('_', '.');\nif (evento && evento !== 'messages.upsert') return [];\nconst d = Array.isArray(raw.data) ? (raw.data[0] || {}) : (raw.data || {});\nconst key = d.key || {};\nconst jid = String(key.remoteJid || '');\nif (!jid || jid.includes('@g.us') || jid.includes('broadcast') || jid.includes('newsletter') || jid.startsWith('status@')) return [];\nif (key.fromMe === true) return [];\nconst digitos = s => String(s || '').split('@')[0].split(':')[0].replace(/\\D/g, '');\nconst alt = key.remoteJidAlt || key.senderPn || d.senderPn || '';\nconst numero = jid.endsWith('@lid') ? digitos(alt) : digitos(jid);\nconst m = d.message || {};\nlet texto = m.conversation || (m.extendedTextMessage && m.extendedTextMessage.text) || '';\nif (m.buttonsResponseMessage) texto = m.buttonsResponseMessage.selectedDisplayText || texto;\nif (m.listResponseMessage) texto = m.listResponseMessage.title || texto;\ntexto = String(texto || '').trim();\nif (!texto || texto.startsWith(ZW)) return [];\nif (!/^55[0-9]{10,11}$/.test(numero)) return [];\nconst cpfValido = c => {\n  if (c.length !== 11 || /^(\\d)\\1{10}$/.test(c)) return false;\n  const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += Number(c[i]) * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };\n  return dv(9) === Number(c[9]) && dv(10) === Number(c[10]);\n};\nlet textoRpc = texto.slice(0, 500);\nlet cpf = '';\nif (/^__cpf_/.test(textoRpc)) textoRpc = '(texto)';\nconst soDig = texto.replace(/[\\s.\\-]/g, '');\nif (/^[0-9]{11}$/.test(soDig)) {\n  if (cpfValido(soDig)) { cpf = soDig; textoRpc = '__cpf_ok__'; } else { textoRpc = '__cpf_invalido__'; }\n}\nreturn [{ json: { numero: numero, texto: textoRpc, cpf: cpf, nome: String(d.pushName || '') } }];"
-      },
       "id": "397ab229-6ec6-475c-9278-50497728deda",
       "name": "Normalizar mensagem",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         240,
-        304
-      ]
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ZW = String.fromCharCode(8203);\n// 10/10: mensagem citada (o Daniel/cliente respondeu a uma mensagem específica do Dyno).\nconst ctxCit = (m, d) => (m.extendedTextMessage && m.extendedTextMessage.contextInfo) || (m.imageMessage && m.imageMessage.contextInfo) || (m.audioMessage && m.audioMessage.contextInfo) || (m.documentMessage && m.documentMessage.contextInfo) || (m.videoMessage && m.videoMessage.contextInfo) || (m.documentWithCaptionMessage && m.documentWithCaptionMessage.message && m.documentWithCaptionMessage.message.documentMessage && m.documentWithCaptionMessage.message.documentMessage.contextInfo) || d.contextInfo || null;\nconst textoCitado = (m, d) => {\n  const cx = ctxCit(m, d);\n  const q = (cx && cx.quotedMessage) || null;\n  if (!q) return '';\n  const t = q.conversation || (q.extendedTextMessage && q.extendedTextMessage.text) || (q.imageMessage && (q.imageMessage.caption || '[foto]')) || (q.videoMessage && (q.videoMessage.caption || '[vídeo]')) || (q.documentMessage && (q.documentMessage.caption || q.documentMessage.fileName || '[arquivo]')) || (q.audioMessage ? '[áudio]' : '') || '';\n  return String(t).split(String.fromCharCode(8203)).join('').trim().slice(0, 1200);\n};\n// Resposta curta do admin a um aviso (Beta, pedido de função, lead do Business) vira o comando correspondente.\nconst comandoCitado = (t, c) => {\n  if (!c) return '';\n  const tl = String(t || '').trim().toLowerCase();\n  if (!tl || tl.length > 40) return '';\n  const SIM = /^(sim|ok|pode|aprov\\w*|manda|libera\\w*|confirm\\w*|isso|bora)(\\s|$|[.!,])|^(👍|✅)/u.test(tl);\n  const NAO = /^(n[ãa]o|recus\\w*|nega\\w*|arquiv\\w*|descart\\w*)(\\s|$|[.!,])|^(👎|❌)/u.test(tl);\n  const FEITO = /^(feito|pronto|implantad\\w*|fiz|conclu\\w*|entregue)(\\s|$|[.!,])/u.test(tl);\n  let r = c.match(/Pedido para o Beta\\*?\\s*\\(n[º°o.]?\\s*(\\d+)\\)/i);\n  if (r) return SIM ? 'aprovar ' + r[1] : (NAO ? 'recusar ' + r[1] : '');\n  r = c.match(/Pedido de fun[çc][ãa]o #(\\d+)/i);\n  if (r) return FEITO ? 'admin pedido ' + r[1] + ' feito' : (SIM ? 'admin pedido ' + r[1] + ' sim' : (NAO ? 'admin pedido ' + r[1] + ' nao' : ''));\n  r = c.match(/Dyno Business:[^\\n]*?\\(n[º°o.]?\\s*(\\d+)\\)/i);\n  if (r && SIM) return 'admin business lead ' + r[1];\n  return '';\n};\nconst raw = $input.first().json.body || $input.first().json;\nconst evento = String(raw.event || '').toLowerCase().replace('_', '.');\nif (evento && evento !== 'messages.upsert') return [];\nconst d = Array.isArray(raw.data) ? (raw.data[0] || {}) : (raw.data || {});\nconst key = d.key || {};\nconst jid = String(key.remoteJid || '');\nif (!jid || jid.includes('@g.us') || jid.includes('broadcast') || jid.includes('newsletter') || jid.startsWith('status@')) return [];\nif (key.fromMe === true) return [];\nconst digitos = s => String(s || '').split('@')[0].split(':')[0].replace(/\\D/g, '');\nconst alt = key.remoteJidAlt || key.senderPn || d.senderPn || '';\nconst numero = jid.endsWith('@lid') ? digitos(alt) : digitos(jid);\nconst m = d.message || {};\nlet texto = m.conversation || (m.extendedTextMessage && m.extendedTextMessage.text) || '';\nif (m.buttonsResponseMessage) texto = m.buttonsResponseMessage.selectedDisplayText || texto;\nif (m.listResponseMessage) texto = m.listResponseMessage.title || texto;\ntexto = String(texto || '').trim();\nif (!texto || texto.startsWith(ZW)) return [];\nif (!/^55[0-9]{10,11}$/.test(numero)) return [];\nconst citada = textoCitado(m, d);\nif (numero === '5511930851325' && citada) { const cmd = comandoCitado(texto, citada); if (cmd) texto = cmd; }\nconst cpfValido = c => {\n  if (c.length !== 11 || /^(\\d)\\1{10}$/.test(c)) return false;\n  const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += Number(c[i]) * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };\n  return dv(9) === Number(c[9]) && dv(10) === Number(c[10]);\n};\nlet textoRpc = texto.slice(0, 500);\nlet cpf = '';\nif (/^__cpf_/.test(textoRpc)) textoRpc = '(texto)';\nconst soDig = texto.replace(/[\\s.\\-]/g, '');\nif (/^[0-9]{11}$/.test(soDig)) {\n  if (cpfValido(soDig)) { cpf = soDig; textoRpc = '__cpf_ok__'; } else { textoRpc = '__cpf_invalido__'; }\n}\nreturn [{ json: { numero: numero, texto: textoRpc, cpf: cpf, nome: String(d.pushName || ''), citada } }];"
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_whatsapp_passo",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ p_whatsapp: $json.numero, p_texto: $json.texto }) }}",
-        "options": {
-          "timeout": 15000
-        }
-      },
       "id": "1749881c-d94f-404a-93ce-e3eb25210840",
       "name": "Supabase: passo do cadastro",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
         480,
-        304
+        300
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qgXgW9Cfnyoli06W",
-          "name": "Supabase_Dyno"
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_whatsapp_passo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_whatsapp: $json.numero, p_texto: $json.texto }) }}",
+        "options": {
+          "timeout": 15000
         }
       },
       "onError": "continueRegularOutput"
     },
     {
+      "id": "cdcccf57-7dd8-4cfb-b2df-8bcfdbf3049f",
+      "name": "Ativar piloto?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        300
+      ],
       "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           },
           "conditions": [
             {
@@ -79,40 +93,10 @@
             }
           ],
           "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "cdcccf57-7dd8-4cfb-b2df-8bcfdbf3049f",
-      "name": "Ativar piloto?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        720,
-        304
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.asaas.com/v3/customers",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "User-Agent",
-              "value": "Dyno-Cadastro"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ name: $json.nome, email: $json.email, cpfCnpj: $(\"Normalizar mensagem\").first().json.cpf, mobilePhone: $(\"Normalizar mensagem\").first().json.numero.slice(2), externalReference: $json.usuario_id }) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "d2ac5a2c-b884-4b2c-b13a-89f9047a38d9",
       "name": "Asaas: criar cliente",
       "type": "n8n-nodes-base.httpRequest",
@@ -121,21 +105,13 @@
         960,
         160
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l3GO5H4hRL8ca2k3",
-          "name": "asaas-prod"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
       "parameters": {
         "method": "POST",
-        "url": "https://api.asaas.com/v3/subscriptions",
+        "url": "https://api.asaas.com/v3/customers",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
+        "specifyHeaders": "keypair",
         "headerParameters": {
           "parameters": [
             {
@@ -145,12 +121,16 @@
           ]
         },
         "sendBody": true,
+        "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ customer: $json.customer, billingType: $json.forma === 'CREDIT_CARD' ? 'CREDIT_CARD' : 'PIX', value: Number($json.valor || 19.9), nextDueDate: $json.vencimento, cycle: $json.ciclo === 'YEARLY' ? 'YEARLY' : 'MONTHLY', description: $json.ciclo === 'YEARLY' ? 'Dyno - plano anual' : 'Dyno - plano mensal', externalReference: $json.usuario_id }) }}",
+        "jsonBody": "={{ JSON.stringify({ name: $json.nome, email: $json.email, cpfCnpj: $(\"Normalizar mensagem\").first().json.cpf, mobilePhone: $(\"Normalizar mensagem\").first().json.numero.slice(2), externalReference: $json.usuario_id }) }}",
         "options": {
           "timeout": 20000
         }
       },
+      "onError": "continueRegularOutput"
+    },
+    {
       "id": "01a244a0-80ad-4c83-b9c3-d9f78699d680",
       "name": "Asaas: criar assinatura",
       "type": "n8n-nodes-base.httpRequest",
@@ -159,20 +139,47 @@
         1200,
         160
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l3GO5H4hRL8ca2k3",
-          "name": "asaas-prod"
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.asaas.com/v3/subscriptions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Dyno-Cadastro"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer: $json.customer, billingType: $json.forma === 'CREDIT_CARD' ? 'CREDIT_CARD' : 'PIX', value: Number($json.valor || 19.9), nextDueDate: $json.vencimento, cycle: $json.ciclo === 'YEARLY' ? 'YEARLY' : 'MONTHLY', description: 'Dyno' + ($json.nivel ? ' ' + ({ essencial: 'Essencial', completo: 'Completo', premium: 'Premium' }[$json.nivel] || '') : '') + ($json.ciclo === 'YEARLY' ? ' - plano anual' : ' - plano mensal'), externalReference: $json.usuario_id }) }}",
+        "options": {
+          "timeout": 20000
         }
       },
       "onError": "continueRegularOutput"
     },
     {
+      "id": "d7ed7ff2-a49a-4069-afea-4cbc29564be6",
+      "name": "Asaas: cobrança da assinatura",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1440,
+        160
+      ],
       "parameters": {
+        "method": "GET",
         "url": "=https://api.asaas.com/v3/subscriptions/{{ $json.id }}/payments",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
+        "specifyHeaders": "keypair",
         "headerParameters": {
           "parameters": [
             {
@@ -185,29 +192,24 @@
           "timeout": 20000
         }
       },
-      "id": "d7ed7ff2-a49a-4069-afea-4cbc29564be6",
-      "name": "Asaas: cobrança da assinatura",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        1440,
-        160
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l3GO5H4hRL8ca2k3",
-          "name": "asaas-prod"
-        }
-      },
       "onError": "continueRegularOutput"
     },
     {
+      "id": "fb19ac37-fb0d-4f68-8dde-4c142cd7ff64",
+      "name": "Supabase: guardar ids Asaas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1680,
+        160
+      ],
       "parameters": {
         "method": "PATCH",
         "url": "=https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_usuarios?id=eq.{{ $(\"Supabase: passo do cadastro\").first().json.usuario_id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
+        "specifyHeaders": "keypair",
         "headerParameters": {
           "parameters": [
             {
@@ -217,32 +219,16 @@
           ]
         },
         "sendBody": true,
+        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ asaas_customer_id: $(\"Asaas: criar cliente\").first().json.id || null }) }}",
         "options": {
           "timeout": 15000
         }
       },
-      "id": "fb19ac37-fb0d-4f68-8dde-4c142cd7ff64",
-      "name": "Supabase: guardar ids Asaas",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        1680,
-        160
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qgXgW9Cfnyoli06W",
-          "name": "Supabase_Dyno"
-        }
-      },
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": {
-        "jsCode": "const ZW = String.fromCharCode(8203);\nconst NL = String.fromCharCode(10);\nconst numero = $('Normalizar mensagem').first().json.numero;\nconst p = $('Supabase: passo do cadastro').first().json;\nlet cli = {};\ntry { cli = $('Asaas: criar cliente').first().json || {}; } catch (e) { }\nconst falha = !cli.id;\nconst venc = String(p.vencimento || '').split('-').reverse().join('/');\nconst primeiro = String(p.nome || '').split(' ')[0];\nlet texto = 'Pronto, ' + primeiro + '! Seu acesso ao piloto do Dyno está ativo, com 60 dias grátis' + (venc ? ' (até ' + venc + ')' : '') + '.';\ntexto += NL + NL + 'Nada é cobrado agora: não geramos boleto nem cobrança. Perto do fim do teste eu te pergunto se quer continuar e, se quiser, você escolhe pagar por Pix ou cartão de crédito.';\ntexto += NL + NL + '📲 Siga o *@dynoapp.ia* no Instagram (https://instagram.com/dynoapp.ia): é por lá que mostramos dicas, novidades e as funções novas do Beta.';\ntexto += NL + NL + 'Já pode usar! Me mande, por exemplo: \"gastei 30 no almoço\" ou \"me lembra de pagar a luz dia 10\".';\nreturn [{ json: { falha: falha, motivo: 'cliente', usuario_id: p.usuario_id, corpo: { number: numero, text: ZW + texto, delay: 800 } } }];"
-      },
       "id": "a3f9179f-b5db-48bf-a753-779ef596ff59",
       "name": "Montar boas-vindas",
       "type": "n8n-nodes-base.code",
@@ -250,58 +236,67 @@
       "position": [
         1920,
         160
-      ]
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// 07/10/2026: mensagem de cadastro concluído (reescrita com primeiros passos e área do cliente). Com `sem_teste` (dyno_sem_teste): sem 60 dias grátis; o ciclo já foi escolhido no cadastro, então pede só PIX ou CARTÃO.\nconst ZW = String.fromCharCode(8203);\nconst NL = String.fromCharCode(10);\nconst numero = $('Normalizar mensagem').first().json.numero;\nconst p = $('Supabase: passo do cadastro').first().json;\nlet cli = {};\ntry { cli = $('Asaas: criar cliente').first().json || {}; } catch (e) { }\nconst falha = !cli.id;\nconst venc = String(p.vencimento || '').split('-').reverse().join('/');\nconst primeiro = String(p.nome || '').split(' ')[0];\nconst NIVEL = { essencial: 'Essencial', completo: 'Completo', premium: 'Premium' };\nconst PRECO = { essencial: ['19,90', '199,90'], completo: ['29,90', '299,90'], premium: ['39,90', '399,90'] };\nconst nv = String(p.nivel || 'completo').toLowerCase();\nconst plano = NIVEL[nv] || '';\nconst pr = PRECO[nv] || PRECO.completo;\nconst anual = String(p.ciclo || 'MONTHLY').toUpperCase() === 'YEARLY';\nconst valor = (p.valor != null && p.valor !== '') ? Number(p.valor).toFixed(2).replace('.', ',') : (anual ? pr[1] : pr[0]);\nlet t = '🎉 *Cadastro concluído, ' + primeiro + '!*' + NL;\nif (p.sem_teste === true) {\n  t += 'Plano *' + plano + ' ' + (anual ? 'anual' : 'mensal') + '* (R$ ' + valor + (anual ? ' por ano' : ' por mês') + '). Para liberar o Dyno e a Dina, como prefere pagar: *PIX* ou *CARTÃO*?' + NL + NL;\n  t += 'Assim que o pagamento for confirmado, o atendimento é liberado na hora.' + NL + NL;\n} else {\n  if (p.gratis_ate_definido === true && venc) t += 'Seu acesso está ativo' + (plano ? ' no plano *' + plano + '*' : '') + ', grátis até *' + venc + '*. Nada é cobrado agora: perto do fim do período grátis eu pergunto se quer continuar.' + NL + NL;\n  else t += 'Seu acesso está ativo com *60 dias grátis*' + (venc ? ' (até ' + venc + ')' : '') + (plano ? ', no plano *' + plano + '*' : '') + '. Nada é cobrado agora: perto do fim do teste eu pergunto se quer continuar.' + NL + NL;\n}\nt += 'Somos dois no mesmo WhatsApp: o *Dyno* cuida do seu dinheiro e a *Dina* da sua agenda e rotina. Fale do seu jeito, por texto, áudio ou foto.' + NL + NL;\nt += '*Para começar' + (p.sem_teste === true ? ' depois do pagamento' : ' agora') + ', experimente:*' + NL;\nt += '💸 \"gastei 30 no almoço\"' + NL;\nt += '📷 mande a foto de um cupom ou comprovante' + NL;\nt += '⏰ \"me lembra de pagar a luz dia 10\"' + NL;\nt += '📝 \"cria uma lista de mercado: arroz, café, leite\"' + NL;\nt += '📅 \"conectar agenda\" para ligar o seu Google Agenda' + NL + NL;\nt += '💻 *Sua área no site:* dynoapp.com.br/minhaconta, com painel, extrato, comprovantes, agenda e listas. Entra com um código que eu mando por aqui, sem senha.' + NL + NL;\nt += '☀️ Todo dia às 7h30 chega o seu bom dia com o que vence e o que tem na agenda. Se preferir silêncio, é só dizer \"pausar mensagens\".' + NL + NL;\nt += '📲 Siga o *@dynoapp.ia* no Instagram (instagram.com/dynoapp.ia) para ver dicas e novidades. Dúvidas e sugestões: é só responder aqui ou escrever para suporte@dynoapp.com.br.';\nreturn [{ json: { falha: falha, motivo: 'cliente', usuario_id: p.usuario_id, corpo: { number: numero, text: ZW + t, delay: 800 } } }];"
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "7708fe33-1ca3-4934-97d7-ae45d7f4ebd1",
       "name": "Enviar WhatsApp (Dyno)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
         2160,
-        304
+        300
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "options": {
+          "timeout": 20000
         }
       },
       "onError": "continueErrorOutput"
     },
     {
-      "parameters": {
-        "jsCode": "const ZW = String.fromCharCode(8203);\nconst numero = $('Normalizar mensagem').first().json.numero;\nconst r = $input.first().json;\nlet texto = String(r.resposta || '');\nif (r.acao === 'ignorar') return [];\nif (!texto) texto = 'Não consegui processar agora. Tente de novo em instantes.';\nconst out = [{ json: { corpo: { number: numero, text: ZW + texto, delay: 800 } } }];\n// Aviso para o Daniel (ex.: resposta de feedback de um piloto)\nif (r.aviso_admin) out.push({ json: { corpo: { number: '5511930851325', text: ZW + String(r.aviso_admin), delay: 1500 } } });\nreturn out;"
-      },
       "id": "142fcb4e-f25e-49d3-8f6b-aa9a1033daeb",
       "name": "Montar resposta do passo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         960,
-        448
-      ]
+        440
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ZW = String.fromCharCode(8203);\nconst numero = $('Normalizar mensagem').first().json.numero;\nconst r = $input.first().json || {};\n// Se o RPC falhou (timeout, erro HTTP) não há 'acao': fica em silêncio, o cérebro já responde em paralelo.\nif (!r.acao || r.acao === 'ignorar' || r.error) return [];\nlet texto = String(r.resposta || '');\nif (!texto) return [];\nconst out = [{ json: { corpo: { number: numero, text: ZW + texto, delay: 800 } } }];\n// Aviso para o Daniel (ex.: resposta de feedback de um piloto)\nif (r.aviso_admin) out.push({ json: { corpo: { number: '5511930851325', text: ZW + String(r.aviso_admin), delay: 1500 } } });\nreturn out;"
+      }
     },
     {
+      "id": "85d3eff3-92fe-4fd3-9d95-04aedcb2f1b1",
+      "name": "Asaas falhou?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2160,
+        20
+      ],
       "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           },
           "conditions": [
             {
@@ -315,31 +310,10 @@
             }
           ],
           "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "85d3eff3-92fe-4fd3-9d95-04aedcb2f1b1",
-      "name": "Asaas falhou?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        2160,
-        32
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: \"5511930851325\", text: String.fromCharCode(8203) + \"*Dyno (alerta):* falha no Asaas ao \" + ($json.motivo === 'assinatura' ? 'gerar a assinatura de quem escolheu continuar após o teste' : 'criar o cadastro de cliente') + \". Usuário \" + $json.usuario_id + \". A pessoa foi avisada de que o retorno vem depois.\", delay: 600 }) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "1d5baad9-872e-4c25-aa1c-90d4fea15b19",
       "name": "Alertar Daniel (Asaas)",
       "type": "n8n-nodes-base.httpRequest",
@@ -348,40 +322,38 @@
         2400,
         0
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: \"5511930851325\", text: String.fromCharCode(8203) + \"*Dyno (alerta):* falha no Asaas ao \" + ($json.motivo === 'assinatura' ? 'gerar a assinatura de quem escolheu continuar após o teste' : 'criar o cadastro de cliente') + \". Usuário \" + $json.usuario_id + \". A pessoa foi avisada de que o retorno vem depois.\", delay: 600 }) }}",
+        "options": {
+          "timeout": 20000
         }
       },
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": {
-        "content": "## Cadastro por WhatsApp\nRecebe mensagens da instância `dyno`. A conversa (convite, nome, e-mail, aceite, plano, CPF) roda no Supabase em `dyno_whatsapp_passo`.\n- Cadastro: cria só o CLIENTE no Asaas (sem assinatura, sem boleto).\n- Fim do teste: a pessoa responde plano + PIX/CARTÃO → cria a assinatura (PIX ou CREDIT_CARD) e envia o link de pagamento com o aviso de Termos/Privacidade.",
-        "width": 520,
-        "color": 6
-      },
       "id": "2cdcee90-03e1-4a63-8af3-9d1b79b012d7",
       "name": "Sticky Note c8de5eb3",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        112,
-        304
-      ]
+        100,
+        300
+      ],
+      "parameters": {
+        "content": "## Cadastro por WhatsApp\nRecebe mensagens da instância `dyno`. A conversa (convite, nome, e-mail, aceite, plano, CPF) roda no Supabase em `dyno_whatsapp_passo`.\n- Cadastro: cria só o CLIENTE no Asaas (sem assinatura, sem boleto).\n- Fim do teste: a pessoa responde plano + PIX/CARTÃO → cria a assinatura (PIX ou CREDIT_CARD) e envia o link de pagamento com o aviso de Termos/Privacidade.",
+        "color": 6,
+        "width": 520,
+        "height": 160
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://n8n.srv1825327.hstgr.cloud/webhook/assessor-whatsapp",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.body) }}",
-        "options": {
-          "timeout": 10000
-        }
-      },
       "id": "3820738e-3f76-44be-99d0-ebda3a9c4f92",
       "name": "Encaminhar ao Assessor",
       "type": "n8n-nodes-base.httpRequest",
@@ -389,9 +361,28 @@
       "position": [
         240,
         560
-      ]
+      ],
+      "parameters": {
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://n8n.srv1825327.hstgr.cloud/webhook/assessor-whatsapp"
+      }
     },
     {
+      "id": "cac15987-cdc1-4588-a3fc-97cc49f3ef3b",
+      "name": "É comando admin?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        700
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -409,50 +400,43 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "cac15987-cdc1-4588-a3fc-97cc49f3ef3b",
-      "name": "É comando admin?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        480,
-        704
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_admin",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ p_whatsapp: $json.numero, p_texto: $json.texto }) }}",
-        "options": {
-          "timeout": 15000
-        }
-      },
       "id": "6bbe3216-4ca5-4c6d-b4d7-0da4fd478e0a",
       "name": "Supabase: comando admin",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
         720,
-        704
+        700
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qgXgW9Cfnyoli06W",
-          "name": "Supabase_Dyno"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p_whatsapp: $json.numero, p_texto: $json.texto }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_admin"
       }
     },
     {
+      "id": "f472b33e-6a9e-40e8-b578-e93061ea1c64",
+      "name": "Precisa do Asaas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        700
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -469,35 +453,35 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "f472b33e-6a9e-40e8-b578-e93061ea1c64",
-      "name": "Precisa do Asaas?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        960,
-        704
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "jsCode": "const ZW = String.fromCharCode(8203);\nconst numero = $('Normalizar mensagem').first().json.numero;\nconst r = $('Supabase: comando admin').first().json || {};\nif (r.acao === 'nao_admin') return [];\nlet texto = String(r.texto || '');\nif (r.acao === 'asaas') {\n  let a = {};\n  const nome = r.metodo === 'PUT' ? 'Asaas: alterar assinatura (admin)' : 'Asaas: cancelar assinatura (admin)';\n  try { a = $(nome).first().json || {}; } catch (e) { }\n  const ok = a.deleted === true || (r.metodo === 'PUT' && !!a.id && !a.errors && !a.error);\n  texto = ok ? String(r.texto_ok || '') : String(r.texto_falha || '');\n}\nif (!texto) texto = 'Não consegui executar o comando agora. Tente de novo em instantes.';\nconst out = [{ json: { corpo: { number: numero, text: ZW + texto, delay: 600 } } }];\n// Mensagem extra (ex.: convite pronto para encaminhar) vai separada, para poder ser encaminhada inteira\nif (r.extra) out.push({ json: { corpo: { number: numero, text: ZW + String(r.extra), delay: 1500 } } });\nreturn out;"
-      },
       "id": "2a7b4f8c-856b-486c-b546-e62b5bdd676d",
       "name": "Montar resposta admin",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         1440,
-        704
-      ]
+        700
+      ],
+      "parameters": {
+        "jsCode": "const ZW = String.fromCharCode(8203);\nconst numero = $('Normalizar mensagem').first().json.numero;\nconst r = $('Supabase: comando admin').first().json || {};\nif (r.acao === 'nao_admin') return [];\nlet texto = String(r.texto || '');\nif (r.acao === 'asaas') {\n  let a = {};\n  const nome = r.metodo === 'PUT' ? 'Asaas: alterar assinatura (admin)' : 'Asaas: cancelar assinatura (admin)';\n  try { a = $(nome).first().json || {}; } catch (e) { }\n  const ok = a.deleted === true || (r.metodo === 'PUT' && !!a.id && !a.errors && !a.error);\n  texto = ok ? String(r.texto_ok || '') : String(r.texto_falha || '');\n}\nif (!texto) texto = 'Não consegui executar o comando agora. Tente de novo em instantes.';\nconst out = [{ json: { corpo: { number: numero, text: ZW + texto, delay: 600 } } }];\n// Mensagem extra (ex.: convite pronto para encaminhar) vai separada, para poder ser encaminhada inteira\nif (r.extra) out.push({ json: { corpo: { number: numero, text: ZW + String(r.extra), delay: 1500 } } });\nreturn out;",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
+      "id": "a1f35669-0019-488e-b8b9-8da884b44d28",
+      "name": "É alteração (PUT)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        560
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -514,65 +498,24 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "a1f35669-0019-488e-b8b9-8da884b44d28",
-      "name": "É alteração (PUT)?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1200,
-        560
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "method": "PUT",
-        "url": "={{ 'https://api.asaas.com/v3' + $json.caminho }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "User-Agent",
-              "value": "Dyno-Admin"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.corpo || {}) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "f082d40a-6186-476f-bb80-8e9129008a16",
       "name": "Asaas: alterar assinatura (admin)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
         1440,
-        512
+        500
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l3GO5H4hRL8ca2k3",
-          "name": "asaas-prod"
-        }
-      }
-    },
-    {
       "parameters": {
-        "method": "DELETE",
-        "url": "={{ 'https://api.asaas.com/v3' + $json.caminho }}",
         "authentication": "genericCredentialType",
+        "contentType": "json",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
@@ -581,10 +524,19 @@
             }
           ]
         },
+        "jsonBody": "={{ JSON.stringify($json.corpo || {}) }}",
+        "method": "PUT",
         "options": {
           "timeout": 20000
-        }
-      },
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "specifyHeaders": "keypair",
+        "url": "={{ 'https://api.asaas.com/v3' + $json.caminho }}"
+      }
+    },
+    {
       "id": "a1fa7486-4c49-48dd-98ab-cff5ba7f780d",
       "name": "Asaas: cancelar assinatura (admin)",
       "type": "n8n-nodes-base.httpRequest",
@@ -593,56 +545,74 @@
         1440,
         640
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l3GO5H4hRL8ca2k3",
-          "name": "asaas-prod"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Dyno-Admin"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "url": "={{ 'https://api.asaas.com/v3' + $json.caminho }}"
       }
     },
     {
-      "parameters": {
-        "jsCode": "const ZW = String.fromCharCode(8203);\nconst NL = String.fromCharCode(10);\nconst ADMIN = '5511930851325';\nconst c = ($input.first().json || {}).corpo || {};\nconst t = String(c.text || '').split(ZW).join('');\nconst texto = String(c.number) === ADMIN\n  ? '*Dyno (pelo seu número; o do Dyno está sem conexão):*' + NL + t\n  : '⚠️ *Dyno sem conexão:* não consegui responder um cliente no cadastro. Reconecte a instância dyno na Evolution.';\nreturn [{ json: { corpo: { number: ADMIN, text: ZW + texto, delay: 300 } } }];"
-      },
       "id": "c556bcbe-cde5-4a1a-8c05-7f87cb9a1494",
       "name": "Montar aviso de falha (Dyno)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         2400,
-        448
-      ]
+        440
+      ],
+      "parameters": {
+        "jsCode": "const ZW = String.fromCharCode(8203);\nconst NL = String.fromCharCode(10);\nconst ADMIN = '5511930851325';\nconst c = ($input.first().json || {}).corpo || {};\nconst t = String(c.text || '').split(ZW).join('');\nconst texto = String(c.number) === ADMIN\n  ? '*Dyno (pelo seu número; o do Dyno está sem conexão):*' + NL + t\n  : '⚠️ *Dyno sem conexão:* não consegui responder um cliente no cadastro. Reconecte a instância dyno na Evolution.';\nreturn [{ json: { corpo: { number: ADMIN, text: ZW + texto, delay: 300 } } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
       "id": "a43d621c-265e-48c4-9d77-6731ce7b39c7",
       "name": "Avisar Daniel (falha Dyno)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
         2640,
-        448
+        440
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno"
       },
       "onError": "continueRegularOutput"
     },
     {
+      "id": "da4f9a1b-bc16-47a0-b9bc-a6ecd9178f28",
+      "name": "Veio do servidor do Dyno?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        120,
+        440
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -660,22 +630,20 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "da4f9a1b-bc16-47a0-b9bc-a6ecd9178f28",
-      "name": "Veio do servidor do Dyno?",
+        }
+      }
+    },
+    {
+      "id": "7e4a0b77-1438-40c3-824d-7a787dc8ca1b",
+      "name": "Criar assinatura?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        128,
-        448
-      ]
-    },
-    {
+        960,
+        560
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -692,28 +660,24 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "7e4a0b77-1438-40c3-824d-7a787dc8ca1b",
-      "name": "Criar assinatura?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        960,
-        560
-      ]
+        }
+      }
     },
     {
+      "id": "42e8579d-fe34-40b0-916a-c36b18da7b2f",
+      "name": "Supabase: guardar assinatura",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1680,
+        300
+      ],
       "parameters": {
-        "method": "PATCH",
-        "url": "=https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_usuarios?id=eq.{{ $(\"Supabase: passo do cadastro\").first().json.usuario_id }}",
         "authentication": "genericCredentialType",
+        "contentType": "json",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
@@ -722,56 +686,36 @@
             }
           ]
         },
-        "sendBody": true,
-        "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ asaas_subscription_id: $(\"Asaas: criar assinatura\").first().json.id || null, proximo_vencimento: $(\"Supabase: passo do cadastro\").first().json.vencimento }) }}",
+        "method": "PATCH",
         "options": {
           "timeout": 15000
-        }
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "specifyHeaders": "keypair",
+        "url": "=https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/dyno_usuarios?id=eq.{{ $(\"Supabase: passo do cadastro\").first().json.usuario_id }}"
       },
-      "id": "42e8579d-fe34-40b0-916a-c36b18da7b2f",
-      "name": "Supabase: guardar assinatura",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        1680,
-        304
-      ],
-      "alwaysOutputData": true,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qgXgW9Cfnyoli06W",
-          "name": "Supabase_Dyno"
-        }
-      },
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
     },
     {
-      "parameters": {
-        "jsCode": "const ZW = String.fromCharCode(8203);\nconst NL = String.fromCharCode(10);\nconst numero = $('Normalizar mensagem').first().json.numero;\nconst p = $('Supabase: passo do cadastro').first().json;\nlet sub = {}; let cob = {};\ntry { sub = $('Asaas: criar assinatura').first().json || {}; } catch (e) { }\ntry { cob = $('Asaas: cobrança da assinatura').first().json || {}; } catch (e) { }\nconst link = (cob.data && cob.data[0] && cob.data[0].invoiceUrl) || '';\nconst falha = !sub.id || !link;\nconst primeiro = String(p.nome || '').split(' ')[0];\nconst anual = p.ciclo === 'YEARLY';\nconst valor = 'R$ ' + Number(p.valor || (anual ? 199.9 : 19.9)).toFixed(2).replace('.', ',');\nconst forma = p.forma === 'CREDIT_CARD' ? 'cartão de crédito' : 'Pix';\nconst venc = String(p.vencimento || '').split('-').reverse().join('/');\nlet texto;\nif (!falha) {\n  texto = 'Combinado, ' + primeiro + '! Plano *' + (anual ? 'anual' : 'mensal') + '* (' + valor + (anual ? ' por ano' : ' por mês') + '), pagamento por *' + forma + '*.' + NL + NL +\n    'Para ativar a assinatura, pague por este link' + (venc ? ' até ' + venc : '') + ':' + NL + link + NL + NL +\n    'Ao finalizar o pagamento, você concorda com nossos Termos de Uso (dynoapp.com.br/termos) e confirma que leu nossa Política de Privacidade (dynoapp.com.br/privacidade). Você pode cancelar os pagamentos recorrentes a qualquer momento pela área do cliente (dynoapp.com.br/conta).';\n} else {\n  texto = 'Recebi sua escolha, ' + primeiro + '! Tive um problema para gerar o link de pagamento agora; já avisei a equipe e te mando o link em seguida. Nada foi cobrado.';\n}\nreturn [{ json: { falha: falha, motivo: 'assinatura', usuario_id: p.usuario_id, corpo: { number: numero, text: ZW + texto, delay: 800 } } }];"
-      },
       "id": "cddc7ff2-62f0-4fbf-8ed9-9c9f6bd57d1c",
       "name": "Montar link de pagamento",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         1920,
-        304
-      ]
+        300
+      ],
+      "parameters": {
+        "jsCode": "const ZW = String.fromCharCode(8203);\nconst NL = String.fromCharCode(10);\nconst numero = $('Normalizar mensagem').first().json.numero;\nconst p = $('Supabase: passo do cadastro').first().json;\nlet sub = {}; let cob = {};\ntry { sub = $('Asaas: criar assinatura').first().json || {}; } catch (e) { }\ntry { cob = $('Asaas: cobrança da assinatura').first().json || {}; } catch (e) { }\nconst link = (cob.data && cob.data[0] && cob.data[0].invoiceUrl) || '';\nconst falha = !sub.id || !link;\nconst primeiro = String(p.nome || '').split(' ')[0];\nconst anual = p.ciclo === 'YEARLY';\nconst valor = 'R$ ' + Number(p.valor || (anual ? 199.9 : 19.9)).toFixed(2).replace('.', ',');\nconst forma = p.forma === 'CREDIT_CARD' ? 'cartão de crédito' : 'Pix';\nconst venc = String(p.vencimento || '').split('-').reverse().join('/');\nlet texto;\nif (!falha) {\n  texto = 'Combinado, ' + primeiro + '! Plano *' + (anual ? 'anual' : 'mensal') + '* (' + valor + (anual ? ' por ano' : ' por mês') + '), pagamento por *' + forma + '*.' + NL + NL +\n    'Para ativar a assinatura, pague por este link' + (venc ? ' até ' + venc : '') + ':' + NL + link + NL + NL +\n    'Ao finalizar o pagamento, você concorda com nossos Termos de Uso (dynoapp.com.br/termos) e confirma que leu nossa Política de Privacidade (dynoapp.com.br/privacidade). Você pode cancelar os pagamentos recorrentes a qualquer momento pela área do cliente (dynoapp.com.br/conta).';\n} else {\n  texto = 'Recebi sua escolha, ' + primeiro + '! Tive um problema para gerar o link de pagamento agora; já avisei a equipe e te mando o link em seguida. Nada foi cobrado.';\n}\nreturn [{ json: { falha: falha, motivo: 'assinatura', usuario_id: p.usuario_id, corpo: { number: numero, text: ZW + texto, delay: 800 } } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://wa.dynoapp.com.br/message/sendMedia/dyno",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $json.corpo.number, mediatype: 'video', mimetype: 'video/mp4', fileName: 'como-usar-o-dyno.mp4', media: 'https://resource2.heygen.ai/video/b22e72bd9dc442a8843e9d7663df7684/original.mp4', caption: String.fromCharCode(8203) + 'Como usar o Dyno em 40 segundos 🎬' + String.fromCharCode(10) + 'Para começar, mande: *gastei 30 no almoço*. Qualquer dúvida, é só perguntar por aqui.', delay: 4000 }) }}",
-        "options": {
-          "timeout": 60000
-        }
-      },
       "id": "90ff9404-4acf-45fc-b681-ab37c6bcf2c8",
       "name": "Enviar vídeo tutorial (Dyno)",
       "type": "n8n-nodes-base.httpRequest",
@@ -780,17 +724,32 @@
         2160,
         160
       ],
-      "retryOnFail": true,
-      "maxTries": 2,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "l2BZVdQJowvQuT6M",
-          "name": "evolution-dyno"
-        }
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ number: $json.corpo.number, mediatype: 'video', mimetype: 'video/mp4', fileName: 'como-usar-o-dyno.mp4', media: 'https://resource2.heygen.ai/video/46315d5f7e5f486796912e270be773c3/original.mp4', caption: String.fromCharCode(8203) + 'Como usar o Dyno em 40 segundos 🎬' + String.fromCharCode(10) + 'Para começar, mande: *gastei 30 no almoço*. Qualquer dúvida, é só perguntar por aqui.', delay: 4000 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://wa.dynoapp.com.br/message/sendMedia/dyno"
       },
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2
     },
     {
+      "id": "655d738b-b234-4691-bdfc-c8286d31d978",
+      "name": "É aprovação do Beta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        860
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -807,54 +766,71 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
+            "typeValidation": "loose"
           }
-        },
-        "options": {}
-      },
-      "id": "655d738b-b234-4691-bdfc-c8286d31d978",
-      "name": "É aprovação do Beta?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        848,
-        864
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "jsCode": "const r = $input.first().json;\nreturn [{ json: { nome: r.nome, numero_convidado: r.numero, numero_admin: r.admin, origem: 'site', pedido_id: r.id } }];"
-      },
       "id": "32e286f5-59e6-47da-b9eb-9147c878c140",
       "name": "Pedido do Beta aprovado",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1088,
-        864
-      ]
+        1080,
+        860
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nreturn [{ json: { nome: r.nome, numero_convidado: r.numero, numero_admin: r.admin, origem: 'site', pedido_id: r.id } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
     },
     {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "WNefuC4RhAAfS3Vs"
-        },
-        "mode": "each",
-        "options": {
-          "waitForSubWorkflow": false
-        }
-      },
       "id": "e81c4577-c47c-4c26-a4e5-e285ddea079f",
       "name": "Enviar convite (Beta)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        1328,
-        864
-      ]
+        1320,
+        860
+      ],
+      "parameters": {
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": false
+        },
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "WNefuC4RhAAfS3Vs"
+        }
+      }
+    },
+    {
+      "id": "b4499c69-f254-40ee-bcdc-8cf9c7946566",
+      "name": "Supabase: aviso novo cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2200,
+        900
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p_usuario_id: $json.usuario_id }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_admin_aviso_novo_cliente"
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true
     }
   ],
   "connections": {
@@ -940,6 +916,11 @@
           },
           {
             "node": "Enviar vídeo tutorial (Dyno)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supabase: aviso novo cliente",
             "type": "main",
             "index": 0
           }
@@ -1206,22 +1187,6 @@
       ]
     }
   },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": true,
-    "errorWorkflow": "5UUmuzItIYDsd3AG",
-    "saveDataErrorExecution": "none",
-    "saveDataSuccessExecution": "none"
-  },
-  "versionId": "6f9ccce5-86a2-4e90-8060-d261d17fc533",
-  "meta": {
-    "aiBuilderAssisted": true,
-    "builderVariant": "mcp",
-    "instanceId": "c659156f728867ca332a6c8da06662e7608986e6bca67682b35a775270650a3a"
-  },
-  "nodeGroups": [],
-  "id": "XRsXyav6ICD921Q8",
-  "tags": []
+  "tags": [],
+  "versionId": "45a653ea-f69d-4d52-be73-c7d8fd70baff"
 }

@@ -1,0 +1,183 @@
+{
+  "id": "uJXHH7oaUxJtzPIb",
+  "name": "Dyno | Pluggy webhook (Open Finance)",
+  "description": "Recebe os avisos da Pluggy (item criado, atualizado ou com erro) e responde 200 na hora.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "id": "73ac9eb6-296e-4387-8684-845891e032f3",
+      "name": "Webhook Pluggy",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {},
+        "path": "pluggy-<SEGREDO-REMOVIDO>",
+        "responseMode": "onReceived"
+      },
+      "webhookId": "ab6d5abc-af42-4b64-883f-38728dfd6fd7"
+    },
+    {
+      "id": "91b124df-b6e5-40a7-8151-503dced512b1",
+      "name": "É evento de item?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "e1",
+              "leftValue": "={{ String(($json.body || {}).event || '').startsWith('item/') && !!($json.body || {}).itemId }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9a53f850-43dd-4b77-8ae0-5356a9554c19",
+      "name": "Pluggy: auth",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "url": "https://api.pluggy.ai/auth"
+      }
+    },
+    {
+      "id": "e677f724-2ea1-41da-9b45-37f5d1d817ea",
+      "name": "Pluggy: buscar item",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "={{ $json.apiKey }}"
+            }
+          ]
+        },
+        "method": "GET",
+        "options": {
+          "timeout": 15000
+        },
+        "sendHeaders": true,
+        "url": "={{ 'https://api.pluggy.ai/items/' + encodeURIComponent($('Webhook Pluggy').first().json.body.itemId) }}"
+      }
+    },
+    {
+      "id": "70a90940-da24-4bd6-8843-5b7ff32f39ad",
+      "name": "Supabase: salvar conexão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p_item: $json, p_evento: $('Webhook Pluggy').first().json.body.event }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_pluggy_item_salvar"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Pluggy": {
+      "main": [
+        [
+          {
+            "node": "É evento de item?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É evento de item?": {
+      "main": [
+        [
+          {
+            "node": "Pluggy: auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pluggy: auth": {
+      "main": [
+        [
+          {
+            "node": "Pluggy: buscar item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pluggy: buscar item": {
+      "main": [
+        [
+          {
+            "node": "Supabase: salvar conexão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "0292e570-4847-4e49-974f-e8dcd2a27fb7"
+}

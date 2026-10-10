@@ -1,0 +1,125 @@
+{
+  "id": "YdSlyevE2tz6hEj2",
+  "name": "Dyno Plataforma | WhatsApp oficial (Meta) — registrar número (formulário do PIN)",
+  "description": "Diagnóstico do número da API oficial (status, apps assinados) e formulário para o Daniel registrar o número com o PIN (sem passar pelo chat).",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "id": "f0ea1565-2a20-4111-b1d3-a44bd970ab62",
+      "name": "Formulário do PIN",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "formTitle": "Registrar número do Dyno na API oficial",
+        "formDescription": "Digite o PIN de 6 dígitos (verificação em duas etapas) que você quer usar para o número +55 11 93501-4008. Ele não fica salvo em lugar nenhum.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "PIN",
+              "fieldType": "password",
+              "requiredField": true,
+              "placeholder": "6 dígitos"
+            }
+          ]
+        },
+        "options": {
+          "respondWithOptions": {
+            "values": {
+              "formSubmittedText": "Enviado. Pode voltar para a conversa."
+            }
+          }
+        }
+      },
+      "webhookId": "0a38890a-2ad3-4951-b0af-610f93514fa2"
+    },
+    {
+      "id": "f2f79b27-3b5a-4e05-8436-3470f76fd968",
+      "name": "Registrar número",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v26.0/1405532732623905/register",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: \"whatsapp\", pin: String($json.PIN || \"\").replace(/\\D/g, \"\") }) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "ff58fcb6-19dd-4cda-9af6-88e89783299b",
+      "name": "Guardar resultado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_meta_wa_evento",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ p: { registro: { status: $json.statusCode, body: $json.body } } }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Formulário do PIN": {
+      "main": [
+        [
+          {
+            "node": "Registrar número",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar número": {
+      "main": [
+        [
+          {
+            "node": "Guardar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "150ae91e-2739-4843-adcb-2a18ccdfb0ad"
+}

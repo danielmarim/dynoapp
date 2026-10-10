@@ -1,0 +1,1942 @@
+{
+  "id": "3iZpB1Sku6OVZUB1",
+  "name": "Dyno | Google Agenda dos clientes",
+  "description": "Conecta o Google Agenda de cada cliente (OAuth com tokens no Vault): troca do código, link de conexão, listar e criar eventos, renovar token e desconectar. Chamado pelo cérebro, relatórios e API do site.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "nodes": [
+    {
+      "id": "bf4dd550-6a53-4fe8-a057-1f3faeb9b838",
+      "name": "Pedido recebido",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "5c3eb9dd-9070-49c2-bb66-a678e0aced48",
+      "name": "Pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const j = $input.first().json || {};\nconst op = String(j.op || '').toLowerCase();\nconst ok = ['callback','link','desconectar','listar','criar','editar','remover','status','convidar','renomear'];\nreturn [{ json: {\n  op: ok.includes(op) ? op : 'status',\n  numero: String(j.numero || '').replace(/\\D/g, '').slice(0, 15),\n  usuario_id: /^[0-9a-f-]{36}$/i.test(String(j.usuario_id || '')) ? String(j.usuario_id) : null,\n  code: String(j.code || '').slice(0, 512),\n  redirect_uri: String(j.redirect_uri || 'https://dynoapp.com.br/conectar-agenda'),\n  de: j.de || null, ate: j.ate || null, dias: Math.min(Math.max(Number(j.dias) || 7, 1), 200), busca: String(j.busca || '').slice(0, 80),\n  max: Math.min(Math.max(Number(j.max) || 40, 1), 250),\n  event_id: String(j.event_id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 200),\n  titulo: String(j.titulo || '').slice(0, 200), inicio: j.inicio || null, fim: j.fim || null,\n  local: String(j.local || '').slice(0, 300), descricao: String(j.descricao || '').slice(0, 1000), dia_inteiro: j.dia_inteiro === true,\n  // 10/10: reunião com sala do Google Meet e convite aos participantes\n  meet: j.meet === true,\n  participantes: (Array.isArray(j.participantes) ? j.participantes : []).slice(0, 20).map(x => ({ nome: String((x && x.nome) || '').slice(0, 80), email: String((x && x.email) || '').trim().slice(0, 120), whatsapp: String((x && x.whatsapp) || '').replace(/\\D/g, '').slice(0, 15) })),\n  canal: String(j.canal || '').slice(0, 20),\n  // 10/10: várias contas Google (pessoal e institucional): qual conta usar e se deve perguntar quando houver mais de uma\n  conta: String(j.conta || '').trim().slice(0, 120),\n  perguntar_conta: j.perguntar_conta === true,\n  nome: String(j.nome || '').trim().slice(0, 40)\n} }];\n"
+      }
+    },
+    {
+      "id": "773f1e76-a8ad-4e1e-801c-428c44976e8d",
+      "name": "Rotear operação",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "callback"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              },
+              "outputKey": "callback",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "link"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              },
+              "outputKey": "link",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "desconectar"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              },
+              "outputKey": "desconectar",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "renomear"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              },
+              "outputKey": "renomear",
+              "renameOutput": true
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "token"
+        }
+      }
+    },
+    {
+      "id": "ee655e77-2cea-41ef-95d1-6caac222a77f",
+      "name": "Google: trocar código",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        700,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://oauth2.googleapis.com/token",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "authorization_code"
+            },
+            {
+              "name": "code",
+              "value": "={{ $json.code }}"
+            },
+            {
+              "name": "redirect_uri",
+              "value": "={{ $json.redirect_uri }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "fb734f62-e6e5-4b50-8c6a-47641118f829",
+      "name": "Token recebido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        920,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ !!$json.access_token }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "24752024-5d20-4164-9aff-86a02b7ac7e7",
+      "name": "Google: agenda principal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1140,
+        -100
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/calendar/v3/calendars/primary",
+        "options": {
+          "timeout": 15000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "68ddbfc0-3384-47eb-baec-231fd3d18315",
+      "name": "Preparar gravação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        -100
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const t = $('Google: trocar código').first().json || {};\nconst cal = $input.first().json || {};\nconst p = $('Pedido').first().json;\nconst email = /@/.test(String(cal.id || '')) ? String(cal.id) : null;\nreturn [{ json: { p_usuario: p.usuario_id, p_refresh: t.refresh_token || null, p_access: t.access_token, p_expira_seg: Number(t.expires_in) || 3600, p_email: email, p_escopos: String(t.scope || '') } }];"
+      }
+    },
+    {
+      "id": "940f53e9-71ab-4237-bb06-211e9e8a410a",
+      "name": "Supabase: salvar conexão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1580,
+        -100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_agenda_salvar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "4a98ad84-a736-44b9-8352-398ae7a7ed50",
+      "name": "Gravou?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ok === true || $json.erro === 'limite' }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        }
+      }
+    },
+    {
+      "id": "0cfe7d65-fc10-4017-9673-6fcc3fadd364",
+      "name": "Montar confirmação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2020,
+        -200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const r = $input.first().json || {};\nconst g = $('Preparar gravação').first().json || {};\nconst NL = String.fromCharCode(10);\nconst podeEditar = /calendar\\.events/.test(g.p_escopos || '');\n// 10/10: várias contas Google (pessoal e institucional)\nconst contas = Array.isArray(r.contas) ? r.contas : [];\nconst nomeConta = c => '*' + (c.rotulo || 'Agenda') + '* (' + c.email + ')';\nlet t = '📅 Oi' + (r.nome ? ', ' + r.nome : '') + '! Aqui é a Dina.' + NL + NL;\nif (r.ok !== true && r.erro === 'limite') {\n  t += '⚠️ Você já tem 3 contas Google conectadas: ' + contas.map(nomeConta).join(', ') + '. Esse é o limite.' + NL + NL + 'Para trocar uma delas, diga *desconectar agenda* e o nome da conta (ex.: _desconectar a agenda Pessoal_) e depois *conectar agenda* de novo.';\n  return [{ json: { number: r.numero, text: String.fromCharCode(8203) + t, delay: 800 } }];\n}\nif (contas.length > 1) {\n  t += '✅ *Mais uma agenda conectada*: ' + nomeConta({ rotulo: r.rotulo, email: r.email }) + '.' + NL + NL +\n    'Agora você tem ' + contas.length + ' agendas comigo:' + NL + contas.map(c => '• ' + nomeConta(c)).join(NL) + NL + NL +\n    'Quando você pedir para marcar uma reunião, um compromisso, uma tarefa ou um lembrete, eu pergunto em qual agenda marcar. Se já disser na hora (ex.: _\"marca na ' + (r.rotulo || 'Institucional') + '\"_), eu marco direto.' + NL + NL +\n    'Quer outro nome para uma delas? Diga, por exemplo: _\"chama a agenda ' + (r.rotulo || 'Institucional') + ' de Trabalho\"_.';\n  if (!podeEditar) t += NL + NL + '⚠️ Nesta conta a permissão para *ver e editar eventos* ficou desmarcada, então nela eu só consigo ler a agenda. Para corrigir, diga *conectar agenda* de novo e deixe as opções marcadas.';\n} else {\n  t += '✅ *Google Agenda conectada*' + (r.email ? ' (' + r.email + ')' : '') + '.' + NL + NL;\n  if (podeEditar) t += 'A partir de agora eu vejo seus compromissos e posso marcar eventos direto na sua agenda. Experimente: _\"o que tenho amanhã?\"_ ou _\"marca dentista quinta às 15h\"_.';\n  else t += '⚠️ A permissão para *ver e editar eventos* ficou desmarcada, então só consigo ler a agenda. Para eu marcar compromissos, diga *conectar agenda* de novo e deixe as opções marcadas.';\n  t += NL + NL + 'Tem outra conta Google, como a do trabalho? Diga *conectar outra agenda* que eu mando o link e você escolhe a outra conta no Google.';\n}\nt += NL + NL + 'Para desconectar quando quiser, é só dizer *desconectar agenda*.';\nreturn [{ json: { number: r.numero, text: String.fromCharCode(8203) + t, delay: 800 } }];\n"
+      }
+    },
+    {
+      "id": "7444a5dd-1042-4b4a-b6f3-c66ac864708c",
+      "name": "WhatsApp: agenda conectada",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2240,
+        -200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.number, text: $json.text, delay: $json.delay }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c7e4db55-be4c-41bc-aee4-a7a142a4e087",
+      "name": "Resultado: conectada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2460,
+        -200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const r = $('Supabase: salvar conexão').first().json || {};\n// 10/10: limite de 3 contas Google: a página mostra falha e a Dina explica no WhatsApp\nif (r.ok !== true) return [{ json: { ok: false, erro: r.erro || 'gravar' } }];\nreturn [{ json: { ok: true, nome: r.nome || '', email: r.email || '', rotulo: r.rotulo || '', n_contas: r.n_contas || 1 } }];"
+      }
+    },
+    {
+      "id": "90071162-2d4b-448b-9366-98037078441b",
+      "name": "Resultado: falha ao conectar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2020,
+        100
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "let t = {}; try { t = $('Google: trocar código').first().json || {}; } catch (e) {}\nlet s = {}; try { s = $('Supabase: salvar conexão').first().json || {}; } catch (e) {}\nconst erro = s.erro ? s.erro : (t.error ? 'google' : 'gravar');\nreturn [{ json: { ok: false, erro } }];"
+      }
+    },
+    {
+      "id": "d0c116a4-29b1-48a2-a3a6-c15582eb2a89",
+      "name": "Supabase: criar link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_agenda_link",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_numero: $json.numero }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "f5499daa-3b79-4eff-a99f-141ee3b8eb65",
+      "name": "Supabase: desconectar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        700,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_agenda_desconectar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_numero: $json.numero || null, p_usuario: $json.usuario_id, p_conta: $json.conta || null }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "08636f88-1cf3-4790-bb98-d1c6d1035305",
+      "name": "Tem token para revogar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1030,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ !!$json.refresh_token }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "6038d827-7abc-45fb-8086-15abc7f0aedb",
+      "name": "Google: revogar acesso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1250,
+        360
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://oauth2.googleapis.com/revoke",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $json.refresh_token }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "3f344ddb-812d-4563-974e-39917e7ad996",
+      "name": "Resultado: desconectada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        420
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const r = $('Supabase: desconectar').first().json || {};\n// 10/10: várias contas: escolher (quando não deu para saber qual desconectar), e-mails desconectados e as que ficaram\nreturn [{ json: { ok: r.ok !== false, conectado: r.conectado === true, escolher: r.escolher === true, email: r.email || '', emails: r.emails || [], restantes: r.restantes || [], contas: r.contas || [], conta_pedida: r.conta_pedida || '' } }];"
+      }
+    },
+    {
+      "id": "379fccd3-8893-41d3-bcb1-7a0dbe8463b0",
+      "name": "Supabase: token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        700,
+        700
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_agenda_token",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_numero: $json.numero || null, p_usuario: $json.usuario_id, p_conta: $json.conta || null, p_op: $json.op === 'convidar' ? 'convidar' : (($json.op === 'criar' && $json.perguntar_conta) ? 'perguntar' : null) }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "2992b65a-9e1c-4fd7-9aa9-0002d67eff34",
+      "name": "Conectado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        920,
+        700
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.conectado === true && $json.escolher !== true }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        }
+      }
+    },
+    {
+      "id": "26d9f7be-d618-4c1d-9c49-230875f3b6bd",
+      "name": "Token ainda vale?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1140,
+        640
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.valido === true && !!$json.access_token }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "3c437321-4011-4b2b-b094-8fffeae538ef",
+      "name": "Token pronto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2020,
+        640
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const p = $('Pedido').first().json;\nconst t = $('Supabase: token').first().json || {};\nlet access = t.valido ? t.access_token : null;\nlet novo = null; try { novo = $('Google: renovar token').first().json; } catch (e) { novo = null; }\nif (novo && novo.access_token) access = novo.access_token;\nlet desconectou = false; try { desconectou = $('Supabase: guardar token').first().json.desconectado === true; } catch (e) {}\nif (!access) return [{ json: { op: 'sem_token', ok: false, conectado: !desconectou, erro: desconectou ? 'revogado' : 'renovar', eventos: [], texto: '' } }];\n// 10/10: leva junto qual conta foi usada e a lista das contas conectadas (sem tokens)\nreturn [{ json: Object.assign({}, p, { access, email: t.email || '', rotulo: t.rotulo || '', n_contas: Number(t.n_contas) || 1, contas: Array.isArray(t.contas) ? t.contas : [] }) }];"
+      }
+    },
+    {
+      "id": "ef022955-7fec-4b89-8bc4-d51ba45f19f9",
+      "name": "Google: renovar token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1360,
+        760
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://oauth2.googleapis.com/token",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{ $json.refresh_token }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "629fda7b-c640-4674-acd9-6cd378d0a878",
+      "name": "Preparar renovação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        760
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const r = $input.first().json || {};\nconst t = $('Supabase: token').first().json || {};\nif (r.access_token) return [{ json: { p_usuario: t.usuario_id, p_access: r.access_token, p_expira_seg: Number(r.expires_in) || 3600, p_erro: null, p_email: t.email || null } }];\nconst txt = JSON.stringify(r);\nreturn [{ json: { p_usuario: t.usuario_id, p_access: null, p_expira_seg: null, p_erro: /invalid_grant/.test(txt) ? 'invalid_grant' : txt.slice(0, 250), p_email: t.email || null } }];"
+      }
+    },
+    {
+      "id": "32e80c10-8435-415b-bc60-fd37eb12cd5c",
+      "name": "Supabase: guardar token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1800,
+        760
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_agenda_atualizar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "aca48262-7afa-47d5-8fb0-43a8330d1fc0",
+      "name": "Resultado: não conectado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        860
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// 10/10: com mais de uma conta Google, quando não deu para saber qual usar, devolve as contas para a Dina perguntar.\nconst t = $('Supabase: token').first().json || {};\nif (t.escolher === true) return [{ json: { ok: false, conectado: true, erro: 'escolher_conta', contas: t.contas || [], n_contas: t.n_contas || 0, conta_pedida: t.conta_pedida || '', eventos: [], texto: '' } }];\nreturn [{ json: { ok: true, conectado: false, eventos: [], texto: '' } }];"
+      }
+    },
+    {
+      "id": "80d275a2-1fa4-4c16-8fd3-8bc3cbcc2c5a",
+      "name": "Operação",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2240,
+        640
+      ],
+      "parameters": {
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "fim"
+        },
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "listar"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              },
+              "outputKey": "listar",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "criar"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              },
+              "outputKey": "criar",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "editar"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              },
+              "outputKey": "editar",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "remover"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              },
+              "outputKey": "remover",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "convidar"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              },
+              "outputKey": "convidar",
+              "renameOutput": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a2629aa9-2425-43dd-8b0b-96c6ad1f146a",
+      "name": "Google: listar eventos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2460,
+        540
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "timeMin",
+              "value": "={{ ($json.de ? DateTime.fromISO($json.de, { zone: \"America/Sao_Paulo\" }) : $now.setZone(\"America/Sao_Paulo\")).startOf(\"day\").toISO() }}"
+            },
+            {
+              "name": "timeMax",
+              "value": "={{ ($json.ate ? DateTime.fromISO($json.ate, { zone: \"America/Sao_Paulo\" }).endOf(\"day\") : $now.setZone(\"America/Sao_Paulo\").startOf(\"day\").plus({ days: $json.dias })).toISO() }}"
+            },
+            {
+              "name": "singleEvents",
+              "value": "true"
+            },
+            {
+              "name": "orderBy",
+              "value": "startTime"
+            },
+            {
+              "name": "maxResults",
+              "value": "={{ $json.max || 40 }}"
+            },
+            {
+              "name": "timeZone",
+              "value": "America/Sao_Paulo"
+            },
+            {
+              "name": "q",
+              "value": "={{ $json.busca || \"\" }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access }}"
+            }
+          ]
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "7988d861-bbe9-461e-b2f6-7b2f83418e10",
+      "name": "Formatar agenda",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2680,
+        540
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const r = $input.first().json || {};\n// 10/10: qual conta Google foi listada (para juntar as agendas pessoal e institucional)\nconst tk = $('Token pronto').first().json || {};\nconst info = { conta: tk.email || '', rotulo: tk.rotulo || '', n_contas: Number(tk.n_contas) || 1, contas: tk.contas || [] };\nif (r.error && !r.items) return [{ json: Object.assign({ ok: false, conectado: true, erro: 'google', eventos: [], texto: '' }, info) }];\nconst TZ = 'America/Sao_Paulo';\nconst DIAS = ['', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];\nconst eventos = (r.items || []).filter((e) => e.status !== 'cancelled').map((e) => {\n  const inteiro = !!(e.start && e.start.date);\n  const ini = inteiro ? DateTime.fromISO(e.start.date, { zone: TZ }) : DateTime.fromISO(e.start.dateTime).setZone(TZ);\n  const fim = inteiro ? DateTime.fromISO(e.end.date, { zone: TZ }).minus({ days: 1 }) : DateTime.fromISO(e.end.dateTime).setZone(TZ);\n  return { conta: info.conta, id: e.id, titulo: e.summary || '(sem título)', inicio: ini.toISO(), fim: fim.toISO(), dia_inteiro: inteiro, local: e.location || '', descricao: String(e.description || '').slice(0, 500), link: e.htmlLink || '', recorrente: !!e.recurringEventId,\n    linha: DIAS[ini.weekday] + ' ' + ini.toFormat('dd/MM') + ' ' + (inteiro ? '(dia inteiro)' : ini.toFormat('HH:mm') + '–' + fim.toFormat('HH:mm')) + ' ' + (e.summary || '(sem título)') + (e.location ? ' — ' + e.location : '') };\n});\nconst texto = eventos.length ? eventos.slice(0, 40).map((e) => '• ' + e.linha).join(String.fromCharCode(10)) : 'Nenhum compromisso no período.';\nreturn [{ json: Object.assign({ ok: true, conectado: true, eventos, texto }, info) }];\n"
+      }
+    },
+    {
+      "id": "a5f27b94-bb35-4536-8a47-0c22e5f29647",
+      "name": "Google: criar evento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2460,
+        740
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://www.googleapis.com/calendar/v3/calendars/primary/events' + ($json.meet ? '?conferenceDataVersion=1' : '') }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const TZ = \"America/Sao_Paulo\"; const j = $json; const b = { summary: j.titulo || \"Compromisso\", description: (j.descricao ? j.descricao + \"\\n\\n\" : \"\") + \"Criado pelo Dyno (WhatsApp).\" }; if (j.local) b.location = j.local; if (j.dia_inteiro) { const d = DateTime.fromISO(String(j.inicio), { zone: TZ }); b.start = { date: d.toISODate() }; b.end = { date: (j.fim ? DateTime.fromISO(String(j.fim), { zone: TZ }) : d).plus({ days: 1 }).toISODate() }; } else { const i = DateTime.fromISO(String(j.inicio), { zone: TZ }); const f = j.fim ? DateTime.fromISO(String(j.fim), { zone: TZ }) : i.plus({ hours: 1 }); b.start = { dateTime: i.toISO(), timeZone: TZ }; b.end = { dateTime: f.toISO(), timeZone: TZ }; } if (j.meet) { b.conferenceData = { createRequest: { requestId: \"dyno-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 8), conferenceSolutionKey: { type: \"hangoutsMeet\" } } }; b.description = (j.descricao ? j.descricao + \"\\n\\n\" : \"\") + \"Reunião marcada pelo Dyno (WhatsApp).\"; } return JSON.stringify(b); })() }}",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access }}"
+            }
+          ]
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "39c4175a-7721-48b6-a38b-9c9b7f33350e",
+      "name": "Resultado: evento criado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2680,
+        740
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const r = $input.first().json || {};\nconst tk = $('Token pronto').first().json || {};\nconst info = { conta: tk.email || '', rotulo: tk.rotulo || '', n_contas: Number(tk.n_contas) || 1 };\nif (!r.id) return [{ json: Object.assign({ ok: false, conectado: true, erro: /insufficient|forbidden|403/i.test(JSON.stringify(r)) ? 'permissao' : 'google' }, info) }];\n// 10/10: link da sala do Google Meet (quando a reunião pediu sala)\nconst cd = r.conferenceData || {};\nconst video = (Array.isArray(cd.entryPoints) ? cd.entryPoints : []).find(e => e && e.entryPointType === 'video');\nconst meet = r.hangoutLink || (video && video.uri) || '';\nreturn [{ json: { ...info, ok: true, conectado: true, id: r.id, link: r.htmlLink || '', titulo: r.summary || '', meet, meet_status: (cd.createRequest && cd.createRequest.status && cd.createRequest.status.statusCode) || '', inicio: (r.start && (r.start.dateTime || r.start.date)) || '', fim: (r.end && (r.end.dateTime || r.end.date)) || '' } }];"
+      }
+    },
+    {
+      "id": "0ed0c57d-e1f6-4955-9f22-5b04d930b5be",
+      "name": "Resultado: status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2460,
+        900
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const j = $input.first().json || {};\nif (j.op === 'sem_token') return [{ json: { ok: false, conectado: j.conectado, erro: j.erro, eventos: [], texto: '' } }];\nreturn [{ json: { ok: true, conectado: true, email: j.email || '', rotulo: j.rotulo || '', n_contas: Number(j.n_contas) || 1, contas: j.contas || [] } }];"
+      }
+    },
+    {
+      "id": "9ac8f9db-017d-42d8-a9e8-a0d9586b788a",
+      "name": "Google: editar evento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2460,
+        960
+      ],
+      "parameters": {
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access }}"
+            }
+          ]
+        },
+        "jsonBody": "={{ (() => { const TZ = \"America/Sao_Paulo\"; const j = $json; const b = {}; if (j.titulo) b.summary = j.titulo; if (j.op === \"criar\" && !b.summary) b.summary = \"Compromisso\"; if (j.op === \"criar\") b.description = (j.descricao ? j.descricao + \"\\n\\n\" : \"\") + \"Criado pelo Dyno.\"; else if (j.descricao) b.description = j.descricao; if (j.local || j.op === \"editar\") b.location = j.local || \"\"; if (j.inicio) { if (j.dia_inteiro) { const d = DateTime.fromISO(String(j.inicio), { zone: TZ }); b.start = { date: d.toISODate() }; b.end = { date: (j.fim ? DateTime.fromISO(String(j.fim), { zone: TZ }) : d).plus({ days: 1 }).toISODate() }; } else { const i = DateTime.fromISO(String(j.inicio), { zone: TZ }); const f = j.fim ? DateTime.fromISO(String(j.fim), { zone: TZ }) : i.plus({ hours: 1 }); b.start = { dateTime: i.toISO(), timeZone: TZ }; b.end = { dateTime: f.toISO(), timeZone: TZ }; } } return JSON.stringify(b); })() }}",
+        "method": "PATCH",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "=https://www.googleapis.com/calendar/v3/calendars/primary/events/{{ $json.event_id }}"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "058da173-c909-44b9-abdd-d2ff4b5519d8",
+      "name": "Resultado: evento editado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2680,
+        960
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json || {};\nif (!r.id) return [{ json: { ok: false, conectado: true, erro: /insufficient|forbidden|403/i.test(JSON.stringify(r)) ? 'permissao' : (/404|not.?found/i.test(JSON.stringify(r)) ? 'nao_encontrado' : 'google') } }];\nreturn [{ json: { ok: true, conectado: true, id: r.id, link: r.htmlLink || '', titulo: r.summary || '' } }];\n",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "910161a2-a277-4425-a106-4682ff51993e",
+      "name": "Google: remover evento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2460,
+        1120
+      ],
+      "parameters": {
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access }}"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "url": "=https://www.googleapis.com/calendar/v3/calendars/primary/events/{{ $json.event_id }}"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b71f1324-0987-4497-986b-f5a677a173ef",
+      "name": "Resultado: evento removido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2680,
+        1120
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json || {};\nconst s = JSON.stringify(r);\nif (r.error && !/410|404|deleted/i.test(s)) return [{ json: { ok: false, conectado: true, erro: /insufficient|forbidden|403/i.test(s) ? 'permissao' : 'google' } }];\nreturn [{ json: { ok: true, conectado: true } }];\n",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "04761b4b-7e41-4aaa-b986-07e45d458216",
+      "name": "É reunião?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2900,
+        740
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "re1",
+              "leftValue": "={{ $json.ok === true && $('Pedido').first().json.meet === true }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cdaca57b-de5d-4d72-89e0-0d7ec3795be9",
+      "name": "Supabase: registrar reunião",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3120,
+        660
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p: { numero: $('Pedido').first().json.numero, event_id: $json.id, titulo: $json.titulo, inicio: $json.inicio, fim: $json.fim, meet: $json.meet, link: $json.link, participantes: $('Pedido').first().json.participantes, conta: $('Token pronto').first().json.email || null } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_reuniao_registrar"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "3f89fb66-0998-4edd-a01a-f69707faf7e4",
+      "name": "Resultado: reunião criada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3340,
+        660
+      ],
+      "parameters": {
+        "jsCode": "// 10/10: devolve o resultado do evento (com o link do Meet) depois de guardar a reunião.\nreturn [{ json: Object.assign({}, $('Resultado: evento criado').first().json, { reuniao: true }) }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "7f674672-5707-49d3-b3f2-0a81ce3ac3ea",
+      "name": "Resultado: compromisso criado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        820
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: $('Resultado: evento criado').first().json }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "ac061b82-33ef-446b-b99a-95ddd9606ee2",
+      "name": "Supabase: preparar convite",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2460,
+        1300
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p: { numero: $json.numero, canal: $json.canal, participantes: $json.participantes, event_id: $json.event_id || null } }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_reuniao_convite"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "9d0decfb-8e01-4704-8602-5bcfdcb06b90",
+      "name": "Convidar por e-mail?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2680,
+        1300
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "ce1",
+              "leftValue": "={{ $json.ok === true && Array.isArray($json.emails_novos) && $json.emails_novos.length > 0 && !!$json.event_id }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "104acdad-95fe-4f27-96ee-8a90208c1249",
+      "name": "Google: convidar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3120,
+        1240
+      ],
+      "parameters": {
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Token pronto').first().json.access }}"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify({ attendees: ($json.emails || []).map(e => ({ email: e })) }) }}",
+        "method": "PATCH",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "=https://www.googleapis.com/calendar/v3/calendars/primary/events/{{ $json.event_id }}?sendUpdates=all"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "55c92c38-3f4c-46dd-8c57-5a8ff2474b0b",
+      "name": "Resultado: convite",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3780,
+        1300
+      ],
+      "parameters": {
+        "jsCode": "// 10/10: resultado do convite da reunião. E-mail: pelo no-reply@dynoapp.com.br (convite_email_via = noreply) ou pelo próprio Google (google). WhatsApp: fila de envios.\nconst c = $('Supabase: preparar convite').first().json || {};\nlet g = null; try { g = $('Google: convidar').first().json; } catch (e) { g = null; }\nlet envios = null; try { envios = $('E-mail: convite (no-reply)').all().map(i => i.json || {}); } catch (e) { envios = null; }\nlet emailOk = null, emailErro = null;\nif (envios && envios.length) {\n  const falhas = envios.filter(e => e.error || !(Array.isArray(e.accepted) && e.accepted.length));\n  emailOk = falhas.length === 0;\n  if (!emailOk) emailErro = 'smtp';\n} else if (g) {\n  emailOk = !!g.id;\n  if (!emailOk) emailErro = /insufficient|forbidden|403/i.test(JSON.stringify(g)) ? 'permissao' : 'google';\n} else if (c.via === 'noreply' && Array.isArray(c.emails_novos) && c.emails_novos.length) {\n  emailOk = false; emailErro = 'smtp';\n}\nreturn [{ json: Object.assign({ ok: false }, c, { conectado: true, email_ok: emailOk, email_erro: emailErro }) }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "cd8f2096-e60c-4991-83d1-a68991ba1c74",
+      "name": "Via no-reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2900,
+        1400
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "vn1",
+              "leftValue": "={{ $json.via === 'noreply' }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3f30090f-1202-4bf1-ab43-8b421cd30493",
+      "name": "Google: registrar participantes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3120,
+        1460
+      ],
+      "parameters": {
+        "contentType": "json",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Token pronto').first().json.access }}"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify({ attendees: ($json.emails || []).map(e => ({ email: e })) }) }}",
+        "method": "PATCH",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "=https://www.googleapis.com/calendar/v3/calendars/primary/events/{{ $json.event_id }}?sendUpdates=none"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "50257a8d-c822-46dd-be70-fd69511527b0",
+      "name": "Montar e-mail do convite",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3340,
+        1460
+      ],
+      "parameters": {
+        "jsCode": "// 10/10: convite da reunião por e-mail pelo no-reply@dynoapp.com.br, com arquivo .ics (abre como convite no Gmail/Outlook).\n// Mesmo UID do evento do Google: quem já tem o evento na agenda não fica com cópia duplicada.\nconst c = $('Supabase: preparar convite').first().json || {};\nconst g0 = $input.first().json || {};\nconst g = g0.id ? g0 : {};\nconst TZ = 'America/Sao_Paulo';\nconst novos = Array.isArray(c.emails_novos) ? c.emails_novos : [];\nconst todos = Array.isArray(c.emails) ? c.emails : novos;\nconst esc = s => String(s || '').replace(/[&<>\"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[ch]));\nconst icsEsc = s => String(s || '').replace(/\\\\/g, '\\\\\\\\').replace(/;/g, '\\\\;').replace(/,/g, '\\\\,').replace(/\\r?\\n/g, '\\\\n');\nconst fold = l => { let o = ''; let s = l; while (s.length > 70) { o += s.slice(0, 70) + '\\r\\n '; s = s.slice(70); } return o + s; };\nconst iniISO = (g.start && g.start.dateTime) || c.inicio;\nif (!iniISO || !novos.length) return [];\nconst ini = DateTime.fromISO(String(iniISO)).setZone(TZ);\nconst fimISO = (g.end && g.end.dateTime) || c.fim;\nconst fim = fimISO ? DateTime.fromISO(String(fimISO)).setZone(TZ) : ini.plus({ hours: 1 });\nconst u = d => d.toUTC().toFormat(\"yyyyLLdd'T'HHmmss'Z'\");\nconst titulo = String(c.titulo || g.summary || 'Reunião');\nconst quem = String(c.quem || 'Seu contato');\nconst primeiro = quem.split(' ')[0];\nconst meet = String(c.meet || g.hangoutLink || '');\nconst orgEmail = String((g.organizer && g.organizer.email) || c.quem_email || 'no-reply@dynoapp.com.br');\nconst uid = String(g.iCalUID || (String(c.event_id || 'reuniao') + '@dynoapp.com.br'));\nconst dia = ini.setLocale('pt-BR').toFormat(\"cccc, dd 'de' LLLL\");\nconst hora = ini.toFormat('HH:mm') + '–' + fim.toFormat('HH:mm');\nconst desc = quem + ' te convidou para esta reunião.' + (meet ? '\\nGoogle Meet: ' + meet : '') + '\\n\\nEnviado pelo Dyno (dynoapp.com.br).';\nconst linhas = [\n  'BEGIN:VCALENDAR', 'PRODID:-//Dyno//Reunioes//PT-BR', 'VERSION:2.0', 'CALSCALE:GREGORIAN', 'METHOD:REQUEST',\n  'BEGIN:VEVENT', 'UID:' + uid, 'DTSTAMP:' + u(DateTime.now()), 'DTSTART:' + u(ini), 'DTEND:' + u(fim),\n  'SEQUENCE:' + (Number(g.sequence) || 0), 'STATUS:CONFIRMED',\n  'SUMMARY:' + icsEsc(titulo), 'DESCRIPTION:' + icsEsc(desc),\n  ...(meet ? ['LOCATION:' + icsEsc(meet), 'URL:' + meet] : []),\n  'ORGANIZER;CN=' + icsEsc(quem) + ':mailto:' + orgEmail,\n  ...todos.map(e => 'ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=' + icsEsc(e) + ':mailto:' + e),\n  'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(titulo), 'TRIGGER:-PT10M', 'END:VALARM',\n  'END:VEVENT', 'END:VCALENDAR'\n];\nconst ics = linhas.map(fold).join('\\r\\n') + '\\r\\n';\nconst gcal = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(titulo) + '&dates=' + u(ini) + '/' + u(fim) + '&details=' + encodeURIComponent(desc);\nconst botao = meet ? '<p style=\"margin:24px 0\"><a href=\"' + esc(meet) + '\" style=\"background:#12A866;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px;display:inline-block\">Entrar no Google Meet</a></p><p style=\"margin:0 0 4px;color:#5b6270;font-size:13px\">Link da sala: <a href=\"' + esc(meet) + '\" style=\"color:#0B1A3A\">' + esc(meet) + '</a></p>' : '';\nconst html = '<div style=\"background:#F6F4EF;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;color:#0D1424\">' +\n  '<div style=\"max-width:520px;margin:0 auto;background:#ffffff;border-radius:14px;padding:28px 24px;border:1px solid #e6e2d8\">' +\n  '<p style=\"margin:0 0 6px;font-size:13px;color:#5b6270;letter-spacing:.04em;text-transform:uppercase\">Convite para reunião</p>' +\n  '<h1 style=\"margin:0 0 16px;font-size:22px;line-height:1.3\">' + esc(titulo) + '</h1>' +\n  '<p style=\"margin:0 0 16px;font-size:15px\"><b>' + esc(quem) + '</b> te convidou para uma reunião.</p>' +\n  '<table role=\"presentation\" style=\"border-collapse:collapse;font-size:15px\"><tr><td style=\"padding:4px 12px 4px 0;color:#5b6270\">Quando</td><td style=\"padding:4px 0\"><b>' + esc(dia) + '</b><br>' + esc(hora) + ' (horário de Brasília)</td></tr></table>' +\n  botao +\n  '<p style=\"margin:20px 0 0;font-size:13px;color:#5b6270\">O convite (.ics) está anexado: abra para adicionar à sua agenda. Se preferir, <a href=\"' + esc(gcal) + '\" style=\"color:#0B1A3A\">adicione ao Google Agenda</a>.</p>' +\n  '<hr style=\"border:none;border-top:1px solid #eee;margin:22px 0 14px\">' +\n  '<p style=\"margin:0;font-size:12px;color:#8a8f99\">Enviado pelo Dyno, assistente de ' + esc(primeiro) + ' no WhatsApp. Para falar sobre a reunião, responda este e-mail: a resposta vai direto para ' + esc(primeiro) + '.</p>' +\n  '</div></div>';\nconst b64 = Buffer.from(ics, 'utf8').toString('base64');\nreturn novos.map(to => ({\n  json: { to, subject: 'Convite: ' + titulo + ' · ' + ini.setLocale('pt-BR').toFormat('dd/LL') + ' às ' + ini.toFormat('HH:mm'), html, replyTo: (g.organizer && g.organizer.email) || c.quem_email || 'suporte@dynoapp.com.br' },\n  binary: { ics: { data: b64, mimeType: 'text/calendar', fileExtension: 'ics', fileName: 'convite.ics' } }\n}));\n",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "b460fdfa-42f2-4fc3-9877-5a2bb2551c72",
+      "name": "E-mail: convite (no-reply)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        3560,
+        1460
+      ],
+      "parameters": {
+        "emailFormat": "html",
+        "fromEmail": "Dyno <no-reply@dynoapp.com.br>",
+        "html": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false,
+          "fileAttachments": "ics",
+          "replyTo": "={{ $json.replyTo }}"
+        },
+        "subject": "={{ $json.subject }}",
+        "toEmail": "={{ $json.to }}"
+      },
+      "onError": "continueRegularOutput",
+      "webhookId": "d3e608dc-34d4-4296-bc43-9f0997ed4512"
+    },
+    {
+      "id": "78a29c4a-2a72-4307-8798-2ed8b3f7a91b",
+      "name": "Tokens para revogar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        810,
+        400
+      ],
+      "parameters": {
+        "jsCode": "// 10/10: com várias contas Google, revoga cada token desconectado (um item por token).\nconst r = $input.first().json || {};\nconst lista = (Array.isArray(r.tokens) ? r.tokens : (r.refresh_token ? [r.refresh_token] : [])).filter(Boolean);\nif (!lista.length) return [{ json: { refresh_token: null } }];\nreturn lista.map(t => ({ json: { refresh_token: t } }));",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "5ede7e19-ed5d-4af9-8080-f7f44535a0c3",
+      "name": "Supabase: renomear conta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        700,
+        1100
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "contentType": "json",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ p_numero: $json.numero, p_conta: $json.conta, p_nome: $json.nome }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_agenda_renomear"
+      }
+    },
+    {
+      "id": "97edbeda-5c90-48e2-8241-6e9be8945fdc",
+      "name": "Resultado: renomeada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        1100
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json || {};\nreturn [{ json: { ok: r.ok === true, erro: r.erro || '', rotulo: r.rotulo || '', email: r.email || '', contas: r.contas || [] } }];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    }
+  ],
+  "connections": {
+    "Pedido recebido": {
+      "main": [
+        [
+          {
+            "node": "Pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pedido": {
+      "main": [
+        [
+          {
+            "node": "Rotear operação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rotear operação": {
+      "main": [
+        [
+          {
+            "node": "Google: trocar código",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase: criar link",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase: desconectar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase: renomear conta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase: token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: trocar código": {
+      "main": [
+        [
+          {
+            "node": "Token recebido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token recebido?": {
+      "main": [
+        [
+          {
+            "node": "Google: agenda principal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado: falha ao conectar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: agenda principal": {
+      "main": [
+        [
+          {
+            "node": "Preparar gravação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar gravação": {
+      "main": [
+        [
+          {
+            "node": "Supabase: salvar conexão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: salvar conexão": {
+      "main": [
+        [
+          {
+            "node": "Gravou?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gravou?": {
+      "main": [
+        [
+          {
+            "node": "Montar confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado: falha ao conectar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar confirmação": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp: agenda conectada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp: agenda conectada": {
+      "main": [
+        [
+          {
+            "node": "Resultado: conectada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem token para revogar?": {
+      "main": [
+        [
+          {
+            "node": "Google: revogar acesso",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado: desconectada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: revogar acesso": {
+      "main": [
+        [
+          {
+            "node": "Resultado: desconectada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: token": {
+      "main": [
+        [
+          {
+            "node": "Conectado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conectado?": {
+      "main": [
+        [
+          {
+            "node": "Token ainda vale?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado: não conectado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token ainda vale?": {
+      "main": [
+        [
+          {
+            "node": "Token pronto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google: renovar token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token pronto": {
+      "main": [
+        [
+          {
+            "node": "Operação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: renovar token": {
+      "main": [
+        [
+          {
+            "node": "Preparar renovação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar renovação": {
+      "main": [
+        [
+          {
+            "node": "Supabase: guardar token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: guardar token": {
+      "main": [
+        [
+          {
+            "node": "Token pronto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Operação": {
+      "main": [
+        [
+          {
+            "node": "Google: listar eventos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google: criar evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google: editar evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google: remover evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase: preparar convite",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado: status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: listar eventos": {
+      "main": [
+        [
+          {
+            "node": "Formatar agenda",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: criar evento": {
+      "main": [
+        [
+          {
+            "node": "Resultado: evento criado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: editar evento": {
+      "main": [
+        [
+          {
+            "node": "Resultado: evento editado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: remover evento": {
+      "main": [
+        [
+          {
+            "node": "Resultado: evento removido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resultado: evento criado": {
+      "main": [
+        [
+          {
+            "node": "É reunião?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É reunião?": {
+      "main": [
+        [
+          {
+            "node": "Supabase: registrar reunião",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado: compromisso criado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: registrar reunião": {
+      "main": [
+        [
+          {
+            "node": "Resultado: reunião criada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: preparar convite": {
+      "main": [
+        [
+          {
+            "node": "Convidar por e-mail?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convidar por e-mail?": {
+      "main": [
+        [
+          {
+            "node": "Via no-reply?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado: convite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: convidar": {
+      "main": [
+        [
+          {
+            "node": "Resultado: convite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Via no-reply?": {
+      "main": [
+        [
+          {
+            "node": "Google: registrar participantes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google: convidar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: registrar participantes": {
+      "main": [
+        [
+          {
+            "node": "Montar e-mail do convite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar e-mail do convite": {
+      "main": [
+        [
+          {
+            "node": "E-mail: convite (no-reply)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-mail: convite (no-reply)": {
+      "main": [
+        [
+          {
+            "node": "Resultado: convite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: desconectar": {
+      "main": [
+        [
+          {
+            "node": "Tokens para revogar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tokens para revogar": {
+      "main": [
+        [
+          {
+            "node": "Tem token para revogar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: renomear conta": {
+      "main": [
+        [
+          {
+            "node": "Resultado: renomeada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "d5aa8761-9748-48e8-99fc-7c4258995dfd"
+}

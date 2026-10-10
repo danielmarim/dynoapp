@@ -25,10 +25,14 @@ não estão no backup: são de setup ou teste.
 
 ## Atualização de 10/10/2026
 
-Só `dyno-api-do-site-area-do-cliente__nslhB7FRnKuAOPuf.json` (58 nós) e `dyno-whatsapp-cerebro__YFgP2bYqeHbQc5t1.json`
-(164 nós) foram reexportados; os demais seguem como em 08/10. Faltam os renomeados "Dyno Plataforma | …",
-"Dyno Business | …" e os 7 do WhatsApp oficial (Meta). O `limpar_export.py` agora aceita qualquer nome que comece com "Dyno".
+Exportados pela conexão MCP do n8n os **56 workflows** "Dyno …", "Dyno Plataforma | …" e "Dyno Business | …"
+(versão publicada de cada um), passados pelo `limpar_export.py`. Entraram os 7 do WhatsApp oficial (Meta), os
+agentes, o Dyno Business e os demais que faltavam; os 6 renomeados para "Dyno Plataforma | …" trocaram de nome de arquivo.
+Ficaram de fora a "Dyna 2.0" (não é Dyno) e os da Dynamo Wear.
 
-**Atenção:** esses dois vieram da leitura pela API, **sem a referência das credenciais** dos nós. Antes de importar
-num n8n novo, reexporte-os pela interface (passos acima) ou religue as credenciais à mão. A versão de 08/10, com as
-credenciais, continua no histórico do git.
+O `limpar_export.py` agora aceita qualquer nome que comece com "Dyno" e troca o caminho secreto do webhook da
+Pluggy por `pluggy-<SEGREDO-REMOVIDO>`.
+
+**Atenção:** a leitura pela MCP/API **não traz a referência das credenciais** dos nós. Para guardar a lógica no git
+serve; para restaurar num n8n novo, prefira o download pela interface (passos acima) ou religue as credenciais à mão.
+As versões de 08/10, com as credenciais, continuam no histórico do git.

@@ -1,0 +1,313 @@
+{
+  "id": "0c0ENHq0dDm8j81a",
+  "name": "Dyno | Agente: revisão diária das conversas",
+  "description": "Agente diário (07:00): lê as conversas das últimas 24 h, pede à IA uma revisão de erros do Dyno/Dina e envia o relatório ao Daniel no WhatsApp; guarda em dyno_revisoes.",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "5UUmuzItIYDsd3AG",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "id": "e72dbcd7-571f-4ba8-a526-5904a6ce2867",
+      "name": "Todo dia 07:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "49043812-69bc-4593-87db-f1e4b32c0c02",
+      "name": "Supabase: conversas 24h",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_revisao_conversas_dados",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "{\"p_horas\": 24}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3
+    },
+    {
+      "id": "b751774c-e28a-40f6-8186-eb3868813ca7",
+      "name": "Montar pedido à IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Agente de revisão de conversas (07/10/2026): avalia as últimas 24 h e aponta erros do Dyno/Dina.\nconst d = $input.first().json || {};\nconst pessoas = Array.isArray(d.pessoas) ? d.pessoas : [];\nconst NL = String.fromCharCode(10);\nif (!pessoas.length) return [{ json: { vazio: true, de: d.de, ate: d.ate } }];\n// Limita o tamanho: no máximo 120 mensagens por pessoa e ~110k caracteres no total.\nlet total = 0;\nconst blocos = [];\nfor (const p of pessoas) {\n  const conv = (p.conversa || []).slice(-120).map(m => m.h + ' ' + (m.quem === 'bot' ? 'BOT' : 'PESSOA') + ': ' + String(m.t || '').replace(/\\s+/g, ' ')).join(NL);\n  const cab = '### ' + p.nome + (p.familia ? ' (família, uso interno)' : ' (cliente' + (p.plano ? ', plano ' + p.plano : '') + (p.dias_de_uso != null ? ', ' + p.dias_de_uso + ' dias de uso' : '') + ')') + (p.grupo ? ' [grupo]' : '') + ' — ' + p.mensagens + ' mensagens';\n  const b = cab + NL + conv;\n  if (total + b.length > 110000) break;\n  total += b.length; blocos.push(b);\n}\nconst sistema = [\n  'Você é o revisor de qualidade do Dyno e da Dina, assessores pessoais por WhatsApp (o Dyno cuida de dinheiro: gastos, contas, assinaturas; a Dina cuida de lembretes, tarefas, agenda e listas). O dono do produto, Daniel, lê seu relatório toda manhã para corrigir o assistente no mesmo dia.',\n  'Você recebe as conversas das últimas 24 horas, uma por pessoa (PESSOA = quem fala; BOT = Dyno/Dina). Analise e devolva APENAS um JSON com este formato:',\n  '{\"resumo\": \"2 frases sobre o dia\", \"nota\": 0-10, \"achados\": [{\"pessoa\": \"nome\", \"gravidade\": \"alta|media|baixa\", \"tipo\": \"erro_de_registro|nao_entendeu|resposta_errada|nao_fez_o_pedido|repetiu_ou_insistiu_demais|tom_inadequado|frustracao_do_cliente|bug_tecnico|oportunidade\", \"hora\": \"DD/MM HH:MM\", \"o_que_aconteceu\": \"1 frase objetiva\", \"evidencia\": \"trecho curto literal\", \"correcao_sugerida\": \"1 frase prática\"}], \"destaques_positivos\": [\"...\"], \"pedidos_nao_atendidos\": [\"função ou pedido que o assistente não sabe fazer e apareceu hoje\"]}',\n  'Regras: seja concreto e cite o trecho. Não invente. Ignore mensagens automáticas de rotina (bom dia, resumos, lembretes) a não ser que estejam erradas ou repetidas demais. Gravidade alta = dado gravado errado, pedido ignorado, cliente irritado ou bug visível. Máximo 12 achados, os mais importantes primeiro. Família é uso interno: avalie igual, mas marque. O nome no cabeçalho é o apelido da conta; se o BOT chamar a pessoa por outro nome, só aponte se a própria pessoa estranhar. Responda em português do Brasil, sem markdown fora do JSON.'\n].join(NL);\nconst usuario = 'Período: ' + d.de + ' a ' + d.ate + '. Total: ' + d.total + ' mensagens de ' + d.total_pessoas + ' pessoas.' + NL + NL + blocos.join(NL + NL);\nconst payload = { model: 'gpt-5.6-luna', response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sistema }, { role: 'user', content: usuario }] };\nreturn [{ json: { vazio: false, de: d.de, ate: d.ate, clientes: d.total_pessoas, mensagens: d.total, payload } }];"
+      }
+    },
+    {
+      "id": "fb9a0329-5ca9-49d5-89d3-3a8bc345e580",
+      "name": "Tem conversas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.vazio }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "d3450cb1-8645-4436-8a6d-daeff7f6fb3f",
+      "name": "OpenAI: revisar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "233a3336-cba8-4d86-8755-1e3d77ab97ca",
+      "name": "Montar relatório",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const r = $input.first().json || {};\nconst base = $('Montar pedido à IA').first().json;\nconst NL = String.fromCharCode(10), ZW = String.fromCharCode(8203);\nlet j = {};\ntry { j = JSON.parse(String(r.choices[0].message.content || '{}')); } catch (e) { j = { resumo: 'Não consegui interpretar a resposta da IA.', achados: [] }; }\nconst ach = Array.isArray(j.achados) ? j.achados : [];\nconst ic = { alta: '🔴', media: '🟠', baixa: '🟡' };\nconst dia = DateTime.now().setZone('America/Sao_Paulo').minus({ days: 1 }).toFormat('dd/LL');\nconst partes = ['🔎 *Revisão das conversas de ' + dia + '*', (j.resumo || '') + (j.nota != null ? ' Nota do dia: *' + j.nota + '/10*.' : ''), base.mensagens + ' mensagens de ' + base.clientes + ' pessoas.'];\nconst alta = ach.filter(a => a.gravidade === 'alta'), resto = ach.filter(a => a.gravidade !== 'alta');\nconst linha = a => (ic[a.gravidade] || '•') + ' *' + (a.pessoa || '?') + '* ' + (a.hora ? '(' + a.hora + ') ' : '') + (a.o_que_aconteceu || '') + (a.evidencia ? NL + '   _\"' + String(a.evidencia).slice(0, 160) + '\"_' : '') + (a.correcao_sugerida ? NL + '   → ' + a.correcao_sugerida : '');\nif (alta.length) partes.push('*Precisa de ação:*' + NL + alta.map(linha).join(NL));\nif (resto.length) partes.push('*Outros pontos:*' + NL + resto.slice(0, 8).map(linha).join(NL));\nif (!ach.length) partes.push('✅ Nenhum erro relevante encontrado.');\nif (Array.isArray(j.pedidos_nao_atendidos) && j.pedidos_nao_atendidos.length) partes.push('*Pedidos que o Dyno/Dina ainda não sabem fazer:*' + NL + j.pedidos_nao_atendidos.slice(0, 6).map(x => '• ' + x).join(NL));\nif (Array.isArray(j.destaques_positivos) && j.destaques_positivos.length) partes.push('*Foi bem:* ' + j.destaques_positivos.slice(0, 3).join('; '));\nlet texto = partes.join(NL + NL);\nif (texto.length > 6000) texto = texto.slice(0, 5980) + '…';\nreturn [{ json: { texto, envio: { number: '5511930851325', text: ZW + texto, delay: 800 }, gravar: { p: { de: base.de, ate: base.ate, clientes: base.clientes, mensagens: base.mensagens, relatorio: texto, achados: j, modelo: r.model || 'gpt-5.6-luna' } }, uso: { p: { autor: 'Sistema', origem: 'revisao_diaria', tarefa: 'revisao', provedor: 'openai', modelo: r.model || 'gpt-5.6-luna', uso: r.usage || {} } } } }];"
+      }
+    },
+    {
+      "id": "76df1a76-9411-4e0d-a09c-90d00ab8186a",
+      "name": "WhatsApp: enviar ao Daniel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.dynoapp.com.br/message/sendText/dyno",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.envio) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1cd718a4-55fe-43f4-908c-145a0e6c35a0",
+      "name": "Supabase: guardar revisão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1568,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_revisao_gravar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Montar relatório').first().json.gravar) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "a443120b-41dd-4d1e-933c-1f141dbad099",
+      "name": "Uso IA: revisão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1792,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://xvekgnbneeokihtjpbts.supabase.co/rest/v1/rpc/dyno_ia_registrar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Montar relatório').first().json.uso) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Todo dia 07:00": {
+      "main": [
+        [
+          {
+            "node": "Supabase: conversas 24h",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: conversas 24h": {
+      "main": [
+        [
+          {
+            "node": "Montar pedido à IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar pedido à IA": {
+      "main": [
+        [
+          {
+            "node": "Tem conversas?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem conversas?": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: revisar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: revisar": {
+      "main": [
+        [
+          {
+            "node": "Montar relatório",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar relatório": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp: enviar ao Daniel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp: enviar ao Daniel": {
+      "main": [
+        [
+          {
+            "node": "Supabase: guardar revisão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: guardar revisão": {
+      "main": [
+        [
+          {
+            "node": "Uso IA: revisão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "tags": [],
+  "versionId": "5aa853f7-f81b-4457-abbe-86d14ef66ec7"
+}
