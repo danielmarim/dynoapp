@@ -20,7 +20,7 @@ No lugar do aviso antigo o WhatsApp mostra "Mensagem apagada". Isso é do WhatsA
 
 ## Para ajustar
 - Intervalo e máximo: constantes no topo do nó "Preparar envio".
-- Texto do site (aba Funcionalidades, "Lembretes que insistem"): `site/func_page.py`.
+- Texto do site (aba Funcionalidades, "Lembretes que insistem"): `plataforma/site/func_page.py`.
 
 ## Pendente
 - Teste real: pedir "me lembra daqui 2 minutos de testar", não responder por ~25 min e conferir que só o último aviso fica. A apagada depende do Evolution aceitar o `DELETE` com esse corpo; se falhar, o nó segue sem apagar (ver execuções).

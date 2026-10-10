@@ -10,10 +10,10 @@ snapshots/
 *.mp4
 *.mov
 *.wav
-site/bundle*
-site/chunk_*
+plataforma/site/bundle*
+plataforma/site/chunk_*
 *.bak
 __pycache__/
 .DS_Store
 # export bruto do n8n (antes de limpar)
-n8n/_download/
+plataforma/n8n/_download/

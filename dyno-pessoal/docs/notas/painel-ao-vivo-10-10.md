@@ -11,7 +11,7 @@ O que foi verificado:
 Causa mais provável: o print foi tirado antes dos gastos novos, ou o navegador do celular devolveu a página guardada em vez de recarregar (comum no navegador interno do WhatsApp ou ao trocar de app). De qualquer forma, o painel não se atualizava sozinho.
 
 ## O que mudou
-- Arquivo novo `site/www/assets/painel-vivo.js`, carregado por `conta.html` depois de `categorias.js`.
+- Arquivo novo `plataforma/site/www/assets/painel-vivo.js`, carregado por `conta.html` depois de `categorias.js`.
 - Funcionamento:
   - Escuta a resposta do painel da carga inicial.
   - Com a página visível, consulta o painel de novo a cada 30 s, ao voltar para a aba do navegador e ao restaurar a página da memória (bfcache).

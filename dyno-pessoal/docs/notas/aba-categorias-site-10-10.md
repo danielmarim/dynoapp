@@ -16,7 +16,7 @@ Pedido do Daniel: "Libere a aba de categorias no site do dynoapp.com.br". Escolh
 |---|---|
 | Supabase | `public.dyno_site_categorias(p_token, p jsonb)`, com as ops `ver`, `regra_salvar`, `regra_apagar`, `limite_salvar` (aceita "1.350,50"), `limite_apagar` e `transacao_categoria`. Acesso só por service_role. |
 | n8n `nslhB7FRnKuAOPuf` (Dyno \| API do site) | Bloco `acao === 'categorias'` em "Ação agenda" (valida op, período, id, tamanhos; exige o cookie `dyno_sess`). `'categorias'` também foi incluída nas listas do "É avaliação?". Publicado em 10/10 como e08075c0. A versão anterior é 81d063a3. |
-| Site | `site/www/assets/categorias.js` e a tag `<script src="/assets/categorias.js?v=1" defer>` em `conta.html`, depois do chat.js. |
+| Site | `plataforma/site/www/assets/categorias.js` e a tag `<script src="/assets/categorias.js?v=1" defer>` em `conta.html`, depois do chat.js. |
 | Backup | `public.dyno_site_files_bak_1010`: `conta.html#01` antes da mudança. |
 
 **Para entrar no ar:** reiniciar o projeto Docker `dyno-site` na Hostinger (hPanel → VPS 1825327 → Docker → dyno-site → Restart). O container só aplica o overlay quando inicia.

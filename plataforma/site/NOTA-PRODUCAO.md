@@ -1,4 +1,4 @@
-# site/ espelha a produção (10/10/2026)
+# plataforma/site/ espelha a produção (10/10/2026)
 
 `www/` e `templates/` foram refeitos a partir do que o container `dyno-site` serve: pacote-base (`dyno_site_bundle`, id 1) + overlay (`dyno_site_files`), com o overlay valendo.
 

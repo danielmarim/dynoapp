@@ -1,10 +1,13 @@
 """Limpa o export dos workflows do n8n antes do commit.
 
 Uso:
-    python n8n/limpar_export.py [entrada ...]
+    python plataforma/n8n/limpar_export.py [entrada ...]
 
-Entrada: arquivos .json, .zip ou pastas (padrão: n8n/_download/, que fica fora do git).
-Saída: n8n/workflows/<nome>__<id>.json
+Entrada: arquivos .json, .zip ou pastas (padrão: plataforma/n8n/_download/, que fica fora do git).
+Saída: <produto>/n8n/workflows/<nome>__<id>.json, com o produto escolhido pelo nome do workflow:
+  "Dyno Plataforma | …" -> plataforma/, "Dyno Business | …" -> dyno-business/, "Dyno | …" -> dyno-pessoal/
+  (outros, só com --todos -> plataforma/). Se o workflow mudou de nome ou de produto, o arquivo antigo
+  com o mesmo id é apagado.
 
 O que faz:
 - troca o valor da constante SEGREDO (nó "Preparar" da API do site) por '__SEGREDO__';
@@ -24,8 +27,21 @@ import zipfile
 from pathlib import Path
 
 PASTA = Path(__file__).resolve().parent
-SAIDA = PASTA / "workflows"
+RAIZ = PASTA.parent.parent
 PADRAO_ENTRADA = PASTA / "_download"
+# prefixo do nome no n8n -> pasta do produto (o mais específico primeiro)
+PRODUTOS = [
+    ("Dyno Plataforma |", "plataforma"),
+    ("Dyno Business |", "dyno-business"),
+    ("Dyno |", "dyno-pessoal"),
+]
+
+
+def pasta_saida(nome):
+    for prefixo, pasta in PRODUTOS:
+        if nome.startswith(prefixo):
+            return RAIZ / pasta / "n8n" / "workflows"
+    return PASTA / "workflows"
 
 RE_SEGREDO = re.compile(r"""(const\s+SEGREDO\s*=\s*)(['"`])(?!__SEGREDO__\2)[^'"`]*\2""")
 # p_token fixo enviado às RPCs do Supabase (ex.: Asaas webhook → dyno_evento_asaas)
@@ -127,7 +143,6 @@ def main(argv):
     permitir = "--permitir" in argv
     todos = "--todos" in argv
     entradas = [a for a in argv if not a.startswith("--")] or [PADRAO_ENTRADA]
-    SAIDA.mkdir(exist_ok=True)
     problema = False
     total = 0
     for origem, dados in ler_entradas(entradas):
@@ -143,7 +158,8 @@ def main(argv):
             achados, telefones = [], set()
             for no in wf["nodes"]:
                 varrer(no.get("parameters", {}), f"[{no.get('name')}]", achados, telefones)
-            arq = SAIDA / f"{slug(nome)}__{wf.get('id', 'sem-id')}.json"
+            saida = pasta_saida(nome)
+            arq = saida / f"{slug(nome)}__{wf.get('id', 'sem-id')}.json"
             linha = f"{'!' if achados else 'ok'} {nome} -> {arq.name}"
             if trocas:
                 linha += f" (segredos trocados: {trocas})"
@@ -155,9 +171,14 @@ def main(argv):
             if achados and not permitir:
                 problema = True
                 continue
+            saida.mkdir(parents=True, exist_ok=True)
+            for antigo in RAIZ.glob(f"*/n8n/workflows/*__{wf.get('id', 'sem-id')}.json"):
+                if antigo != arq:
+                    print(f"    removido {antigo.relative_to(RAIZ)} (nome ou produto mudou)")
+                    antigo.unlink()
             arq.write_text(json.dumps(wf, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             total += 1
-    print(f"\n{total} workflow(s) gravados em {SAIDA}")
+    print(f"\n{total} workflow(s) gravados nas pastas <produto>/n8n/workflows/")
     if problema:
         print("Há suspeitas de segredo: os arquivos marcados com ! NÃO foram gravados. Revise e rode de novo.")
         return 1

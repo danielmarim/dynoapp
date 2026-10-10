@@ -20,8 +20,8 @@ Decisão do Daniel: não criar a "Zia"; o câmbio é função do **Dyno** (dinhe
 
 ## Lançamento (05/10)
 - **Anúncio enviado** aos 10 cadastros pelo número do Dyno: dólar R$ 4,98 vs R$ 5,21 em 28/09 (−4,5%), euro R$ 5,58 (−5,8%) + exemplos de comandos.
-- **Site dynoapp.com.br:** seção "O dólar caiu? O Dyno te avisa." na home, item "Alerta de dólar e euro" na lista do Dyno e pergunta no FAQ (fonte em `site/build.py`, CSS `.cambio` em `site/www/assets/site.css`).
-- **Instagram:** post 1080×1350 e reel de 22 s (com e sem música). Projeto do reel em `videos/dyno-reel-dolar` (gen.py + sfx.py).
+- **Site dynoapp.com.br:** seção "O dólar caiu? O Dyno te avisa." na home, item "Alerta de dólar e euro" na lista do Dyno e pergunta no FAQ (fonte em `plataforma/site/build.py`, CSS `.cambio` em `site/www/assets/site.css`).
+- **Instagram:** post 1080×1350 e reel de 22 s (com e sem música). Projeto do reel em `dyno-pessoal/videos/dyno-reel-dolar` (gen.py + sfx.py).
   - Legenda sugerida: "O dólar caiu? O Dyno te avisa. 💵 Agora é só pedir no WhatsApp: 'me avisa quando o dólar ficar abaixo de R$ 4,90' — e pronto, ele fica de olho por você. Funciona com dólar e euro, até 5 alertas, cotação atualizada a cada 15 minutos. Só informamos, não é recomendação de investimento. 👉 dynoapp.com.br #dyno #dolar #cambio #financaspessoais #whatsapp"
   - Valores do material são ilustrativos; sempre manter "só informo, não é recomendação".
 

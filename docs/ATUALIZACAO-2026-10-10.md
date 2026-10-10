@@ -2,6 +2,8 @@
 
 Complementa a `PASSAGEM-DE-BASTAO.md`. Quando houver contradição entre os dois, vale este arquivo.
 
+> **Caminhos (mais tarde em 10/10):** o repositório foi dividido por produto. Onde este arquivo diz `site/`, leia `plataforma/site/`; `n8n/workflows/` virou `<produto>/n8n/workflows/` e o script está em `plataforma/n8n/`; `videos/`, `card-semanal/` e `docs/notas/` estão em `dyno-pessoal/`. A pendência 1 (exportar os workflows) foi resolvida: os 56 estão no repositório.
+
 ## O que mudou no código deste repositório
 
 | Pasta | Mudança |

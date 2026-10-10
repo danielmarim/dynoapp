@@ -756,7 +756,7 @@ O que falta está em 4 fases, com lançamento aberto em 01/12/2026. Cada fase s�
 
 ### Funções planejadas (ordem atualizada em 06/10)
 
-Ver `docs/FUNCIONALIDADES-E-ROADMAP.md`: card semanal para todos, edição pelo WhatsApp, previsão do mês, cartão de crédito, categorias próprias, metas, agenda, boas-vindas guiadas, edição no painel, modo casal, pgvector, Google Agenda e áudio longo (adiado).
+Ver `dyno-pessoal/docs/FUNCIONALIDADES-E-ROADMAP.md`: card semanal para todos, edição pelo WhatsApp, previsão do mês, cartão de crédito, categorias próprias, metas, agenda, boas-vindas guiadas, edição no painel, modo casal, pgvector, Google Agenda e áudio longo (adiado).
 
 ## Riscos e pendências imediatas
 

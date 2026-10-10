@@ -22,7 +22,7 @@ WhatsApp → Evolution API (wa.dynoapp.com.br) → **n8n** (identifica o cliente
 
 ## Repositório
 
-Código e documentação no GitHub (privado): https://github.com/danielmarim/dynoapp — branch `main`, primeiro push em 05/10/2026. Cópia local do Daniel: `H:\Claude\MVP - DynoApp\dynoapp-repo`. Em 10/10 o `site/` passou a espelhar a produção (pacote-base + overlay) e dois workflows foram reexportados; o resto do `n8n/` segue como em 08/10 (ver `ATUALIZACAO-2026-10-10.md`).
+Código e documentação no GitHub (privado): https://github.com/danielmarim/dynoapp — branch `main`, primeiro push em 05/10/2026. Cópia local do Daniel: `H:\Claude\MVP - DynoApp\dynoapp-repo`. Em 10/10 o `site/` passou a espelhar a produção (pacote-base + overlay), os 56 workflows do Dyno foram exportados e o repositório foi **dividido por produto**: `dyno-pessoal/` (core), `dyno-business/`, `dyno-maker/`, `dyno-fit/`, `dyno-contabil/`, `dyno-vendas/` e `plataforma/` (site, n8n compartilhado, infraestrutura). Mapa no `README.md` da raiz.
 
 **Como o Daniel quer trabalhar (06/10):** a IA **não faz push** no GitHub. Ela entrega um **.zip com os arquivos alterados** e o Daniel sobe manualmente. Mudanças em **produção** (n8n, Supabase, site por overlay, Hostinger) a IA pode fazer direto na sessão, respeitando as regras abaixo.
 
@@ -36,7 +36,7 @@ Código e documentação no GitHub (privado): https://github.com/danielmarim/dyn
 | Comprovantes | Supabase Storage, bucket privado `comprovantes`, `<cliente>/<AAAA>/<MM>/...`; índice em `dyno_comprovantes` | Cópias antigas ainda no Drive |
 | Servidor | VPS Hostinger srv1825327 (KVM 4, IP 77.37.41.74), id da VM 1825327 | Conferir renovação (vencia em 09/10/2026) |
 | WhatsApp do Dyno | Docker `evolution-dyno` (instância `dyno`) | Painel: wa.dynoapp.com.br/manager |
-| Site | Docker `dyno-site` (nginx). Na inicialização baixa o site do Supabase (RPC `dyno_site_bundle`) e aplica o overlay `dyno_site_files` | Fonte do site: pasta `site/` deste repositório (espelha a produção desde 10/10; ver `site/NOTA-PRODUCAO.md`) |
+| Site | Docker `dyno-site` (nginx). Na inicialização baixa o site do Supabase (RPC `dyno_site_bundle`) e aplica o overlay `dyno_site_files` | Fonte do site: pasta `plataforma/site/` deste repositório (espelha a produção desde 10/10; ver `plataforma/site/NOTA-PRODUCAO.md`) |
 | Imagens (cards) | Docker `dyno-render` (Gotenberg 8), só na rede interna `n8n_default` | `http://dyno-render:3000/forms/chromium/screenshot/html` |
 | Backups | Google Drive (conta oficialdynamowear): "Dyno - Backups (privado)" | Backup diário 03:40, 14 dias |
 | Cobrança | Asaas (credencial `asaas-prod`, webhook com token) | |
@@ -91,7 +91,7 @@ Nomes atuais no n8n: "Dyno | …" para os do produto, "Dyno Plataforma | …" pa
 
 Desde 08/10 há outros (rastreio de encomendas 17TRACK, agentes de assinaturas, documentos, promessas, pedidos de função e fábrica de conteúdo, bom dia personalizado, fila de envios, mensagens pós-cadastro, tempo e contatos, Dyno Business). A lista completa e atual está no n8n (tags `dyno`, `plataforma`, `dyno-business`).
 
-**Backup da lógica:** `n8n/workflows/` neste repositório (ver `n8n/README.md` para o que está atualizado).
+**Backup da lógica:** `<produto>/n8n/workflows/` neste repositório, separado pelo nome no n8n (ver `plataforma/n8n/README.md`).
 
 ## 6. Configuração de IA (tabela `dyno_config`)
 
@@ -118,7 +118,7 @@ Desde 08/10 há outros (rastreio de encomendas 17TRACK, agentes de assinaturas, 
 
 **Overlay (padrão hoje):** o container aplica `public.dyno_site_files(path#NN, conteudo)` por cima de `www/`; as peças `#NN` do mesmo caminho são concatenadas. Inserir/atualizar as linhas (inserir com aspas `$f$`, conferir `md5(conteudo)`), guardar um backup da linha anterior em tabela `dyno_site_files_bak_*` e reiniciar o projeto Docker `dyno-site` na Hostinger; o log mostra "overlay aplicado". Para conteúdo grande, o Supabase MCP dá timeout: usar um workflow temporário no n8n (Code + HTTP PATCH em `/rest/v1/dyno_site_files`). A peça `../templates/default.conf.template#01` alcança o nginx (rota `/minhaconta`).
 
-**Bundle:** como `site/www` espelha a produção, dá para empacotar `www` e `templates` (`tar czf bundle.tgz www templates`, base64, `update dyno_site_bundle set conteudo=... where id=1`), apagar as linhas do overlay e reiniciar. **Não rode `build.py`** sobre `www/`: está atrás das páginas editadas no overlay.
+**Bundle:** como `plataforma/site/www` espelha a produção, dá para empacotar `www` e `templates` (em `plataforma/site/`: `tar czf bundle.tgz www templates`, base64, `update dyno_site_bundle set conteudo=... where id=1`), apagar as linhas do overlay e reiniciar. **Não rode `build.py`** sobre `www/`: está atrás das páginas editadas no overlay.
 
 O segredo `X-Dyno-Site` fica na env `SITE_SECRET` do container e na credencial n8n `dyno-site`. Nunca em arquivo.
 
