@@ -362,6 +362,8 @@ Todas as tabelas têm RLS ligado. O n8n acessa só com a chave de serviço, e as
 | dyno\_monitor / dyno\_monitor\_quedas | Vigia externo e registro de quedas |
 | dyno\_site\_bundle / dyno\_site\_stage | Pacote do site usado no deploy |
 | dyno\_config | Configurações gerais |
+| dyno\_servidor / dyno\_servidor\_eventos | Árbitro do servidor reserva: qual servidor atende, batimentos e histórico de viradas (ver `redundancia/`) |
+| dyno\_whisper\_sombra | Comparação Whisper local × OpenAI nos áudios (texto só dos áudios do Daniel) |
 
 Funções principais (RPC):
 
@@ -371,6 +373,8 @@ Funções principais (RPC):
 - **LGPD:** `dyno_lgpd_exportar`, `dyno_lgpd_eliminar`, `dyno_titular_exportar`, `dyno_titular_eliminar`.
 - **Admin e operação:** `dyno_admin`, `dyno_admin_achar`, `dyno_metricas`, `dyno_painel`, `dyno_log`, `dyno_log_lote`, `dyno_backup_export`, `dyno_monitor_rodar`, `dyno_monitor_relatorio`, `dyno_infra_registrar`, `dyno_feedback_lembretes`.
 - **Extrato:** `dyno_importacao_salvar`, `dyno_importacao_decidir`, `dyno_importacoes_limpar`.
+- **Servidor reserva:** `dyno_servidor_batimento`, `dyno_servidor_mudar` (liberadas para a chave pública, mas só funcionam com o token dos servidores, guardado como resumo em `dyno_servidor.token_hash`).
+- **Whisper em sombra:** `dyno_whisper_sombra_registrar`, `dyno_whisper_sombra_relatorio`.
 
 Tarefas agendadas no banco (pg\_cron):
 
@@ -487,6 +491,7 @@ As camadas de rede, banco e aplicação estão protegidas. Falta o endurecimento
 
 - **Diário, 03:40:** JSON com Supabase e Data tables na pasta privada do Google Drive, guardando os 14 mais recentes.
 - **Semanal, pela Hostinger:** snapshot do VPS e backup automático fora do servidor.
+- **A cada 5 min, para o servidor reserva** (quando instalado): cópia do n8n, da Evolution e dos projetos, pronta para assumir. Ver `redundancia/README.md`.
 - **Pendente:** a chave de criptografia do n8n (N8N\_ENCRYPTION\_KEY) deve ficar num cofre de senhas, porque sem ela as credenciais não abrem num restore. Também vale testar uma restauração completa uma vez.
 
 ## Observabilidade
@@ -510,7 +515,7 @@ O **painel de observabilidade** fica em n8n.../webhook/dyno-painel e pede um tok
 - CPU, memória e disco;
 - pagamentos e situação da retenção.
 
-**Ponto cego:** se o VPS inteiro cair, os alertas só chegam quando ele voltar, porque o WhatsApp sai dele. O UptimeRobot (gratuito, na conta do Daniel) fecharia esse buraco com aviso por e-mail ou aplicativo.
+**Ponto cego:** se o VPS inteiro cair, os alertas só chegam quando ele voltar, porque o WhatsApp sai dele. O UptimeRobot (gratuito, na conta do Daniel) fecharia esse buraco com aviso por e-mail ou aplicativo. Com o **servidor reserva** instalado (`redundancia/`), a queda do VPS faz o reserva assumir em 5 a 7 min, e o aviso "Servidor reserva assumiu" sai pelo WhatsApp do próprio reserva.
 
 ## Capacidade e objetivo
 
@@ -678,6 +683,7 @@ Em 3 dias o Dyno saiu de um assistente da família para um produto multi-cliente
 
 | Data | Entrega | Detalhe |
 | --- | --- | --- |
+| 10/10 | Servidor reserva (pronto para instalar) | Árbitro no Supabase (`dyno_servidor`), agente no principal (batimento, cópia a cada 5 min, cerca), vigia no reserva (assume sozinho, vira o DNS na Cloudflare, volta planejada) e proxy n8n.dynoapp.com.br. Testado de ponta a ponta com dois Docker (`redundancia/teste/simular.sh`) |
 | 10/10 | Whisper local em modo sombra | Compose do container `dyno-whisper` (pasta `whisper/`), workflow Dyno \| Whisper modo sombra e tabela `dyno_whisper_sombra`; compara com a OpenAI sem mudar a resposta. Falta instalar o container |
 | 05/10 | Alerta de câmbio (dólar e euro) | Cotação PTAX do BC a cada 15 min, até 5 alertas por pessoa; anúncio aos 10 cadastros; seção no site, post e reel no Instagram |
 | 04/10 | Dupla Dyno e Dina | Dina (agenda e rotina) e Dyno (dinheiro) no mesmo número, com cabeçalho por voz; apresentada às 3 contas da família |
@@ -777,7 +783,7 @@ O maior risco agora é o VPS vencer em 09/10 com a renovação automática desli
 | Risco | Impacto | O que fazer |
 | --- | --- | --- |
 | VPS vence em 09/10 sem renovação automática | Dyno inteiro fora do ar | Renovar no hPanel e ligar a renovação automática |
-| Tudo num único servidor, dividido com Dynamo Wear e jogo | Uma falha derruba tudo | Separar a Dynamo Wear e o jogo, ou mover o Dyno para um VPS próprio antes de escalar |
+| Tudo num único servidor, dividido com Dynamo Wear e jogo | Uma falha derruba tudo | Servidor reserva em outro provedor com virada automática (`redundancia/`, pronto para instalar desde 10/10); separar a Dynamo Wear e o jogo antes de escalar |
 | WhatsApp não oficial (Evolution) | Bloqueio do número pela Meta | Sem mensagens frias; avaliar a API oficial antes do lançamento |
 | Dados do assistente nas Data tables do n8n | Limite de 200 MiB, sem backup próprio do banco, consultas lentas | Migrar para o Supabase |
 | Imagem do n8n sem versão fixa | Atualização surpresa ao reimplantar | Fixar a versão numa janela de manutenção |

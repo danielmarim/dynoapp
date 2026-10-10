@@ -1,0 +1,421 @@
+# GERADO por redundancia/gerar.py a partir de redundancia/src/. Não edite à mão.
+#
+# Agente do servidor reserva, no PRINCIPAL (Hostinger). Cole no Docker Manager como projeto "dyno-reserva-agente".
+# Em "Ambiente", preencha:
+#   SERVIDOR_TOKEN=<o mesmo token do .env do reserva>
+#   RESERVA_HOST=<IP do servidor reserva>
+# Comandos: docker exec dyno-reserva-agente bash /app/agente.sh verificar   (confere tudo)
+#           docker exec dyno-reserva-agente bash /app/agente.sh copiar      (manda uma cópia agora)
+name: dyno-reserva-agente
+
+services:
+  dyno-reserva-agente:
+    image: docker:27.5.1-cli@sha256:851f91d241214e7c6db86513b270d58776379aacc5eb9c4a87e5b47115e3065c
+    container_name: dyno-reserva-agente
+    restart: unless-stopped
+    environment:
+      PAPEL: principal
+      SUPABASE_URL: https://xvekgnbneeokihtjpbts.supabase.co
+      SUPABASE_ANON: ${SUPABASE_ANON:-sb_publishable_vHxckkjFp6vGKoTVXDVtlQ_xDnbSwwx}
+      SERVIDOR_TOKEN: ${SERVIDOR_TOKEN}
+      RESERVA_HOST: ${RESERVA_HOST}
+      RESERVA_PORTA: ${RESERVA_PORTA:-22}
+      INTERVALO_COPIA: ${INTERVALO_COPIA:-300}
+      PROJETOS: ${PROJETOS:-n8n evolution-dyno dyno-site dyno-n8n-dominio}
+      DADOS: /dados
+      MONTAGEM: dyno_reserva_dados:/dados
+      TZ: America/Sao_Paulo
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dyno_reserva_dados:/dados
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        r=$$(wget -q -T 10 -O - --header "apikey: $$SUPABASE_ANON" --header "Content-Type: application/json" \
+          --post-data "{\"p_token\":\"$$SERVIDOR_TOKEN\",\"p_servidor\":\"principal\"}" \
+          "$$SUPABASE_URL/rest/v1/rpc/dyno_servidor_batimento" 2>/dev/null || true)
+        case "$$r" in
+          *'"ok": true'*|*'"ok":true'*)
+            case "$$r" in
+              *'"ativo": "principal"'*|*'"ativo":"principal"'*) ;;
+              *)
+                echo "cerca rápida: o reserva é o ativo; parando n8n e Evolution aqui"
+                mkdir -p /dados
+                for c in $${CERCA:-n8n-n8n-1 dyno-evo-api}; do
+                  [ -f "/dados/politica_$$c" ] || docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$$c" > "/dados/politica_$$c" 2>/dev/null
+                  docker update --restart=no "$$c" >/dev/null 2>&1
+                  docker stop -t 10 "$$c" >/dev/null 2>&1
+                done
+                touch /dados/cercado ;;
+            esac ;;
+        esac
+
+        apk add --no-cache -q bash curl jq rsync >/dev/null || { echo 'falha ao instalar pacotes'; sleep 60; exit 1; }
+        mkdir -p /app
+        cat > /app/comum.sh <<'FIM_COMUM'
+        #!/usr/bin/env bash
+        # Servidor reserva do Dyno: funções usadas pelo agente (principal) e pelo vigia (reserva).
+        # Quem decide qual servidor atende é o árbitro no Supabase (tabela dyno_servidor).
+        set -uo pipefail
+
+        : "$${PAPEL:?defina PAPEL (principal ou reserva)}"
+        : "$${SUPABASE_URL:?defina SUPABASE_URL}"
+        : "$${SUPABASE_ANON:?defina SUPABASE_ANON (chave pública do Supabase)}"
+        : "$${SERVIDOR_TOKEN:?defina SERVIDOR_TOKEN (o mesmo nos dois servidores)}"
+        : "$${DADOS:?defina DADOS (pasta de trabalho)}"
+        : "$${MONTAGEM:?defina MONTAGEM (como os containers auxiliares enxergam DADOS)}"
+
+        FERRAMENTAS=$${FERRAMENTAS:-keinos/sqlite3:3.46.1@sha256:055d4be20d868f4077598cbbc33ce4ff39dbefbbe0b87e39ca7b70f9f51caf51}
+        N8N_CONTAINER=$${N8N_CONTAINER:-n8n-n8n-1}
+        N8N_DIR=$${N8N_DIR:-/home/node/.n8n}
+        EVO_PG_CONTAINER=$${EVO_PG_CONTAINER:-dyno-evo-postgres}
+        EVO_API_CONTAINER=$${EVO_API_CONTAINER:-dyno-evo-api}
+        INTERVALO=$${INTERVALO:-30}
+
+        log() { echo "$$(date '+%Y-%m-%d %H:%M:%S') [$$PAPEL] $$*"; }
+
+        # ---------- árbitro (Supabase) ----------
+
+        # arbitro FUNCAO JSON: chama a RPC acrescentando o token. Imprime a resposta; falha se a rede ou o HTTP falharem.
+        arbitro() {
+          local corpo
+          corpo=$$(jq -c --arg t "$$SERVIDOR_TOKEN" '. + {p_token: $$t}' <<<"$$2") || return 1
+          curl -sS -m 15 --fail-with-body -X POST "$$SUPABASE_URL/rest/v1/rpc/$$1" \
+            -H "apikey: $$SUPABASE_ANON" -H "Content-Type: application/json" -d "$$corpo"
+        }
+
+        # batimento [JSON_INFO]: avisa que este servidor está vivo e imprime o estado ({ok, ativo, mudou_em, ...}).
+        batimento() {
+          local info=$${1:-}
+          [ -n "$$info" ] || info='{}'
+          arbitro dyno_servidor_batimento "$$(jq -nc --arg s "$$PAPEL" --argjson i "$$info" '{p_servidor: $$s, p_info: $$i}')"
+        }
+
+        # mudar DE PARA MOTIVO: troca o servidor ativo (só acontece se o estado ainda for DE).
+        mudar() {
+          arbitro dyno_servidor_mudar "$$(jq -nc --arg de "$$1" --arg para "$$2" --arg m "$$3" --argjson s "$${SILENCIO_S:-180}" \
+            '{p_de: $$de, p_para: $$para, p_motivo: $$m, p_silencio_s: $$s}')"
+        }
+
+        # ---------- containers ----------
+
+        rodando() { [ "$$(docker inspect -f '{{.State.Running}}' "$$1" 2>/dev/null)" = true ]; }
+        existe() { docker inspect "$$1" >/dev/null 2>&1; }
+
+        # auxiliar ARGS...: roda um comando no container de ferramentas (sqlite3, tar), com DADOS visível no mesmo caminho.
+        # Sem rede: só mexe em arquivos.
+        auxiliar() { docker run --rm --network none --user 0 --entrypoint sh -v "$$MONTAGEM" "$$@"; }
+
+        n8n_saudavel() { docker exec "$$N8N_CONTAINER" wget -q -T 5 -O /dev/null http://127.0.0.1:5678/healthz 2>/dev/null; }
+
+        esperar_n8n() {
+          local i
+          for i in $$(seq 1 "$${1:-60}"); do
+            n8n_saudavel && return 0
+            sleep 5
+          done
+          return 1
+        }
+
+        esperar_postgres() {
+          local i
+          for i in $$(seq 1 60); do
+            docker exec "$$EVO_PG_CONTAINER" sh -c 'pg_isready -q -U "$$POSTGRES_USER"' 2>/dev/null && return 0
+            sleep 2
+          done
+          return 1
+        }
+
+        # ---------- cópia e restauração ----------
+
+        # copiar_n8n DESTINO: cópia consistente do SQLite do n8n (mesmo com o n8n rodando) + demais arquivos da pasta .n8n.
+        copiar_n8n() {
+          mkdir -p "$$1"
+          auxiliar --volumes-from "$$N8N_CONTAINER" "$$FERRAMENTAS" -euc '
+            d="$$1"; n="$$2"
+            rm -f "$$d/database.sqlite"
+            sqlite3 "$$n/database.sqlite" ".backup $$d/database.sqlite"
+            test "$$(sqlite3 "$$d/database.sqlite" "pragma quick_check")" = ok
+            tar -C "$$n" -cf "$$d/arquivos.tar" --exclude ./database.sqlite --exclude ./database.sqlite-wal \
+              --exclude ./database.sqlite-shm --exclude ./database.sqlite-journal --exclude ./binaryData .' _ "$$1" "$$N8N_DIR"
+        }
+
+        # restaurar_n8n ORIGEM: com o container do n8n parado, troca o banco e os arquivos pelos da cópia.
+        restaurar_n8n() {
+          auxiliar --volumes-from "$$N8N_CONTAINER" "$$FERRAMENTAS" -euc '
+            s="$$1"; n="$$2"
+            test "$$(sqlite3 "$$s/database.sqlite" "pragma quick_check")" = ok
+            rm -f "$$n/database.sqlite" "$$n/database.sqlite-wal" "$$n/database.sqlite-shm" "$$n/database.sqlite-journal"
+            tar -C "$$n" -xf "$$s/arquivos.tar"
+            cp "$$s/database.sqlite" "$$n/database.sqlite"
+            chown -R 1000:1000 "$$n"' _ "$$1" "$$N8N_DIR"
+        }
+
+        # volumes nomeados montados no container (destinos), separados por espaço
+        volumes_de() { docker inspect -f '{{range .Mounts}}{{if eq .Type "volume"}}{{.Destination}} {{end}}{{end}}' "$$1"; }
+
+        # copiar_evolution DESTINO: banco da Evolution (pg_dump) + volumes da API (sessão do WhatsApp).
+        copiar_evolution() {
+          mkdir -p "$$1"
+          if ! docker exec "$$EVO_PG_CONTAINER" sh -c 'pg_dump -U "$$POSTGRES_USER" -d "$${POSTGRES_DB:-$$POSTGRES_USER}" -Fc' > "$$1/banco.dump.tmp" ||
+            [ ! -s "$$1/banco.dump.tmp" ]; then
+            rm -f "$$1/banco.dump.tmp"
+            return 1
+          fi
+          mv "$$1/banco.dump.tmp" "$$1/banco.dump"
+          local vols
+          vols=$$(volumes_de "$$EVO_API_CONTAINER")
+          if [ -n "$$vols" ]; then
+            # shellcheck disable=SC2086
+            auxiliar --volumes-from "$$EVO_API_CONTAINER" "$$FERRAMENTAS" -euc 'd="$$1"; shift; tar -cf "$$d/volumes.tar" "$$@"' _ "$$1" $$vols
+          else
+            rm -f "$$1/volumes.tar"
+          fi
+        }
+
+        # restaurar_evolution ORIGEM: com a API parada e o Postgres rodando, troca o banco e os volumes da API.
+        restaurar_evolution() {
+          esperar_postgres || { log "Postgres da Evolution não respondeu"; return 1; }
+          docker exec -i "$$EVO_PG_CONTAINER" sh -c \
+            'pg_restore -U "$$POSTGRES_USER" -d "$${POSTGRES_DB:-$$POSTGRES_USER}" --clean --if-exists --no-owner --single-transaction' \
+            < "$$1/banco.dump" || return 1
+          if [ -s "$$1/volumes.tar" ]; then
+            local vols
+            vols=$$(volumes_de "$$EVO_API_CONTAINER")
+            # shellcheck disable=SC2086
+            auxiliar --volumes-from "$$EVO_API_CONTAINER" "$$FERRAMENTAS" -euc '
+              s="$$1"; shift
+              for v in "$$@"; do find "$$v" -mindepth 1 -delete; done
+              tar -C / -xf "$$s/volumes.tar"' _ "$$1" $$vols
+          fi
+        }
+        FIM_COMUM
+        cat > /app/agente.sh <<'FIM_AGENTE'
+        #!/usr/bin/env bash
+        # Agente do servidor PRINCIPAL (VPS Hostinger).
+        #  - A cada INTERVALO s: bate ponto no árbitro (Supabase).
+        #  - Se este servidor é o ativo: a cada INTERVALO_COPIA s copia n8n, Evolution e os projetos para o reserva.
+        #  - Se o reserva assumiu: para o n8n e a Evolution daqui (cerca), para não atender em dobro.
+        #  - Na volta planejada (estado "devolvendo"): busca os dados do reserva, restaura, sobe e retoma.
+        #  Comandos: agente.sh [rodar|verificar|copiar]
+        # shellcheck source=comum.sh
+        . "$$(dirname "$$0")/comum.sh"
+
+        : "$${RESERVA_HOST:?defina RESERVA_HOST (IP do servidor reserva)}"
+        RESERVA_PORTA=$${RESERVA_PORTA:-22}
+        RESERVA_USUARIO=$${RESERVA_USUARIO:-dyno}
+        INTERVALO_COPIA=$${INTERVALO_COPIA:-300}
+        PROJETOS=$${PROJETOS:-n8n evolution-dyno dyno-site dyno-n8n-dominio}
+        CERCA=$${CERCA:-$$N8N_CONTAINER $$EVO_API_CONTAINER}
+
+        CHAVE=$$DADOS/ssh/id_ed25519
+        SSH="ssh -i $$CHAVE -p $$RESERVA_PORTA -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$$DADOS/ssh/known_hosts"
+        DESTINO="$$RESERVA_USUARIO@$$RESERVA_HOST"
+
+        preparar_chave() {
+          mkdir -p "$$DADOS/ssh" && chmod 700 "$$DADOS/ssh"
+          if [ ! -f "$$CHAVE" ]; then
+            ssh-keygen -q -t ed25519 -N '' -C dyno-principal -f "$$CHAVE"
+          fi
+          log "Chave deste servidor (vai no reserva, em /home/dyno/.ssh/authorized_keys):"
+          log "command=\"rrsync /srv/dyno-reserva\",restrict $$(cat "$$CHAVE.pub")"
+        }
+
+        # ---------- cópia para o reserva ----------
+
+        # Pasta do projeto no servidor (onde está o docker-compose.yml e o .env), lida da etiqueta que o Compose grava.
+        pasta_projeto() {
+          docker ps -a --filter "label=com.docker.compose.project=$$1" --format '{{.Label "com.docker.compose.project.working_dir"}}' | head -n 1
+        }
+
+        # copiar_projeto NOME DESTINO: empacota os arquivos de configuração do projeto (compose, .env) como NOME/.
+        # Só o primeiro nível e arquivos pequenos: subpastas podem ter dados vivos (ex.: Postgres), que vão por cópia própria.
+        copiar_projeto() {
+          local dir
+          dir=$$(pasta_projeto "$$1")
+          [ -n "$$dir" ] || return 1
+          auxiliar -v "$$dir:/projeto/$$1:ro" "$$FERRAMENTAS" -euc \
+            'cd /projeto && find "$$2" -maxdepth 1 -type f -size -5120k | tar -cf "$$1" -T -' _ "$$2/$$1.tar" "$$1"
+        }
+
+        info_n8n() {
+          local ref img dig ver
+          ref=$$(docker inspect -f '{{.Config.Image}}' "$$N8N_CONTAINER")
+          img=$$(docker inspect -f '{{.Image}}' "$$N8N_CONTAINER")
+          dig=$$(docker image inspect -f '{{range .RepoDigests}}{{.}} {{end}}' "$$img" | awk '{print $$1}')
+          ver=$$(docker exec "$$N8N_CONTAINER" n8n --version 2>/dev/null | tail -n 1)
+          jq -nc --arg r "$$ref" --arg d "$$dig" --arg v "$$ver" '{n8n_imagem: $$r, n8n_digest: $$d, n8n_versao: $$v}'
+        }
+
+        copiar_e_enviar() {
+          local t0 trab slot
+          t0=$$(date +%s)
+          trab=$$DADOS/trab
+          rm -rf "$$trab" && mkdir -p "$$trab/projetos"
+          copiar_n8n "$$trab/n8n" || { log "cópia do n8n falhou"; return 1; }
+          copiar_evolution "$$trab/evolution" || { log "cópia da Evolution falhou"; return 1; }
+          local p falta=""
+          for p in $$PROJETOS; do
+            copiar_projeto "$$p" "$$trab/projetos" || falta="$$falta $$p"
+          done
+          [ -z "$$falta" ] || log "aviso: projetos sem pasta encontrada (não vão para o reserva):$$falta"
+          info_n8n | jq --arg c "$$(date -u +%FT%TZ)" --arg p "$$PROJETOS" '. + {criada_em: $$c, projetos: ($$p | split(" "))}' > "$$trab/info.json"
+
+          # Dois espaços no reserva (a e b): escreve no que não é o atual e só depois aponta ULTIMA para ele.
+          slot=a
+          [ "$$(cat "$$DADOS/slot" 2>/dev/null)" = a ] && slot=b
+          rsync -az --delete -e "$$SSH" "$$trab/" "$$DESTINO:copias/$$slot/" || { log "envio para o reserva falhou"; return 1; }
+          echo "$$slot" > "$$DADOS/ULTIMA"
+          rsync -a -e "$$SSH" "$$DADOS/ULTIMA" "$$DESTINO:copias/ULTIMA" || { log "envio do marcador falhou"; return 1; }
+          echo "$$slot" > "$$DADOS/slot"
+          date +%s > "$$DADOS/ultima_copia"
+          log "cópia enviada ao reserva (espaço $$slot, $$(du -sh "$$trab" | cut -f1), $$(( $$(date +%s) - t0 )) s)"
+        }
+
+        # ---------- cerca e volta ----------
+
+        cercar() {
+          local c
+          for c in $$CERCA; do
+            existe "$$c" || continue
+            [ -f "$$DADOS/politica_$$c" ] || docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$$c" > "$$DADOS/politica_$$c"
+            docker update --restart=no "$$c" >/dev/null
+            if rodando "$$c"; then docker stop -t 30 "$$c" >/dev/null && log "cerca: parei $$c (o reserva está atendendo)"; fi
+          done
+          touch "$$DADOS/cercado"
+        }
+
+        descercar() {
+          local c pol
+          for c in $$CERCA; do
+            existe "$$c" || continue
+            pol=$$(cat "$$DADOS/politica_$$c" 2>/dev/null || echo unless-stopped)
+            [ "$$pol" = no ] && pol=unless-stopped
+            docker update --restart="$$pol" "$$c" >/dev/null
+            rodando "$$c" || docker start "$$c" >/dev/null
+            rm -f "$$DADOS/politica_$$c"
+          done
+          rm -f "$$DADOS/cercado"
+        }
+
+        # Volta planejada: o reserva parou e deixou os dados em saida/. Busca, confere, restaura, sobe e devolve o comando.
+        receber_e_restaurar() {
+          local id=$$1 entrada=$$DADOS/entrada
+          [ -n "$$id" ] || { log "volta: o reserva ainda não informou a saída"; return 1; }
+          if [ "$$(cat "$$DADOS/restaurado" 2>/dev/null)" != "$$id" ]; then
+            cercar
+            mkdir -p "$$entrada"
+            rsync -az --delete -e "$$SSH" "$$DESTINO:saida/" "$$entrada/" || { log "volta: não consegui buscar os dados do reserva"; return 1; }
+            [ "$$(cat "$$entrada/PRONTA" 2>/dev/null)" = "$$id" ] || { log "volta: os dados no reserva não são os desta volta ($$id)"; return 1; }
+            restaurar_n8n "$$entrada/n8n" || { log "volta: restauração do n8n falhou"; return 1; }
+            restaurar_evolution "$$entrada/evolution" || { log "volta: restauração da Evolution falhou"; return 1; }
+            descercar
+            esperar_n8n 60 || { log "volta: o n8n não ficou saudável; parando de novo"; cercar; return 1; }
+            echo "$$id" > "$$DADOS/restaurado"
+            log "volta: dados do reserva restaurados ($$id)"
+          fi
+          local r
+          r=$$(mudar devolvendo principal "dados do reserva restaurados no principal ($$id)") || return 1
+          if jq -e .ok <<<"$$r" >/dev/null; then
+            log "volta concluída: o principal voltou a atender"
+            rm -f "$$DADOS/slot"   # próxima cópia recomeça no espaço a
+          else
+            log "volta: árbitro recusou ($$r)"
+          fi
+        }
+
+        # ---------- comandos ----------
+
+        verificar() {
+          echo "== containers"
+          local c
+          for c in $$N8N_CONTAINER $$EVO_PG_CONTAINER $$EVO_API_CONTAINER; do
+            if existe "$$c"; then
+              echo "$$c: $$(docker inspect -f '{{.State.Status}} imagem={{.Config.Image}} reinicio={{.HostConfig.RestartPolicy.Name}} redes={{range $$k, $$v := .NetworkSettings.Networks}}{{$$k}} {{end}}' "$$c")"
+              docker inspect -f '{{range .Mounts}}   {{.Type}} {{.Name}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}' "$$c"
+            else
+              echo "$$c: NÃO ENCONTRADO"
+            fi
+          done
+          echo "== projetos (pasta no servidor)"
+          local p d
+          for p in $$PROJETOS; do d=$$(pasta_projeto "$$p"); echo "$$p: $${d:-NÃO ENCONTRADO}"; done
+          echo "== n8n"
+          info_n8n
+          echo "== árbitro"
+          batimento || true
+          echo
+          echo "== reserva ($$DESTINO)"
+          rsync -e "$$SSH" --list-only "$$DESTINO:" && echo "acesso ao reserva: ok" || echo "acesso ao reserva: FALHOU"
+        }
+
+        # Batimento em processo separado: o ponto é batido a cada INTERVALO s mesmo durante uma cópia ou restauração
+        # demorada (senão o reserva poderia achar que o principal morreu). Grava o último estado em estado.json.
+        batedor() {
+          local est info
+          while true; do
+            info=$$(jq -nc --argjson u "$$(cat "$$DADOS/ultima_copia" 2>/dev/null || echo 0)" --arg s "$$(cat "$$DADOS/slot" 2>/dev/null)" \
+              --argjson c "$$([ -f "$$DADOS/cercado" ] && echo true || echo false)" '{ultima_copia: $$u, slot: $$s, cercado: $$c}')
+            if est=$$(batimento "$$info") && jq -e .ok <<<"$$est" >/dev/null 2>&1; then
+              jq -c --argjson t "$$(date +%s)" '. + {lido_em: $$t}' <<<"$$est" > "$$DADOS/estado.json.tmp" && mv "$$DADOS/estado.json.tmp" "$$DADOS/estado.json"
+            else
+              log "árbitro inacessível: $${est:-sem resposta}"
+            fi
+            sleep "$$INTERVALO"
+          done
+        }
+
+        # Estado lido há pouco (até 3 batimentos); vazio se o árbitro não responde.
+        estado_recente() {
+          jq -c --argjson agora "$$(date +%s)" --argjson max $$((INTERVALO * 3 + 5)) 'select(($$agora - .lido_em) <= $$max)' "$$DADOS/estado.json" 2>/dev/null
+        }
+
+        rodar() {
+          preparar_chave
+          log "agente iniciado (reserva $$DESTINO, cópia a cada $${INTERVALO_COPIA}s)"
+          rm -f "$$DADOS/estado.json"
+          batedor &
+          trap 'kill $$! 2>/dev/null' EXIT
+          local est ativo ultima
+          while true; do
+            ultima=$$(cat "$$DADOS/ultima_copia" 2>/dev/null || echo 0)
+            est=$$(estado_recente)
+            if [ -n "$$est" ]; then
+              ativo=$$(jq -r .ativo <<<"$$est")
+              case $$ativo in
+                principal)
+                  if [ -f "$$DADOS/cercado" ]; then log "ativo de novo: religando n8n e Evolution"; descercar; fi
+                  if [ $$(( $$(date +%s) - ultima )) -ge "$$INTERVALO_COPIA" ]; then copiar_e_enviar || true; fi
+                  ;;
+                reserva)
+                  cercar
+                  ;;
+                devolvendo)
+                  receber_e_restaurar "$$(jq -r '.reserva_info.saida_id // empty' <<<"$$est")" || true
+                  ;;
+              esac
+            else
+              # Sem árbitro não muda nada: se já estava atendendo, continua (e continua copiando).
+              if [ ! -f "$$DADOS/cercado" ] && [ $$(( $$(date +%s) - ultima )) -ge "$$INTERVALO_COPIA" ]; then copiar_e_enviar || true; fi
+            fi
+            sleep "$$INTERVALO"
+          done
+        }
+
+        case "$${1:-rodar}" in
+          rodar) rodar ;;
+          verificar) preparar_chave; verificar ;;
+          copiar) preparar_chave; copiar_e_enviar ;;
+          *) echo "uso: agente.sh [rodar|verificar|copiar]"; exit 2 ;;
+        esac
+        FIM_AGENTE
+        exec bash /app/agente.sh rodar
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  dyno_reserva_dados:
+    name: dyno_reserva_dados

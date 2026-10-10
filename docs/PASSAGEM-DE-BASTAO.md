@@ -128,6 +128,7 @@ O segredo do cabeçalho `X-Dyno-Site` fica só no ambiente do container (`SITE_S
 
 1. **Renovar o VPS antes de 09/10** (se cair, para tudo).
 2. Exportar os workflows do n8n (seção 5).
+2a. **Servidor reserva**: Cloudflare, VPS em outro provedor, agente e vigia (`redundancia/README.md`, seção Instalação). O árbitro no Supabase já existe (`dyno_servidor`); falta cadastrar o resumo do token.
 3. Decidir se o card semanal vai para os clientes em teste (mudar a constante `PESSOAS` em "Montar resumo de cada pessoa" ou usar `dyno_assessor_destinos()`).
 4. Teste real: extrato em PDF pelo WhatsApp (Claude), login no site, assinatura anual no Asaas (criar e cancelar).
 5. Conferir se o lembrete do café das 8:30 chega como Dina.

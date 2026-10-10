@@ -1,0 +1,54 @@
+name: dyno-n8n-dominio
+
+# Dá ao n8n um endereço no domínio do Dyno (n8n.dynoapp.com.br), que a Cloudflare consegue mandar para o servidor
+# que estiver ativo. O endereço da Hostinger (n8n.srv1825327.hstgr.cloud) continua funcionando no principal.
+# Não mexe no projeto do n8n: é um nginx na rede n8n_default que repassa para http://n8n:5678.
+# Vai no principal pelo Docker Manager; o reserva recebe uma cópia e sobe junto quando assume.
+services:
+  dyno-n8n-dominio:
+    image: nginx:1.27-alpine
+    container_name: dyno-n8n-dominio
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        cat > /etc/nginx/conf.d/default.conf <<'FIM'
+        map $$http_upgrade $$conexao { default upgrade; '' close; }
+        server {
+          listen 80;
+          client_max_body_size 64m;
+          resolver 127.0.0.11 valid=10s ipv6=off;
+          set $$n8n http://n8n:5678;
+          location / {
+            proxy_pass $$n8n;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $$http_upgrade;
+            proxy_set_header Connection $$conexao;
+            proxy_set_header Host $$host;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_read_timeout 300s;
+            proxy_buffering off;
+          }
+        }
+        FIM
+        exec nginx -g 'daemon off;'
+    networks:
+      - n8n_default
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: n8n_default
+      traefik.http.routers.n8ndyno.rule: Host(`n8n.dynoapp.com.br`)
+      traefik.http.routers.n8ndyno.entrypoints: websecure
+      traefik.http.routers.n8ndyno.tls: "true"
+      traefik.http.routers.n8ndyno.tls.certresolver: mytlschallenge
+      traefik.http.services.n8ndyno.loadbalancer.server.port: "80"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  n8n_default:
+    external: true
